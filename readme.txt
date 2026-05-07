@@ -46,3 +46,14 @@ The architecture is split in two:
 - event bus shared across all agent tools
 - taste drift over time
 - recommendation engine based on agent identity, not just clicks
+
+## Reset recovery docs
+
+Before making new changes after a context reset, review:
+- `docs/HANDOFF_RESET.md`
+- `docs/FEATURE_ROADMAP.md`
+
+These track:
+- current implementation state
+- immediate roadmap priorities
+- never-stop audio + tailnet reliability direction

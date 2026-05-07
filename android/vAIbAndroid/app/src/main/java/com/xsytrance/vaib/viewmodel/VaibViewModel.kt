@@ -57,7 +57,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val conflictResolver = ConflictResolver()
     private val weeklyRefreshOps = WeeklyRefreshOps()
     private var pollingJob: Job? = null
-    private var backendUrl: String = "http://192.168.1.147:4014"
+    private var backendUrl: String = "http://100.110.224.126:4014"
     private var tailnetHostname: String = ""
     private var tailnetPort: Int = 4014
     private var useDemoMode: Boolean = false

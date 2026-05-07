@@ -111,8 +111,7 @@ class VaibApiClient(var baseUrl: String = "http://192.168.1.147:4014") {
     fun buildDefaultEndpoints(
         baseUrl: String,
         tailnetHostname: String?,
-        tailnetPort: Int,
-        includeLocalLan: Boolean = true
+        tailnetPort: Int
     ): List<BackendEndpoint> {
         val endpoints = mutableListOf<BackendEndpoint>()
         val cleanHostname = tailnetHostname?.trim().orEmpty()
@@ -128,27 +127,36 @@ class VaibApiClient(var baseUrl: String = "http://192.168.1.147:4014") {
             )
         }
 
-        if (includeLocalLan && cleanBaseUrl.isNotBlank()) {
+        if (cleanBaseUrl.isNotBlank() && isTailnetUrl(cleanBaseUrl) && endpoints.none { it.baseUrl == cleanBaseUrl }) {
             endpoints += BackendEndpoint(
-                id = "local-lan",
-                label = "Local LAN",
+                id = "tailnet-direct",
+                label = "Tailnet Direct",
                 baseUrl = cleanBaseUrl,
-                type = BackendEndpointType.LOCAL_LAN,
+                type = BackendEndpointType.CUSTOM,
                 priority = 2
             )
         }
 
-        if (cleanBaseUrl.isNotBlank() && endpoints.none { it.baseUrl == cleanBaseUrl }) {
-            endpoints += BackendEndpoint(
-                id = "custom-url",
-                label = "Custom URL",
-                baseUrl = cleanBaseUrl,
-                type = BackendEndpointType.CUSTOM,
-                priority = 3
-            )
-        }
-
         return endpoints
+    }
+
+    private fun isTailnetUrl(rawUrl: String): Boolean {
+        return try {
+            val host = URL(rawUrl).host.trim().lowercase()
+            if (host.endsWith(".ts.net")) return true
+            isTailnet100Range(host)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun isTailnet100Range(host: String): Boolean {
+        val parts = host.split('.')
+        if (parts.size != 4) return false
+        val octets = parts.map { it.toIntOrNull() ?: return false }
+        val first = octets[0]
+        val second = octets[1]
+        return first == 100 && second in 64..127
     }
 
     private fun checkConnectionForBaseUrl(baseUrl: String, endpoint: BackendEndpoint? = null): EndpointHealthResult {

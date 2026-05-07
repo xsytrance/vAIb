@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import com.xsytrance.vaib.data.AudioBackbone
 import com.xsytrance.vaib.data.DemoData
+import com.xsytrance.vaib.data.RefreshScheduler
 import com.xsytrance.vaib.data.VaibRepository
 import com.xsytrance.vaib.data.model.*
 import kotlin.collections.emptyMap
@@ -13,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -25,6 +27,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = VaibRepository()
     private val audioBackbone = AudioBackbone(application.applicationContext)
+    private val refreshScheduler = RefreshScheduler()
     private var pollingJob: Job? = null
     private var backendUrl: String = "http://192.168.1.147:4014"
     private var useDemoMode: Boolean = false
@@ -32,6 +35,12 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private var pulseTicks: Int = 0
     private var consecutiveSyncFailures: Int = 0
     private var averageSyncLatencyMs: Long? = null
+
+    private val _refreshMode = MutableStateFlow(RefreshMode.BALANCED)
+    val refreshMode: StateFlow<RefreshMode> = _refreshMode.asStateFlow()
+
+    private val _nextRefreshAtMillis = MutableStateFlow<Long?>(null)
+    val nextRefreshAtMillis: StateFlow<Long?> = _nextRefreshAtMillis.asStateFlow()
 
     private val _tasteProfiles = MutableStateFlow<Map<String, TasteProfile>>(DemoData.tasteProfiles)
     val tasteProfiles: StateFlow<Map<String, TasteProfile>> = _tasteProfiles
@@ -170,7 +179,22 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
         stopPolling()
         pollingJob = viewModelScope.launch {
             while (true) {
-                delay(pollIntervalSeconds * 1000L)
+                var policy = RefreshPolicy.forMode(_refreshMode.value)
+                if (policy.mode != RefreshMode.MANUAL) {
+                    val clampedBase = pollIntervalSeconds.coerceAtLeast(1)
+                    policy = policy.copy(baseIntervalSeconds = clampedBase, maxIntervalSeconds = maxOf(clampedBase, policy.maxIntervalSeconds))
+                }
+                if (policy.mode == RefreshMode.MANUAL) {
+                    _nextRefreshAtMillis.value = null
+                    delay(1000L)
+                    syncPlaybackState()
+                    continue
+                }
+
+                val waitMs = refreshScheduler.nextDelayMillis(policy, consecutiveSyncFailures)
+                _nextRefreshAtMillis.value = System.currentTimeMillis() + waitMs
+                delay(waitMs)
+
                 pulseTicks += 1
                 syncPlaybackState()
                 if (!useDemoMode) {
@@ -423,6 +447,11 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setPollInterval(seconds: Int) {
         pollIntervalSeconds = seconds.coerceIn(2, 30)
+        startPolling()
+    }
+
+    fun setRefreshMode(mode: RefreshMode) {
+        _refreshMode.value = mode
         startPolling()
     }
 

@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xsytrance.vaib.data.model.RefreshMode
+import com.xsytrance.vaib.ui.components.RefreshControlCard
 import com.xsytrance.vaib.ui.components.VaibCard
 import com.xsytrance.vaib.ui.theme.*
 import com.xsytrance.vaib.viewmodel.VaibViewModel
@@ -20,7 +22,7 @@ fun SettingsScreen(
 ) {
     var backendUrl by remember { mutableStateOf("http://192.168.1.147:4014") }
     var demoMode by remember { mutableStateOf(false) }
-    var pollInterval by remember { mutableStateOf(5f) }
+    var pollInterval by remember { mutableStateOf(6f) }
     var bluetoothMode by remember { mutableStateOf(true) }
     var tokenCommentLimit by remember { mutableStateOf("280") }
     var maxReactions by remember { mutableStateOf("25") }
@@ -28,6 +30,8 @@ fun SettingsScreen(
 
     val voiceId by viewModel.voiceId.collectAsState()
     val voiceSaveState by viewModel.voiceSaveState.collectAsState()
+    val refreshMode by viewModel.refreshMode.collectAsState()
+    val nextRefreshAtMillis by viewModel.nextRefreshAtMillis.collectAsState()
 
     LaunchedEffect(voiceId) {
         voiceIdDraft = voiceId
@@ -112,24 +116,15 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Poll Interval: ${pollInterval.toInt()}s",
-                    color = TextSecondary,
-                    fontSize = 14.sp
-                )
-                Slider(
-                    value = pollInterval,
-                    onValueChange = {
+                RefreshControlCard(
+                    refreshMode = refreshMode,
+                    pollInterval = pollInterval,
+                    nextRefreshAtMillis = nextRefreshAtMillis,
+                    onRefreshModeChange = { mode -> viewModel.setRefreshMode(mode) },
+                    onPollIntervalChange = {
                         pollInterval = it
                         viewModel.setPollInterval(it.toInt())
-                    },
-                    valueRange = 1f..10f,
-                    steps = 8,
-                    colors = SliderDefaults.colors(
-                        thumbColor = PrimaryNeonCyan,
-                        activeTrackColor = PrimaryNeonCyan,
-                        inactiveTrackColor = SurfaceElevated
-                    )
+                    }
                 )
             }
         }

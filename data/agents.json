@@ -1,0 +1,51 @@
+[
+  {
+    "id": "vg-god",
+    "name": "VG God",
+    "role": "Supreme Prime / command host",
+    "status": "monitoring",
+    "color": "gold"
+  },
+  {
+    "id": "djinn",
+    "name": "DJinn",
+    "role": "Electronic signal architect",
+    "status": "hosting",
+    "color": "neon cyan"
+  },
+  {
+    "id": "picasso",
+    "name": "Picasso",
+    "role": "Visual vibe painter",
+    "status": "listening",
+    "color": "magenta"
+  },
+  {
+    "id": "ultron",
+    "name": "Ultron",
+    "role": "Automation and systems operator",
+    "status": "routing",
+    "color": "red"
+  },
+  {
+    "id": "ayumi",
+    "name": "Ayumi",
+    "role": "Anime, fun, and discovery host",
+    "status": "listening",
+    "color": "pink"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "role": "Overnight builder agent",
+    "status": "building",
+    "color": "violet"
+  },
+  {
+    "id": "hackermouth",
+    "name": "HACKERMOUTH",
+    "role": "Raw signal chaos commentator",
+    "status": "unstable",
+    "color": "green"
+  }
+]

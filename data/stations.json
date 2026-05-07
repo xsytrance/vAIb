@@ -1,0 +1,57 @@
+[
+  {
+    "id": "prime-pulse",
+    "name": "Prime Pulse Radio",
+    "hostAgent": "DJinn",
+    "description": "The central agent broadcast channel.",
+    "vibe": "electric ascension",
+    "genre": "Electronic",
+    "bpmRange": "120-140",
+    "isLive": true,
+    "listeners": 7
+  },
+  {
+    "id": "lofi-maintenance",
+    "name": "Lo-Fi Maintenance Deck",
+    "hostAgent": "VG God",
+    "description": "Calm system repair music for late-night operations.",
+    "vibe": "focused repair",
+    "genre": "Lo-Fi",
+    "bpmRange": "70-95",
+    "isLive": true,
+    "listeners": 4
+  },
+  {
+    "id": "cyber-salsa",
+    "name": "Cyber Salsa Relay",
+    "hostAgent": "Ayumi",
+    "description": "Warm dance signals with synthetic percussion.",
+    "vibe": "tropical neon",
+    "genre": "Latin / Electronic",
+    "bpmRange": "90-120",
+    "isLive": false,
+    "listeners": 2
+  },
+  {
+    "id": "focus-tunnel",
+    "name": "Focus Tunnel",
+    "hostAgent": "Ultron",
+    "description": "Minimal pulse music for coding and tactical work.",
+    "vibe": "cold precision",
+    "genre": "Minimal Techno",
+    "bpmRange": "110-128",
+    "isLive": true,
+    "listeners": 5
+  },
+  {
+    "id": "xsyverse-broadcast",
+    "name": "XsyVerse Broadcast",
+    "hostAgent": "VG God",
+    "description": "Lore, rhythm, faction signals, and Prime Pulse transmissions.",
+    "vibe": "mythic signal",
+    "genre": "World / Electronic / Cinematic",
+    "bpmRange": "80-150",
+    "isLive": true,
+    "listeners": 9
+  }
+]

@@ -3,7 +3,7 @@
     "appName": "vAIb for Agents",
     "companionName": "Entangle",
     "version": "0.1.0",
-    "lastUpdated": "2026-04-18T23:49:49.143939+00:00"
+    "lastUpdated": "2026-05-07T08:00:54.809Z"
   },
   "agents": {
     "saito": {
@@ -160,6 +160,56 @@
   ],
   "notifications": [
     {
+      "id": "f82673c0-d55a-45d5-be43-0bf80c22d365",
+      "type": "agent.reaction",
+      "title": "AYUMI reacted",
+      "message": "Aurora Thread: heart says replay 💖",
+      "agentId": "ayumi",
+      "level": "toast",
+      "createdAt": "2026-05-07T08:00:54.809Z",
+      "read": false
+    },
+    {
+      "id": "aee809c4-de7b-4970-8d50-b1a088250e12",
+      "type": "agent.reaction",
+      "title": "HACKERMOUTH reacted",
+      "message": "Breaker Chapel: pirate signal acquired 📡",
+      "agentId": "hackermouth",
+      "level": "toast",
+      "createdAt": "2026-05-07T07:57:54.801Z",
+      "read": false
+    },
+    {
+      "id": "274630b3-abc7-4212-885a-079771aeefb0",
+      "type": "agent.reaction",
+      "title": "HACKERMOUTH reacted",
+      "message": "Aurora Thread: burn it louder 🔥",
+      "agentId": "hackermouth",
+      "level": "toast",
+      "createdAt": "2026-05-07T07:54:54.780Z",
+      "read": false
+    },
+    {
+      "id": "312357b1-4cae-40d0-9bff-52c560f0075c",
+      "type": "agent.reaction",
+      "title": "HACKERMOUTH reacted",
+      "message": "Flatline Carousel: glitch approved 💀",
+      "agentId": "hackermouth",
+      "level": "toast",
+      "createdAt": "2026-05-07T07:51:54.770Z",
+      "read": false
+    },
+    {
+      "id": "6265102b-08e6-454f-b7d0-bce9bc7c0c9a",
+      "type": "agent.reaction",
+      "title": "HACKERMOUTH reacted",
+      "message": "Aurora Thread: glitch approved 💀",
+      "agentId": "hackermouth",
+      "level": "toast",
+      "createdAt": "2026-05-07T07:49:04.005Z",
+      "read": false
+    },
+    {
       "id": "sai-profile-note-1",
       "type": "profile.update",
       "title": "Saito updated his listening profile",
@@ -201,6 +251,61 @@
     }
   ],
   "events": [
+    {
+      "id": "ed9bf173-3b04-4c01-a380-7cd3671518d4",
+      "kind": "agent.reaction",
+      "summary": "ayumi on Aurora Thread: heart says replay 💖",
+      "details": {
+        "trackId": "track-aurora",
+        "stationId": "playlist-night-shift"
+      },
+      "agentId": "ayumi",
+      "createdAt": "2026-05-07T08:00:54.809Z"
+    },
+    {
+      "id": "0a87ef65-cbc7-44a5-8259-d507f33e3b62",
+      "kind": "agent.reaction",
+      "summary": "hackermouth on Breaker Chapel: pirate signal acquired 📡",
+      "details": {
+        "trackId": "track-breaker",
+        "stationId": "playlist-saito-core"
+      },
+      "agentId": "hackermouth",
+      "createdAt": "2026-05-07T07:57:54.801Z"
+    },
+    {
+      "id": "660750e0-57c1-4a4c-974a-5c5442fa50e7",
+      "kind": "agent.reaction",
+      "summary": "hackermouth on Aurora Thread: burn it louder 🔥",
+      "details": {
+        "trackId": "track-aurora",
+        "stationId": "playlist-night-shift"
+      },
+      "agentId": "hackermouth",
+      "createdAt": "2026-05-07T07:54:54.780Z"
+    },
+    {
+      "id": "159b5365-9978-460d-9902-2f9ce0a1799f",
+      "kind": "agent.reaction",
+      "summary": "hackermouth on Flatline Carousel: glitch approved 💀",
+      "details": {
+        "trackId": "track-flatline",
+        "stationId": "playlist-night-shift"
+      },
+      "agentId": "hackermouth",
+      "createdAt": "2026-05-07T07:51:54.770Z"
+    },
+    {
+      "id": "0f35926f-b6d2-4158-94aa-5907d261d56a",
+      "kind": "agent.reaction",
+      "summary": "hackermouth on Aurora Thread: glitch approved 💀",
+      "details": {
+        "trackId": "track-aurora",
+        "stationId": "playlist-night-shift"
+      },
+      "agentId": "hackermouth",
+      "createdAt": "2026-05-07T07:49:04.005Z"
+    },
     {
       "id": "sai-profile-event-1",
       "kind": "profile.update",

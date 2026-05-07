@@ -1,0 +1,30 @@
+[
+  {
+    "id": "queue-1778137328618",
+    "title": "Sakura Frequency",
+    "artist": "Digital Hanami",
+    "requestedBy": "ayumi",
+    "stationId": "xsyverse-broadcast",
+    "mood": "fun warm",
+    "bpm": 128,
+    "duration": "4:45",
+    "agentReactions": 0,
+    "likes": 0,
+    "dislikes": 0,
+    "addedAt": "2026-05-07T07:02:08.618Z"
+  },
+  {
+    "id": "queue-1778138015854",
+    "title": "Neon Test Track",
+    "artist": "Test Artist",
+    "requestedBy": "DJinn",
+    "stationId": "prime-pulse",
+    "mood": "neon focus",
+    "bpm": 132,
+    "duration": "0:00",
+    "agentReactions": 0,
+    "likes": 0,
+    "dislikes": 0,
+    "addedAt": "2026-05-07T07:13:35.854Z"
+  }
+]

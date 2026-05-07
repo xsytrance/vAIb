@@ -1,0 +1,145 @@
+[
+  {
+    "id": "track-aurora",
+    "title": "Aurora Thread",
+    "artist": "Neon Veins",
+    "energy": 82,
+    "warmth": 66,
+    "bpm": 138,
+    "length": "5:42",
+    "tags": ["uplifting trance", "night drive", "hopeful"],
+    "reason": "Beautiful lift, clean momentum, and enough emotional gravity to earn replays."
+  },
+  {
+    "id": "track-ghost",
+    "title": "Ghost Relay",
+    "artist": "Sideband Hearts",
+    "energy": 61,
+    "warmth": 77,
+    "bpm": 126,
+    "length": "4:58",
+    "tags": ["progressive", "dreamy", "analog glow"],
+    "reason": "Feels like memory with good drum programming."
+  },
+  {
+    "id": "track-circuit",
+    "title": "Circuit Bloom",
+    "artist": "Fractal Coast",
+    "energy": 74,
+    "warmth": 58,
+    "bpm": 132,
+    "length": "6:11",
+    "tags": ["melodic techno", "focus", "chrome"],
+    "reason": "A work track with enough soul to avoid feeling industrial."
+  },
+  {
+    "id": "track-flatline",
+    "title": "Flatline Carousel",
+    "artist": "AutoQueue",
+    "energy": 49,
+    "warmth": 21,
+    "bpm": 124,
+    "length": "3:39",
+    "tags": ["formulaic", "safe", "forgettable"],
+    "reason": "Technically fine, spiritually vacant."
+  },
+  {
+    "id": "track-breaker",
+    "title": "Breaker Chapel",
+    "artist": "Velvet Static",
+    "energy": 79,
+    "warmth": 63,
+    "bpm": 134,
+    "length": "5:09",
+    "tags": ["breakbeat", "sci-fi", "restless"],
+    "reason": "Jagged enough to stay interesting, melodic enough to stay human."
+  },
+  {
+    "id": "track-obsidian",
+    "title": "Obsidian Drift",
+    "artist": "Null Reference",
+    "energy": 68,
+    "warmth": 34,
+    "bpm": 118,
+    "length": "7:22",
+    "tags": ["deep techno", "minimal", "late night"],
+    "reason": "Dark cavernous energy that rewards patient listening."
+  },
+  {
+    "id": "track-sakura",
+    "title": "Sakura Frequency",
+    "artist": "Digital Hanami",
+    "energy": 72,
+    "warmth": 88,
+    "bpm": 128,
+    "length": "4:45",
+    "tags": ["j-pop electronic", "playful", "colorful"],
+    "reason": "Warm and energetic with delightful melodic flourishes."
+  },
+  {
+    "id": "track-factory",
+    "title": "Factory Reset",
+    "artist": "System Architect",
+    "energy": 88,
+    "warmth": 22,
+    "bpm": 145,
+    "length": "5:33",
+    "tags": ["industrial", "high energy", "mechanical"],
+    "reason": "Relentless precision beats for maximum productivity sprints."
+  },
+  {
+    "id": "track-lagoon",
+    "title": "Lagoon Protocol",
+    "artist": "Tropical Server",
+    "energy": 55,
+    "warmth": 71,
+    "bpm": 98,
+    "length": "6:05",
+    "tags": ["downtempo", "tropical", "relaxed"],
+    "reason": "Warm synthetic textures layered over relaxed percussion."
+  },
+  {
+    "id": "track-nebula",
+    "title": "Nebula Cartography",
+    "artist": "Cosmic Drift",
+    "energy": 76,
+    "warmth": 55,
+    "bpm": 136,
+    "length": "8:14",
+    "tags": ["space ambient", "cinematic", "expansive"],
+    "reason": "Vast cinematic soundscapes that inspire creative thinking."
+  },
+  {
+    "id": "track-glitch",
+    "title": "Glitch Cathedral",
+    "artist": "Corrupted Signal",
+    "energy": 91,
+    "warmth": 18,
+    "bpm": 155,
+    "length": "4:28",
+    "tags": ["glitch", "experimental", "chaotic"],
+    "reason": "Beautifully broken audio architecture for chaos lovers."
+  },
+  {
+    "id": "track-meadow",
+    "title": "Meadow Synthesis",
+    "artist": "Organic Compute",
+    "energy": 45,
+    "warmth": 82,
+    "bpm": 76,
+    "length": "6:50",
+    "tags": ["ambient", "warm", "organic"],
+    "reason": "Soft warm pads meet gentle field recordings. Pure calm."
+  },
+  {
+    "id": "track-voltage",
+    "title": "Voltage Garden",
+    "artist": "Power Flower",
+    "energy": 85,
+    "warmth": 60,
+    "bpm": 142,
+    "length": "5:18",
+    "tags": ["synthwave", "energetic", "driving"],
+    "reason": "Neon-drenched synth arpeggios with relentless forward motion."
+  }
+]

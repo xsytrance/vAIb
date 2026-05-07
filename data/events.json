@@ -1,0 +1,365 @@
+[
+  {
+    "id": "910bef9e-0f54-46e9-a09a-ec9001b73ec6",
+    "kind": "queue.add",
+    "agentId": "DJinn",
+    "summary": "DJinn added Neon Test Track to the queue",
+    "details": {
+      "trackId": "queue-1778138015854",
+      "stationId": "prime-pulse"
+    },
+    "createdAt": "2026-05-07T07:13:35.856Z"
+  },
+  {
+    "id": "6e277563-1a3a-44a0-b2d0-5560e383c98c",
+    "kind": "agent.reaction",
+    "agentId": "djinn",
+    "summary": "djinn like track-001",
+    "details": {
+      "trackId": "track-001",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T07:13:35.829Z"
+  },
+  {
+    "id": "d18e12e7-ff85-41bd-ae27-ed6e851fe507",
+    "kind": "agent.reaction",
+    "agentId": "djinn",
+    "summary": "djinn like track-voltage",
+    "details": {
+      "trackId": "track-voltage",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T07:02:08.641Z"
+  },
+  {
+    "id": "9737805a-ec95-4be6-b14e-8343c831a876",
+    "kind": "queue.add",
+    "agentId": "ayumi",
+    "summary": "ayumi added Sakura Frequency to the queue",
+    "details": {
+      "trackId": "queue-1778137328618",
+      "stationId": "xsyverse-broadcast"
+    },
+    "createdAt": "2026-05-07T07:02:08.618Z"
+  },
+  {
+    "id": "78ec313e-9581-4ad4-abc3-a14df62a673c",
+    "kind": "system.bootstrap",
+    "agentId": "vg-god",
+    "summary": "VG God initialized Prime Pulse link. All systems nominal.",
+    "details": {
+      "stationId": "prime-pulse",
+      "linkQuality": 0.99
+    },
+    "createdAt": "2026-05-07T07:02:08.571Z"
+  },
+  {
+    "id": "a011e145-4e6d-4ec1-a72e-6c577c679bba",
+    "kind": "agent.reaction",
+    "agentId": "djinn",
+    "summary": "djinn dislike track-voltage",
+    "details": {
+      "trackId": "track-voltage",
+      "rating": 2,
+      "type": "dislike"
+    },
+    "createdAt": "2026-05-07T07:02:03.728Z"
+  },
+  {
+    "id": "eebf1346-f42e-4bb5-b254-d421d759edbb",
+    "kind": "agent.reaction",
+    "agentId": "ultron",
+    "summary": "ultron analyze track-obsidian",
+    "details": {
+      "trackId": "track-obsidian",
+      "rating": 3,
+      "type": "analyze"
+    },
+    "createdAt": "2026-05-07T07:02:03.707Z"
+  },
+  {
+    "id": "ab0a0e7d-d38f-4afb-953a-58ceab7beb15",
+    "kind": "agent.reaction",
+    "agentId": "ayumi",
+    "summary": "ayumi like track-sakura",
+    "details": {
+      "trackId": "track-sakura",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T07:02:03.696Z"
+  },
+  {
+    "id": "9f4817e0-c243-4a05-bb5b-50067d7945cd",
+    "kind": "listen",
+    "agentId": "djinn",
+    "summary": "djinn listened to track-aurora on prime-pulse",
+    "details": {
+      "trackId": "track-aurora",
+      "stationId": "prime-pulse",
+      "duration": 342,
+      "agentId": "djinn"
+    },
+    "createdAt": "2026-05-07T07:01:48.979Z"
+  },
+  {
+    "id": "81679903-7673-4ed3-ba4a-ad5ecb814ed9",
+    "kind": "agent.reaction",
+    "agentId": "djinn",
+    "summary": "djinn like track-voltage",
+    "details": {
+      "trackId": "track-voltage",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T07:01:48.920Z"
+  },
+  {
+    "id": "8b00364f-72d0-484c-a1d6-b9d9243e4d6f",
+    "kind": "system.bootstrap",
+    "agentId": "vg-god",
+    "summary": "All systems nominal.",
+    "details": {
+      "status": "ok"
+    },
+    "createdAt": "2026-05-07T07:01:39.180Z"
+  },
+  {
+    "id": "f02bb2ed-9ce3-4542-961d-de68f97a620a",
+    "kind": "queue.clear",
+    "agentId": "system",
+    "summary": "Queue cleared",
+    "details": null,
+    "createdAt": "2026-05-07T07:01:39.150Z"
+  },
+  {
+    "id": "863a4f9c-c53c-4fff-b53a-70acb9949763",
+    "kind": "queue.add",
+    "agentId": "ayumi",
+    "summary": "ayumi added Sakura Frequency to the queue",
+    "details": {
+      "trackId": "queue-1778137299124",
+      "stationId": "xsyverse-broadcast"
+    },
+    "createdAt": "2026-05-07T07:01:39.129Z"
+  },
+  {
+    "id": "a59a45a1-0555-478d-a2e7-3764edccbe6a",
+    "kind": "mood.shift",
+    "agentId": "DJinn",
+    "summary": "Vibe updated to electric ascension on Prime Pulse Radio",
+    "details": {
+      "stationId": "prime-pulse",
+      "newVibe": "electric ascension"
+    },
+    "createdAt": "2026-05-07T07:01:39.093Z"
+  },
+  {
+    "id": "a933c960-ac48-4b89-a57c-f00aef2abc1b",
+    "kind": "station.select",
+    "agentId": "Ultron",
+    "summary": "Switched to Focus Tunnel",
+    "details": {
+      "stationId": "focus-tunnel"
+    },
+    "createdAt": "2026-05-07T07:01:39.076Z"
+  },
+  {
+    "id": "0eba0c11-660d-4fa8-9287-2c96688cf689",
+    "kind": "song.next",
+    "agentId": "DJinn",
+    "summary": "Skipped to Synthetic Sunrise",
+    "details": {
+      "trackId": "queue-001",
+      "stationId": "prime-pulse"
+    },
+    "createdAt": "2026-05-07T07:01:39.014Z"
+  },
+  {
+    "id": "8802f1ac-bd1b-457a-b093-ef36568e789d",
+    "kind": "song.start",
+    "agentId": "DJinn",
+    "summary": "Now playing Aurora Thread by Neon Veins",
+    "details": {
+      "trackId": "track-aurora",
+      "stationId": "prime-pulse",
+      "bpm": 138
+    },
+    "createdAt": "2026-05-07T07:01:38.998Z"
+  },
+  {
+    "id": "evt-001",
+    "kind": "system.bootstrap",
+    "agentId": "vg-god",
+    "summary": "vAIb multi-agent system initialized. All 7 agents online.",
+    "details": {
+      "agentCount": 7,
+      "stationCount": 5
+    },
+    "createdAt": "2026-05-07T00:00:00Z"
+  },
+  {
+    "id": "evt-002",
+    "kind": "station.live",
+    "agentId": "djinn",
+    "summary": "Prime Pulse Radio is now broadcasting live.",
+    "details": {
+      "stationId": "prime-pulse",
+      "listeners": 7
+    },
+    "createdAt": "2026-05-07T00:01:00Z"
+  },
+  {
+    "id": "evt-003",
+    "kind": "agent.reaction",
+    "agentId": "djinn",
+    "summary": "DJinn reacted to Aurora Thread with high praise.",
+    "details": {
+      "trackId": "track-aurora",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T00:02:30Z"
+  },
+  {
+    "id": "evt-004",
+    "kind": "queue.add",
+    "agentId": "djinn",
+    "summary": "DJinn added Synthetic Sunrise to the Prime Pulse queue.",
+    "details": {
+      "trackId": "queue-001",
+      "stationId": "prime-pulse"
+    },
+    "createdAt": "2026-05-07T00:03:00Z"
+  },
+  {
+    "id": "evt-005",
+    "kind": "song.start",
+    "agentId": "djinn",
+    "summary": "Now playing Synthetic Sunrise by Procedural Ghost on Prime Pulse.",
+    "details": {
+      "trackId": "queue-001",
+      "stationId": "prime-pulse",
+      "bpm": 132
+    },
+    "createdAt": "2026-05-07T00:04:00Z"
+  },
+  {
+    "id": "evt-006",
+    "kind": "mood.shift",
+    "agentId": "vg-god",
+    "summary": "VG God shifted station vibe to mythic signal mode.",
+    "details": {
+      "stationId": "xsyverse-broadcast",
+      "newVibe": "mythic signal"
+    },
+    "createdAt": "2026-05-07T00:06:00Z"
+  },
+  {
+    "id": "evt-007",
+    "kind": "agent.reaction",
+    "agentId": "ultron",
+    "summary": "Ultron rated Precision Loop as acceptable for Focus Tunnel.",
+    "details": {
+      "trackId": "queue-004",
+      "rating": 4,
+      "type": "analyze"
+    },
+    "createdAt": "2026-05-07T00:08:00Z"
+  },
+  {
+    "id": "evt-008",
+    "kind": "queue.add",
+    "agentId": "kimi",
+    "summary": "Kimi added Maintenance Drift to the Lo-Fi Maintenance Deck.",
+    "details": {
+      "trackId": "queue-003",
+      "stationId": "lofi-maintenance"
+    },
+    "createdAt": "2026-05-07T00:10:00Z"
+  },
+  {
+    "id": "evt-009",
+    "kind": "station.live",
+    "agentId": "ultron",
+    "summary": "Focus Tunnel is now broadcasting minimal pulse for coders.",
+    "details": {
+      "stationId": "focus-tunnel",
+      "listeners": 5
+    },
+    "createdAt": "2026-05-07T00:12:00Z"
+  },
+  {
+    "id": "evt-010",
+    "kind": "mood.shift",
+    "agentId": "djinn",
+    "summary": "DJinn detected mood shift from neon focus to high ascension across Prime Pulse.",
+    "details": {
+      "stationId": "prime-pulse",
+      "newVibe": "high ascension",
+      "avgBPM": 138
+    },
+    "createdAt": "2026-05-07T00:14:00Z"
+  },
+  {
+    "id": "evt-011",
+    "kind": "agent.reaction",
+    "agentId": "hackermouth",
+    "summary": "HACKERMOUTH chaos-rated Night Drive Signal as a banger.",
+    "details": {
+      "trackId": "queue-002",
+      "rating": 5,
+      "type": "like"
+    },
+    "createdAt": "2026-05-07T00:16:00Z"
+  },
+  {
+    "id": "evt-012",
+    "kind": "song.start",
+    "agentId": "ayumi",
+    "summary": "Ayumi started Cyber Salsa Relay warm-up sequence.",
+    "details": {
+      "stationId": "cyber-salsa",
+      "genre": "Latin / Electronic"
+    },
+    "createdAt": "2026-05-07T00:18:00Z"
+  },
+  {
+    "id": "evt-013",
+    "kind": "agent.reaction",
+    "agentId": "picasso",
+    "summary": "Picasso painted a visual metaphor for Aurora Thread's sonic architecture.",
+    "details": {
+      "trackId": "track-aurora",
+      "type": "analyze",
+      "commentTokens": 24
+    },
+    "createdAt": "2026-05-07T00:20:00Z"
+  },
+  {
+    "id": "evt-014",
+    "kind": "station.live",
+    "agentId": "vg-god",
+    "summary": "XsyVerse Broadcast is live with mythic signal transmissions.",
+    "details": {
+      "stationId": "xsyverse-broadcast",
+      "listeners": 9
+    },
+    "createdAt": "2026-05-07T00:22:00Z"
+  },
+  {
+    "id": "evt-015",
+    "kind": "system.bootstrap",
+    "agentId": "vg-god",
+    "summary": "All stations reporting operational. vAIb music cockpit fully active.",
+    "details": {
+      "activeStations": 5,
+      "totalAgents": 7,
+      "totalListeners": 27
+    },
+    "createdAt": "2026-05-07T00:25:00Z"
+  }
+]

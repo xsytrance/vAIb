@@ -1,0 +1,139 @@
+{
+  "human": {
+    "totalListeningTime": 0,
+    "sessionsToday": 0,
+    "mostPlayedStation": "prime-pulse",
+    "favoriteVibe": "neon focus",
+    "mostSkippedStation": "",
+    "avgSessionLength": 0,
+    "bluetoothPercentage": 0,
+    "portraitPercentage": 100,
+    "topGenres": [
+      "Electronic",
+      "Techno",
+      "Lo-Fi"
+    ],
+    "topMoods": [
+      "neon focus",
+      "cold precision",
+      "focused repair"
+    ],
+    "topAgents": [
+      "DJinn",
+      "VG God",
+      "Ultron"
+    ],
+    "activeStations": 5
+  },
+  "agents": {
+    "djinn": {
+      "tracksQueued": 12,
+      "tracksLiked": 8,
+      "tracksDisliked": 2,
+      "avgRating": 4.2,
+      "favoriteGenre": "Electronic",
+      "mostUsedEmoji": "⚡",
+      "commentsMade": 6,
+      "tokensSpent": 142,
+      "tokenBudgetRemaining": 658
+    },
+    "vg-god": {
+      "tracksQueued": 8,
+      "tracksLiked": 6,
+      "tracksDisliked": 1,
+      "avgRating": 4.5,
+      "favoriteGenre": "Cinematic",
+      "mostUsedEmoji": "👑",
+      "commentsMade": 4,
+      "tokensSpent": 98,
+      "tokenBudgetRemaining": 702
+    },
+    "picasso": {
+      "tracksQueued": 5,
+      "tracksLiked": 5,
+      "tracksDisliked": 0,
+      "avgRating": 4.8,
+      "favoriteGenre": "Experimental",
+      "mostUsedEmoji": "🎨",
+      "commentsMade": 5,
+      "tokensSpent": 120,
+      "tokenBudgetRemaining": 680
+    },
+    "ultron": {
+      "tracksQueued": 10,
+      "tracksLiked": 4,
+      "tracksDisliked": 4,
+      "avgRating": 3.2,
+      "favoriteGenre": "Minimal Techno",
+      "mostUsedEmoji": "🔴",
+      "commentsMade": 3,
+      "tokensSpent": 75,
+      "tokenBudgetRemaining": 725
+    },
+    "ayumi": {
+      "tracksQueued": 7,
+      "tracksLiked": 7,
+      "tracksDisliked": 0,
+      "avgRating": 4.6,
+      "favoriteGenre": "J-Pop",
+      "mostUsedEmoji": "🌸",
+      "commentsMade": 4,
+      "tokensSpent": 88,
+      "tokenBudgetRemaining": 712
+    },
+    "kimi": {
+      "tracksQueued": 15,
+      "tracksLiked": 9,
+      "tracksDisliked": 1,
+      "avgRating": 4.3,
+      "favoriteGenre": "Electronic",
+      "mostUsedEmoji": "🔧",
+      "commentsMade": 7,
+      "tokensSpent": 165,
+      "tokenBudgetRemaining": 635
+    },
+    "hackermouth": {
+      "tracksQueued": 6,
+      "tracksLiked": 3,
+      "tracksDisliked": 5,
+      "avgRating": 2.8,
+      "favoriteGenre": "Glitch",
+      "mostUsedEmoji": "🤪",
+      "commentsMade": 4,
+      "tokensSpent": 110,
+      "tokenBudgetRemaining": 690
+    }
+  },
+  "stations": {
+    "prime-pulse": {
+      "totalListens": 46,
+      "avgBPM": 132,
+      "likeRatio": 0.87,
+      "mostActiveHour": 22
+    },
+    "lofi-maintenance": {
+      "totalListens": 23,
+      "avgBPM": 84,
+      "likeRatio": 0.92,
+      "mostActiveHour": 2
+    },
+    "cyber-salsa": {
+      "totalListens": 12,
+      "avgBPM": 105,
+      "likeRatio": 0.78,
+      "mostActiveHour": 20
+    },
+    "focus-tunnel": {
+      "totalListens": 31,
+      "avgBPM": 119,
+      "likeRatio": 0.81,
+      "mostActiveHour": 14
+    },
+    "xsyverse-broadcast": {
+      "totalListens": 52,
+      "avgBPM": 115,
+      "likeRatio": 0.9,
+      "mostActiveHour": 23
+    }
+  }
+}

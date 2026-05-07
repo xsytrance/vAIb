@@ -2,6 +2,8 @@ package com.xsytrance.vaib.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +28,7 @@ sealed class BottomNavItem(
 ) {
     object Cockpit : BottomNavItem("cockpit", "Cockpit", Icons.Default.Home)
     object Stations : BottomNavItem("stations", "Stations", Icons.Default.Radio)
-    object Queue : BottomNavItem("queue", "Queue", Icons.Default.QueueMusic)
+    object Queue : BottomNavItem("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic)
     object Agents : BottomNavItem("agents", "Agents", Icons.Default.SmartToy)
     object More : BottomNavItem("more", "More", Icons.Default.MoreHoriz)
 }
@@ -88,7 +90,7 @@ fun VaibNavHost(
                     navigationIcon = {
                         IconButton(onClick = { navController.navigate(BottomNavItem.More.route) }) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = PrimaryNeonCyan
                             )

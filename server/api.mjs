@@ -3,6 +3,13 @@ import { randomUUID } from 'node:crypto'
 import { clone, readState, writeState } from './store.mjs'
 
 const port = Number(process.env.VAIB_PORT || 4014)
+const AUTO_TICK_MS = Number(process.env.VAIB_AUTO_TICK_MS || 180000)
+const COMMENT_TEMPLATES = {
+  djinn: ['phase-locked and peaking ⚡', 'this groove is a torque engine 🌀', 'deck pressure optimal 🎛️'],
+  ayumi: ['this sparkles hard ✨', 'heart says replay 💖', 'anime-opener energy 🎧'],
+  ultron: ['acceptable precision 🔴', 'timing variance low ⚙️', 'keep only high-signal tracks 🔴'],
+  hackermouth: ['glitch approved 💀', 'pirate signal acquired 📡', 'burn it louder 🔥'],
+}
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
@@ -46,6 +53,82 @@ function recordEvent(state, { kind, summary, agentId = 'saito', details = null }
     agentId,
     createdAt: new Date().toISOString(),
   })
+}
+
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)]
+}
+
+function getStations(state) {
+  return state.playlists.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    trackCount: p.trackIds.length,
+  }))
+}
+
+function getQueue(state) {
+  const agent = state.agents.saito
+  return playlistTracks(state, agent.playlistId)
+}
+
+function getAgents(state) {
+  const base = Object.values(state.agents)
+  const extras = [
+    { id: 'djinn', name: 'DJinn', mood: 'charged', status: 'online', emoji: '⚡🌀🎛️' },
+    { id: 'ayumi', name: 'Ayumi', mood: 'bright', status: 'online', emoji: '✨💖🎧' },
+    { id: 'ultron', name: 'Ultron', mood: 'cold', status: 'online', emoji: '🔴⚙️' },
+    { id: 'hackermouth', name: 'HACKERMOUTH', mood: 'chaotic', status: 'online', emoji: '💀📡🔥' },
+  ]
+  return [...base, ...extras]
+}
+
+function getStats(state) {
+  const queue = getQueue(state)
+  const avgBpm = queue.length ? Math.round(queue.reduce((a, t) => a + (t.bpm || 0), 0) / queue.length) : 0
+  return {
+    listeners: 42 + Math.floor(Math.random() * 35),
+    avgBpm,
+    favorites: state.agents.saito.favorites.length,
+    skips: state.agents.saito.skipped.length,
+    events: state.events.length,
+  }
+}
+
+function getTokens() {
+  return {
+    prompt: 15000 + Math.floor(Math.random() * 4000),
+    completion: 7000 + Math.floor(Math.random() * 2500),
+    burnRatePerHour: 3800 + Math.floor(Math.random() * 1400),
+  }
+}
+
+async function runAutonomyTick() {
+  const state = await readState()
+  const stations = getStations(state)
+  const activeStation = pick(stations)
+  const queue = getQueue(state)
+  const track = queue.length ? pick(queue) : null
+  const critic = pick(['djinn', 'ayumi', 'ultron', 'hackermouth'])
+  if (track) {
+    const comment = pick(COMMENT_TEMPLATES[critic])
+    queueNotification(state, {
+      type: 'agent.reaction',
+      title: `${critic.toUpperCase()} reacted`,
+      message: `${track.title}: ${comment}`,
+      agentId: critic,
+      level: 'toast',
+    })
+    recordEvent(state, {
+      kind: 'agent.reaction',
+      summary: `${critic} on ${track.title}: ${comment}`,
+      agentId: critic,
+      details: { trackId: track.id, stationId: activeStation.id },
+    })
+  }
+  state.meta.lastUpdated = new Date().toISOString()
+  await writeState(state)
 }
 
 function derive(state) {
@@ -227,6 +310,42 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (req.method === 'GET' && url.pathname === '/stations') {
+      const state = await readState()
+      sendJson(res, 200, { stations: getStations(state) })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/queue') {
+      const state = await readState()
+      sendJson(res, 200, { queue: getQueue(state) })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/agents') {
+      const state = await readState()
+      sendJson(res, 200, { agents: getAgents(state) })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/stats') {
+      const state = await readState()
+      sendJson(res, 200, { stats: getStats(state) })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/tokens') {
+      sendJson(res, 200, { tokens: getTokens() })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/tick') {
+      await runAutonomyTick()
+      const state = await readState()
+      sendJson(res, 200, { ok: true, lastUpdated: state.meta.lastUpdated })
+      return
+    }
+
     if (req.method === 'POST' && url.pathname === '/action') {
       const body = await readBody(req)
       const state = await handleAction(body)
@@ -248,3 +367,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, '0.0.0.0', () => {
   console.log(`vAIb API listening on ${port}`)
 })
+
+setInterval(() => {
+  runAutonomyTick().catch((error) => {
+    console.error('autonomy tick failed:', error.message)
+  })
+}, AUTO_TICK_MS)

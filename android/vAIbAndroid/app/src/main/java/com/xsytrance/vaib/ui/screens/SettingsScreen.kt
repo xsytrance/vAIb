@@ -18,12 +18,20 @@ import com.xsytrance.vaib.viewmodel.VaibViewModel
 fun SettingsScreen(
     viewModel: VaibViewModel
 ) {
-    var backendUrl by remember { mutableStateOf("http://10.0.2.2:4014") }
-    var demoMode by remember { mutableStateOf(true) }
+    var backendUrl by remember { mutableStateOf("http://192.168.1.147:4014") }
+    var demoMode by remember { mutableStateOf(false) }
     var pollInterval by remember { mutableStateOf(5f) }
     var bluetoothMode by remember { mutableStateOf(true) }
     var tokenCommentLimit by remember { mutableStateOf("280") }
     var maxReactions by remember { mutableStateOf("25") }
+    var voiceIdDraft by remember { mutableStateOf("") }
+
+    val voiceId by viewModel.voiceId.collectAsState()
+    val voiceSaveState by viewModel.voiceSaveState.collectAsState()
+
+    LaunchedEffect(voiceId) {
+        voiceIdDraft = voiceId
+    }
 
     Column(
         modifier = Modifier
@@ -203,6 +211,45 @@ fun SettingsScreen(
                         unfocusedContainerColor = SurfaceElevated
                     )
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = voiceIdDraft,
+                    onValueChange = { voiceIdDraft = it },
+                    label = { Text("Voice ID", color = TextMuted) },
+                    placeholder = { Text("Enter ElevenLabs voice ID", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = PrimaryNeonCyan,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedContainerColor = SurfaceElevated,
+                        unfocusedContainerColor = SurfaceElevated
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { viewModel.saveVoiceId(voiceIdDraft) },
+                    enabled = voiceSaveState != "saving",
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryNeonCyan,
+                        contentColor = BackgroundAmoled
+                    )
+                ) {
+                    Text(if (voiceSaveState == "saving") "Saving..." else "Save Voice ID")
+                }
+
+                if (voiceSaveState == "saved") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Voice ID saved", color = PrimaryNeonCyan, fontSize = 12.sp)
+                } else if (voiceSaveState == "error") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Failed to save Voice ID", color = AccentMagenta, fontSize = 12.sp)
+                }
             }
         }
 

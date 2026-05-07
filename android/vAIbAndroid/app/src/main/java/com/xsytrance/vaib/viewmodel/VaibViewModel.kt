@@ -36,6 +36,12 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val _listeningStats = MutableStateFlow<ListeningStats>(DemoData.listeningStats)
     val listeningStats: StateFlow<ListeningStats> = _listeningStats
 
+    private val _voiceId = MutableStateFlow("")
+    val voiceId: StateFlow<String> = _voiceId
+
+    private val _voiceSaveState = MutableStateFlow<String?>(null)
+    val voiceSaveState: StateFlow<String?> = _voiceSaveState
+
     private val reactionVoices = mapOf(
         "vg-god" to listOf("Signal approved. Hold formation.", "Command greenlights this lane.", "Broadcast discipline is solid."),
         "djinn" to listOf("Phase lock clean.", "Transients crisp. Synth bus aligned.", "High-BPM lane is stable."),
@@ -58,6 +64,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
         bindPlayer()
         loadDemoData()
         startPolling()
+        loadVoiceId()
         _appState.value.playback.currentStation?.let { playStation(it) }
     }
 
@@ -276,6 +283,32 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     fun setPollInterval(seconds: Int) {
         pollIntervalSeconds = seconds.coerceIn(2, 30)
         startPolling()
+    }
+
+    fun loadVoiceId() {
+        viewModelScope.launch {
+            val fetched = repository.fetchVoiceId() ?: ""
+            _voiceId.value = fetched
+            _voiceSaveState.value = null
+        }
+    }
+
+    fun saveVoiceId(voiceId: String) {
+        val clean = voiceId.trim()
+        _voiceSaveState.value = "saving"
+        viewModelScope.launch {
+            val ok = repository.saveVoiceId(clean)
+            if (ok) {
+                _voiceId.value = clean
+                _voiceSaveState.value = "saved"
+            } else {
+                _voiceSaveState.value = "error"
+            }
+        }
+    }
+
+    fun clearVoiceSaveState() {
+        _voiceSaveState.value = null
     }
 
     fun togglePlayPause() {

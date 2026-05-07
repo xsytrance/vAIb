@@ -88,6 +88,28 @@ class VaibRepository(
         apiClient.post("/queue/add", body.toString()) != null
     }
 
+    suspend fun fetchVoiceId(): String? = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext null
+        val state = apiClient.get("/state") ?: return@withContext null
+        state.optJSONObject("preferences")
+            ?.optJSONObject("humanView")
+            ?.optString("voiceId", "")
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    suspend fun saveVoiceId(voiceId: String): Boolean = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext false
+        val body = JSONObject().apply {
+            put("action", "preferences")
+            put("payload", JSONObject().apply {
+                put("humanView", JSONObject().apply {
+                    put("voiceId", voiceId)
+                })
+            })
+        }
+        apiClient.post("/action", body.toString()) != null
+    }
+
     private fun parseAppState(json: JSONObject): AppState {
         return DemoData.getDefaultAppState()
     }

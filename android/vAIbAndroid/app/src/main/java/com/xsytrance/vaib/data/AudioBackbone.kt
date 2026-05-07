@@ -103,11 +103,14 @@ class AudioBackbone(private val context: Context) {
     }
 
     fun sourceFor(station: Station): String {
-        if (hasExternalLocal(station)) return "local"
-        return when {
-            hasBundledAsset(station) -> "asset"
-            !station.streamUrl.isNullOrBlank() -> "stream"
-            else -> "asset"
+        val hasLocal = hasExternalLocal(station)
+        val hasStream = !station.streamUrl.isNullOrBlank()
+        val hasAsset = hasBundledAsset(station)
+
+        return when (station.playbackMode) {
+            "local" -> if (hasLocal) "local" else if (hasAsset) "asset" else if (hasStream) "stream" else "asset"
+            "stream" -> if (hasStream) "stream" else if (hasLocal) "local" else "asset"
+            else -> if (hasLocal) "local" else if (hasStream) "stream" else "asset"
         }
     }
 
@@ -124,13 +127,33 @@ class AudioBackbone(private val context: Context) {
     }
 
     private fun resolveUri(station: Station): Uri {
-        if (hasExternalLocal(station)) return Uri.fromFile(File(station.fallbackLocalTrack!!))
-
+        val hasLocal = hasExternalLocal(station)
+        val hasStream = !station.streamUrl.isNullOrBlank()
         val assetUri = Uri.parse("asset:///audio/${station.id}.mp3")
+
         return when (station.playbackMode) {
-            "local" -> assetUri
-            "stream" -> Uri.parse(station.streamUrl ?: assetUri.toString())
-            else -> if (hasBundledAsset(station)) assetUri else Uri.parse(station.streamUrl ?: assetUri.toString())
+            "local" -> {
+                when {
+                    hasLocal -> Uri.fromFile(File(station.fallbackLocalTrack!!))
+                    hasBundledAsset(station) -> assetUri
+                    hasStream -> Uri.parse(station.streamUrl!!)
+                    else -> assetUri
+                }
+            }
+            "stream" -> {
+                when {
+                    hasStream -> Uri.parse(station.streamUrl!!)
+                    hasLocal -> Uri.fromFile(File(station.fallbackLocalTrack!!))
+                    else -> assetUri
+                }
+            }
+            else -> {
+                when {
+                    hasLocal -> Uri.fromFile(File(station.fallbackLocalTrack!!))
+                    hasStream -> Uri.parse(station.streamUrl!!)
+                    else -> assetUri
+                }
+            }
         }
     }
 

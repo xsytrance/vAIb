@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import com.xsytrance.vaib.data.AudioBackbone
+import com.xsytrance.vaib.data.AutomationEngine
 import com.xsytrance.vaib.data.ChangeFeedEngine
 import com.xsytrance.vaib.data.DemoData
 import com.xsytrance.vaib.data.FreshnessScorer
@@ -32,6 +33,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val refreshScheduler = RefreshScheduler()
     private val changeFeedEngine = ChangeFeedEngine()
     private val freshnessScorer = FreshnessScorer()
+    private val automationEngine = AutomationEngine()
     private var pollingJob: Job? = null
     private var backendUrl: String = "http://192.168.1.147:4014"
     private var useDemoMode: Boolean = false
@@ -69,6 +71,40 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _freshnessScore = MutableStateFlow(100)
     val freshnessScore: StateFlow<Int> = _freshnessScore.asStateFlow()
+
+    private val _automationRules = MutableStateFlow(
+        listOf(
+            AutomationRule(
+                id = "rule-connector-offline",
+                name = "Notify on connector offline",
+                enabled = true,
+                trigger = AutomationTriggerType.CONNECTOR_OFFLINE,
+                action = AutomationActionType.LOCAL_NOTIFICATION
+            ),
+            AutomationRule(
+                id = "rule-low-freshness",
+                name = "Force refresh on low freshness",
+                enabled = true,
+                trigger = AutomationTriggerType.FRESHNESS_BELOW_THRESHOLD,
+                action = AutomationActionType.FORCE_REFRESH,
+                freshnessThreshold = 45
+            ),
+            AutomationRule(
+                id = "rule-reaction-burst",
+                name = "Pin update on activity burst",
+                enabled = true,
+                trigger = AutomationTriggerType.REACTION_BURST,
+                action = AutomationActionType.PIN_UPDATE,
+                reactionBurstThreshold = 3
+            )
+        )
+    )
+    val automationRules: StateFlow<List<AutomationRule>> = _automationRules.asStateFlow()
+
+    private val _automationLog = MutableStateFlow<List<AutomationDecision>>(emptyList())
+    val automationLog: StateFlow<List<AutomationDecision>> = _automationLog.asStateFlow()
+
+    private var lastForceRefreshAtMillis: Long = 0L
 
     private var lastSnapshot: AppState? = null
 
@@ -262,7 +298,55 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             _changeFeed.update { existing -> (deltaEvents + existing).take(100) }
         }
         _freshnessScore.value = freshnessScorer.score(newState, atMillis)
+
+        val decisions = automationEngine.evaluate(
+            rules = _automationRules.value,
+            events = deltaEvents,
+            freshnessScore = _freshnessScore.value,
+            atMillis = atMillis
+        )
+        if (decisions.isNotEmpty()) {
+            _automationLog.update { existing -> (decisions + existing).take(120) }
+            applyAutomationDecisions(decisions, atMillis)
+        }
+
         lastSnapshot = newState
+    }
+
+    private fun applyAutomationDecisions(decisions: List<AutomationDecision>, atMillis: Long) {
+        decisions.forEach { decision ->
+            when (decision.action) {
+                AutomationActionType.LOCAL_NOTIFICATION -> {
+                    _appState.update { state ->
+                        val row = VaibEvent(
+                            id = "auto-${decision.ruleId}-${decision.atMillis}",
+                            type = "automation.notify",
+                            description = "[AUTO] ${decision.ruleName}: ${decision.detail}",
+                            createdAt = decision.atMillis.toString()
+                        )
+                        state.copy(events = listOf(row) + state.events.take(19))
+                    }
+                }
+                AutomationActionType.PIN_UPDATE -> {
+                    _appState.update { state ->
+                        val row = VaibEvent(
+                            id = "pin-${decision.ruleId}-${decision.atMillis}",
+                            type = "automation.pin",
+                            description = "[PIN] ${decision.detail}",
+                            createdAt = decision.atMillis.toString()
+                        )
+                        state.copy(events = listOf(row) + state.events.take(19))
+                    }
+                }
+                AutomationActionType.FORCE_REFRESH -> {
+                    val cooldownMs = 30_000L
+                    if (atMillis - lastForceRefreshAtMillis >= cooldownMs) {
+                        lastForceRefreshAtMillis = atMillis
+                        refresh()
+                    }
+                }
+            }
+        }
     }
 
     private fun registerSyncSuccess(latencyMs: Long, atMillis: Long) {
@@ -483,6 +567,12 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     fun setRefreshMode(mode: RefreshMode) {
         _refreshMode.value = mode
         startPolling()
+    }
+
+    fun setRuleEnabled(ruleId: String, enabled: Boolean) {
+        _automationRules.update { rules ->
+            rules.map { rule -> if (rule.id == ruleId) rule.copy(enabled = enabled) else rule }
+        }
     }
 
     fun loadVoiceId() {

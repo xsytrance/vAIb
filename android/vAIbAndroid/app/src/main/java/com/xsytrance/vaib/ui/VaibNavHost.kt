@@ -37,6 +37,7 @@ object MoreRoutes {
     const val Api = "api"
     const val Settings = "settings"
     const val Updates = "updates"
+    const val Automation = "automation"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +49,8 @@ fun VaibNavHost(
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     val freshnessScore by viewModel.freshnessScore.collectAsStateWithLifecycle()
     val changeFeed by viewModel.changeFeed.collectAsStateWithLifecycle()
+    val automationRules by viewModel.automationRules.collectAsStateWithLifecycle()
+    val automationLog by viewModel.automationLog.collectAsStateWithLifecycle()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: BottomNavItem.Cockpit.route
 
@@ -73,6 +76,7 @@ fun VaibNavHost(
                             MoreRoutes.Api -> "API"
                             MoreRoutes.Settings -> "Settings"
                             MoreRoutes.Updates -> "Updates"
+                            MoreRoutes.Automation -> "Automation"
                             else -> "vAIb"
                         }
                         Text(text = title, color = TextPrimary)
@@ -187,6 +191,13 @@ fun VaibNavHost(
             }
             composable(MoreRoutes.Updates) {
                 UpdatesScreen(freshnessScore = freshnessScore, changeFeed = changeFeed)
+            }
+            composable(MoreRoutes.Automation) {
+                AutomationScreen(
+                    rules = automationRules,
+                    log = automationLog,
+                    onRuleToggled = { ruleId, enabled -> viewModel.setRuleEnabled(ruleId, enabled) }
+                )
             }
         }
     }

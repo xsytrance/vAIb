@@ -105,9 +105,14 @@ function App() {
   const events = state?.events || []
   const notifications = state?.notifications || []
   const favorites = runtime?.favorites || []
+  const [voiceIdDraft, setVoiceIdDraft] = useState('')
 
   const favoritesSet = useMemo(() => new Set(agent?.favorites || []), [agent])
   const skippedSet = useMemo(() => new Set(agent?.skipped || []), [agent])
+
+  useEffect(() => {
+    setVoiceIdDraft(state?.preferences?.humanView?.voiceId || '')
+  }, [state?.preferences?.humanView?.voiceId])
 
   async function act(action, payload = {}) {
     try {
@@ -289,6 +294,25 @@ function App() {
               {moodOptions.map((mood) => (
                 <button key={mood} type="button" className="chipButton" onClick={() => act('mood', { mood })}>{mood}</button>
               ))}
+            </div>
+          </div>
+
+          <div className="moodTools">
+            <h3>Voice ID</h3>
+            <div className="controlRow">
+              <input
+                type="text"
+                value={voiceIdDraft}
+                placeholder="Enter ElevenLabs voice ID"
+                onChange={(event) => setVoiceIdDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => act('preferences', { humanView: { voiceId: voiceIdDraft.trim() } })}
+                disabled={busy === 'preferences'}
+              >
+                Save Voice ID
+              </button>
             </div>
           </div>
 

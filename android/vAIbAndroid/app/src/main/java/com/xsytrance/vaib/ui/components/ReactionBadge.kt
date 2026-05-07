@@ -30,13 +30,11 @@ fun ReactionBadge(
                 AgentChip(
                     name = reaction.agentId.replaceFirstChar { it.uppercase() },
                     colorHex = when (reaction.agentId) {
+                        "vg-god" -> "#FFD700"
                         "djinn" -> "#00E5FF"
-                        "groove-whisper" -> "#FFD700"
-                        "salsa-bot" -> "#FF00FF"
-                        "synth-rider" -> "#8B5CF6"
-                        "bass-forge" -> "#FF4444"
-                        "harmony" -> "#00FF88"
-                        "echo" -> "#FF8800"
+                        "ultron" -> "#FF3344"
+                        "ayumi" -> "#FF6BFF"
+                        "hackermouth" -> "#39FF14"
                         else -> "#AAAAAA"
                     }
                 )
@@ -55,7 +53,7 @@ fun ReactionBadge(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = ""${'$'}{reaction.comment}"",
+                text = "\"${reaction.comment}\"",
                 color = TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
@@ -86,7 +84,7 @@ fun ReactionBadge(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
-                        text = "${'$'}{reaction.estimatedTokens}t",
+                        text = "${reaction.estimatedTokens}t",
                         color = TextMuted,
                         fontSize = 11.sp
                     )

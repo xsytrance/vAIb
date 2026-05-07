@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +57,7 @@ fun CockpitScreen(
                 Text(
                     text = "vAIb",
                     color = PrimaryNeonCyan,
-                    fontSize = 36.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -77,7 +79,14 @@ fun CockpitScreen(
                 StatusPill(
                     status = if (appState.isBackendConnected) "connected" else "disconnected"
                 )
-                StatusPill(status = "bluetooth")
+                StatusPill(status = if (playback.outputMode == "bluetooth") "bluetooth" else "listening")
+                IconButton(onClick = { viewModel.togglePlayPause() }) {
+                    Icon(
+                        imageVector = if (playback.isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                        contentDescription = "Play/Pause",
+                        tint = SecondaryGold
+                    )
+                }
                 IconButton(onClick = { viewModel.refresh() }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
@@ -105,7 +114,7 @@ fun CockpitScreen(
             VaibCard(neonGlow = true) {
                 Column {
                     Text(
-                        text = "Now Playing",
+                        text = if (playback.isBuffering) "Now Broadcasting (buffering…)" else "Now Broadcasting",
                         color = PrimaryNeonCyan,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -155,7 +164,10 @@ fun CockpitScreen(
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    VisualizerBars(isPlaying = playback.isPlaying)
+                    VisualizerBars(
+                        isPlaying = playback.isPlaying,
+                        intensity = if (playback.isBuffering) 0.35f else 0.9f
+                    )
                 }
             }
         }

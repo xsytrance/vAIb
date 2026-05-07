@@ -9,5 +9,8 @@ data class Station(
     val genre: String,
     val bpmRange: String,
     val isLive: Boolean,
-    val listeners: Int = 0
+    val listeners: Int = 0,
+    val streamUrl: String? = null,
+    val fallbackLocalTrack: String? = null,
+    val playbackMode: String = "hybrid"
 )

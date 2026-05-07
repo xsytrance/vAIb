@@ -62,7 +62,7 @@ fun StationCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${'$'}{station.hostAgent} • ${'$'}{station.description}",
+                text = "${station.hostAgent} • ${station.description}",
                 color = TextSecondary,
                 fontSize = 13.sp
             )
@@ -87,7 +87,7 @@ fun StationCard(
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
-                            text = "${'$'}{station.listeners}",
+                            text = "${station.listeners}",
                             color = TextMuted,
                             fontSize = 12.sp
                         )
@@ -105,7 +105,7 @@ fun StationCard(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
-                        text = "${'$'}{station.bpmRange}",
+                        text = station.bpmRange,
                         color = PrimaryNeonCyan,
                         fontSize = 12.sp
                     )
@@ -122,7 +122,7 @@ fun StationCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Vibe: ${'$'}{station.vibe}",
+                    text = "Vibe: ${station.vibe}",
                     color = AccentMagenta,
                     fontSize = 12.sp
                 )

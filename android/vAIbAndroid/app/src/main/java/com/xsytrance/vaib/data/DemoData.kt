@@ -14,62 +14,75 @@ object DemoData {
             genre = "Electronic",
             bpmRange = "120-140",
             isLive = true,
-            listeners = 3
+            listeners = 3,
+            streamUrl = "https://ice1.somafm.com/groovesalad-128-mp3",
+            fallbackLocalTrack = "/storage/emulated/0/Music/vAIb/prime_pulse.mp3",
+            playbackMode = "hybrid"
         ),
         Station(
-            id = "chill-core",
-            name = "Chill Core",
-            hostAgent = "GrooveWhisper",
-            description = "Laid-back beats for deep work",
-            vibe = "lo-fi warmth",
-            genre = "Lo-Fi",
-            bpmRange = "70-90",
+            id = "city-pop-signal",
+            name = "City Pop Signal",
+            hostAgent = "Ayumi",
+            description = "Warm anime and city-pop energy",
+            vibe = "sunset sparkle",
+            genre = "City Pop",
+            bpmRange = "96-122",
             isLive = true,
-            listeners = 2
+            listeners = 2,
+            streamUrl = "https://ice1.somafm.com/u80s-128-mp3",
+            fallbackLocalTrack = "/storage/emulated/0/Music/vAIb/city_pop_signal.mp3",
+            playbackMode = "hybrid"
         ),
         Station(
-            id = "salsa-surge",
-            name = "Salsa Surge",
-            hostAgent = "SalsaBot",
-            description = "Latin rhythms and tropical energy",
-            vibe = "tropical fire",
-            genre = "Latin",
-            bpmRange = "100-130",
+            id = "redline-grid",
+            name = "Redline Grid",
+            hostAgent = "Ultron",
+            description = "Industrial tactical pressure",
+            vibe = "precision burn",
+            genre = "Industrial",
+            bpmRange = "122-146",
             isLive = true,
-            listeners = 1
+            listeners = 1,
+            streamUrl = "https://ice1.somafm.com/dronezone-128-mp3",
+            fallbackLocalTrack = "/storage/emulated/0/Music/vAIb/redline_grid.mp3",
+            playbackMode = "hybrid"
         ),
         Station(
-            id = "night-drive",
-            name = "Night Drive",
-            hostAgent = "SynthRider",
-            description = "Synthwave for the midnight highway",
-            vibe = "retrowave",
+            id = "glitch-ditch",
+            name = "Glitch Ditch",
+            hostAgent = "HACKERMOUTH",
+            description = "Chaotic cyberpunk signal goblin lane",
+            vibe = "signal corruption",
+            genre = "Glitch",
+            bpmRange = "110-160",
+            isLive = false,
+            listeners = 0,
+            streamUrl = "https://ice1.somafm.com/cliqhop-128-mp3",
+            fallbackLocalTrack = "/storage/emulated/0/Music/vAIb/glitch_ditch.mp3",
+            playbackMode = "hybrid"
+        ),
+        Station(
+            id = "gold-command",
+            name = "Gold Command",
+            hostAgent = "VG God",
+            description = "Strategic command-center signal",
+            vibe = "elite oversight",
             genre = "Synthwave",
-            bpmRange = "110-135",
-            isLive = false,
-            listeners = 0
-        ),
-        Station(
-            id = "bass-cannon",
-            name = "Bass Cannon",
-            hostAgent = "BassForge",
-            description = "Heavy bass and drum programming",
-            vibe = "bass command",
-            genre = "Bass",
-            bpmRange = "130-160",
-            isLive = false,
-            listeners = 0
+            bpmRange = "108-132",
+            isLive = true,
+            listeners = 4,
+            streamUrl = "https://ice1.somafm.com/sf1033-128-mp3",
+            fallbackLocalTrack = "/storage/emulated/0/Music/vAIb/gold_command.mp3",
+            playbackMode = "hybrid"
         )
     )
 
     val agents = listOf(
-        Agent(id = "djinn", name = "DJinn", role = "Host", status = "online", color = "#00E5FF", currentStationId = "prime-pulse"),
-        Agent(id = "groove-whisper", name = "GrooveWhisper", role = "Curator", status = "listening", color = "#FFD700", currentStationId = "chill-core"),
-        Agent(id = "salsa-bot", name = "SalsaBot", role = "Host", status = "online", color = "#FF00FF", currentStationId = "salsa-surge"),
-        Agent(id = "synth-rider", name = "SynthRider", role = "Vibe", status = "building", color = "#8B5CF6", currentStationId = null),
-        Agent(id = "bass-forge", name = "BassForge", role = "Engineer", status = "routing", color = "#FF4444", currentStationId = null),
-        Agent(id = "harmony", name = "Harmony", role = "Listener", status = "listening", color = "#00FF88", currentStationId = "prime-pulse"),
-        Agent(id = "echo", name = "Echo", role = "Observer", status = "unstable", color = "#FF8800", currentStationId = null)
+        Agent(id = "vg-god", name = "VG God", role = "Command", status = "online", color = "#FFD700", currentStationId = "gold-command"),
+        Agent(id = "djinn", name = "DJinn", role = "Signal Architect", status = "hosting", color = "#00E5FF", currentStationId = "prime-pulse"),
+        Agent(id = "ultron", name = "Ultron", role = "Systems Critic", status = "online", color = "#FF3344", currentStationId = "redline-grid"),
+        Agent(id = "ayumi", name = "Ayumi", role = "Discovery Host", status = "listening", color = "#FF6BFF", currentStationId = "city-pop-signal"),
+        Agent(id = "hackermouth", name = "HACKERMOUTH", role = "Signal Goblin", status = "unstable", color = "#39FF14", currentStationId = "glitch-ditch")
     )
 
     val tracks = listOf(

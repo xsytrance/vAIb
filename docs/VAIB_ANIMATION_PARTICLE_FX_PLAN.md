@@ -1,18 +1,18 @@
-# VAIB Animation & Particle FX System — Technical Plan (Revised)
+# VAIB Animation & Particle FX System — Technical Plan v3.0
 
 **Branch:** `prime-stabilization`  
 **Commit:** `f6572b8` — "feat(android): add isolated app auto-update flow" (2026-05-07)  
-**Local Plan Commit:** `4179491` — previous plan superseded  
+**Local Plan Commit:** `4179491` — v2.0 superseded  
 **Package:** `com.xsytrance.vaib`  
 **Min SDK:** 28 / **Target SDK:** 34 / **Compile SDK:** 34  
 **Compose BOM:** 2024.02.00 / **Kotlin:** 1.9.22  
-**Status:** DRAFT v2.0 — pending Supreme Commander approval  
+**Status:** FINAL v3.0 — Supreme Commander philosophical refinements applied
 
 ---
 
 ## 1. Executive Summary
 
-**Mission:** vAIb is a living, network-aware, agent-driven AI music cockpit. The animation, particle, haptic, and sound system is a **data representation layer** — not decoration. It makes invisible app, agent, music, and infrastructure state visible and felt: music playback, agents working, network activity, downloads, updates, installs, backups, user login/logout, restarts, disk pressure, service health, security risks, task success/failure, agent mood, and human-machine context.
+**Mission:** vAIb is a living, network-aware, agent-driven AI music cockpit. The animation, particle, haptic, and sound system is a **data representation layer** — not decoration. It makes invisible app, agent, music, and infrastructure state visible and felt: music playback, agents working, network activity, downloads, updates, installs, backups, user login/logout, restarts, disk pressure, service health, security risks, task success/failure, agent operational emotional state, and human-machine context.
 
 **Scope (In):** `VibeProfile` system; `VaibEvent` / `VaibEventBus` signal layer; `AgentPresence` / `AgentMood` living agents; data-driven color/event mapping; global reactive motion field; AMOLED-native visuals; deterministic particle system; haptics; sound design; `MotionIntensity` rollout control; full rollback strategy with BuildConfig kill switch.
 
@@ -29,14 +29,28 @@
 
 ---
 
-## 2. Product Vision Update
+## 2. North Star
+
+vAIb is a living, music-reactive operational atmosphere layer for agents, networks, systems, and human interaction.
+
+It is not a generic dashboard.  
+It is not a visualizer gimmick.  
+It is not a fake AI companion app.
+
+It should feel like: music, systems, agents, and operational energy are all resonating together inside one living environment.
+
+Everything in this plan serves that single sensation. If a feature does not deepen the feeling of a living, breathing, music-driven operational space, it does not belong.
+
+---
+
+## 3. Product Vision
 
 **Paradigm Shift:** vAIb is a **living network-aware agent music cockpit**. The visual/audio/haptic layer is the app's nervous system.
 
 | Domain | Signals | Visual Response |
 |---|---|---|
 | **Music** | `PLAYBACK_STARTED/PAUSED`, `TRACK_CHANGED`, `BUFFERING` | Waveform particles, color shifts, card glow, visualizer |
-| **Agents** | `AGENT_TASK_*`, `AGENT_CREATED/DELETED` | Presence cards, mood colors, particle bursts, haptic cues |
+| **Agents** | `AGENT_TASK_*`, `AGENT_CREATED/DELETED` | Presence cards, state colors, particle bursts, haptic cues |
 | **Network** | `NETWORK_ACTIVITY_HIGH/LOW` | Subtle flow direction, dot density |
 | **Downloads/Updates** | `DOWNLOAD_*`, `UPDATE_*` | Progress streams, gold completion bursts |
 | **Backups** | `BACKUP_*` | Cyan activity stream, gold confirmation |
@@ -47,17 +61,31 @@
 
 **Core Principle:** STATE FIRST, ATMOSPHERE SECOND. Every particle, glow, haptic pulse answers: *"What is happening right now?"*
 
+### 3.1 Golden Rule — Sensory Balance
+
+**Animations and effects must never compete with the currently playing music.**
+
+This rule is absolute. The audio layer is sovereign. The visual layer supports it, never vies for attention.
+
+| Music Condition | UI Response |
+|---|---|
+| Intense, high-energy music | UI becomes calmer, fewer particles, slower ambient drift |
+| Ambient, minimal music | UI allowed more breathing motion, richer particle life |
+| Heavy operational alerts | Override ambient visuals only when necessary; restore immediately after |
+
+UI motion should support the music, not compete with it. When in doubt, subtract.
+
 ---
 
-## 3. Current Repo Findings
+## 4. Current Repo Findings
 
-### 3.1 Build Context
+### 4.1 Build Context
 - HEAD: `f6572b8`, `prime-stabilization`, clean tree
 - Min 28 / Target 34 / Compile 34; Compose BOM 2024.02.00
 - `AnimatedVisibility`, `animateColorAsState`, `AnimatedContent`, `rememberInfiniteTransition`, `withFrameNanos`, `Canvas`, `BlendMode` all stable
 - No new Gradle deps required (except possibly `kotlinx-serialization-json` for profile JSON)
 
-### 3.2 Screen Inventory (14 screens)
+### 4.2 Screen Inventory (14 screens)
 | File | Path | Animation Exposure |
 |---|---|---|
 | `CockpitScreen.kt` | `.../ui/screens/CockpitScreen.kt` | **HIGH** — header, On Air, visualizer, cards, agent panel |
@@ -71,7 +99,7 @@
 | `UpdatesScreen.kt` / `AutomationScreen.kt` | `.../ui/screens/` | LOW |
 | `VaibNavHost.kt` | `.../ui/navigation/VaibNavHost.kt` | LOW |
 
-### 3.3 Component Inventory (12 components)
+### 4.3 Component Inventory (12 components)
 | Component | File | Animation State |
 |---|---|---|
 | `VisualizerBars` | `VisualizerBars.kt` | **ONLY active animation** — `rememberInfiniteTransition`, 24 bars, 160ms loop |
@@ -82,7 +110,7 @@
 | `ConnectorHealthCard` / `StatTile` / `EqualizerBand` | Health/Stat/Equalizer files | Static / gesture-only |
 | `ReactionBadge` / `TokenBudgetPill` | Reaction/Token files | Static |
 
-### 3.4 Theme Tokens (from `Color.kt`)
+### 4.4 Theme Tokens (from `Color.kt`)
 ```kotlin
 val PrimaryNeonCyan      = Color(0xFF00E5FF)  // playback, accents, glow
 val SecondaryGold        = Color(0xFFFFD700)  // success, completion
@@ -100,7 +128,7 @@ val TextMuted            = Color(0xFF666666)  // captions
 val BorderSubtle         = Color(0xFF222222)  // dividers
 ```
 
-### 3.5 State Flow
+### 4.5 State Flow
 ```
 AudioBackbone (ExoPlayer)
   -> Player.Listener.onPlaybackStateChanged()
@@ -116,12 +144,12 @@ AudioBackbone (ExoPlayer)
 
 ---
 
-## 4. Vibe Profile System
+## 5. Vibe Profile System
 
-### 4.1 Concept
-A `VibeProfile` is a user-configurable blend of visual personality traits — the app's "visual DNA." Persisted in SharedPreferences, edited in `SettingsScreen`.
+### 5.1 Concept
+A `VibeProfile` is a user-configurable blend of visual identity traits — the app's "visual DNA." Persisted in SharedPreferences, edited in `SettingsScreen`.
 
-### 4.2 Data Model
+### 5.2 Data Model
 ```kotlin
 // .../ui/theme/VibeProfile.kt
 data class VibeProfile(
@@ -144,7 +172,7 @@ data class VibeProfile(
 )
 ```
 
-### 4.3 Trait Registry
+### 5.3 Trait Registry
 | Trait | Default | Range | Effect |
 |---|---|---|---|
 | `musicReactiveWeight` | 70 | 0..100 | Music-driven particle/waveform intensity |
@@ -157,12 +185,12 @@ data class VibeProfile(
 | `uiSoundsEnabled` | true | bool | Master UI sound toggle |
 | `amoledPurity` | true | bool | True black vs lifted surface |
 | `alertSensitivity` | 50 | 0..100 | Warning reactivity |
-| `agentInfluence` | 50 | 0..100 | Agent mood visual weight |
+| `agentInfluence` | 50 | 0..100 | Agent OES visual weight — how strongly agent operational state affects the reactive field |
 | `networkInfluence` | 30 | 0..100 | Network activity visual weight |
 | `batterySensitivity` | true | bool | Auto-dim FX when battery low |
 | `reducedMotionCompatibility` | false | bool | Force `MotionIntensity.REDUCED` |
 
-### 4.4 Default Profile
+### 5.4 Default Profile
 ```kotlin
 val DefaultVibeProfile = VibeProfile(
     name = "Neon Oracle", musicReactiveWeight = 70, cyberpunkWeight = 20,
@@ -174,7 +202,7 @@ val DefaultVibeProfile = VibeProfile(
 ```
 Weights need not sum to 100 — they are independent influence sliders normalized at render time.
 
-### 4.5 Auto-Name Generation (Future — Phase 4+)
+### 5.5 Auto-Name Generation (Future — Phase 4+)
 ```kotlin
 // .../ui/theme/VibeProfileNameGenerator.kt
 // Simple decision tree — no ML.
@@ -185,12 +213,12 @@ Weights need not sum to 100 — they are independent influence sliders normalize
 // 50/30/20 -> Bassline Sentinel  |  30/40/30 -> System Siren
 ```
 
-### 4.6 Persistence
+### 5.6 Persistence
 - SharedPreferences key: `"vibe_profile_json"` — JSON via `kotlinx.serialization`
 - Read at app startup in `MainActivity`
 - Exposed: `VaibViewModel.vibeProfile: StateFlow<VibeProfile>`
 
-### 4.7 UI Placement (`SettingsScreen.kt`)
+### 5.7 UI Placement (`SettingsScreen.kt`)
 - Profile name + edit
 - Three weight sliders (Music Reactive / Cyberpunk / Tactical)
 - Density/Intensity sliders (particle, waveform, glow)
@@ -199,12 +227,12 @@ Weights need not sum to 100 — they are independent influence sliders normalize
 
 ---
 
-## 5. Event Signal Layer
+## 6. Event Signal Layer
 
-### 5.1 Design
+### 6.1 Design
 Lightweight fire-and-forget pub/sub. Subscribers consume via coroutines. No persistence. No ordering beyond timestamp. Universal signal pipe for all FX subsystems.
 
-### 5.2 `VaibEvent.kt`
+### 6.2 `VaibEvent.kt`
 ```kotlin
 // .../ui/fx/event/VaibEvent.kt
 data class VaibEvent(
@@ -234,7 +262,7 @@ enum class VaibEventType {
 enum class VaibEventSeverity { INFO, SUCCESS, WARNING, CRITICAL }
 ```
 
-### 5.3 `VaibEventBus.kt`
+### 6.3 `VaibEventBus.kt`
 ```kotlin
 // .../ui/fx/event/VaibEventBus.kt
 class VaibEventBus {
@@ -247,21 +275,48 @@ class VaibEventBus {
 - Application-scoped singleton
 - Subscribers: `GlobalReactiveField`, `AgentMoodEngine`, `VaibHaptics`, `VaibSoundDesign`
 
-### 5.4 Payload Constraint
+### 6.4 Payload Constraint
 `payload: Map<String, String>` — max 8 entries, each <= 64 chars. No full logs. Examples:
 ```kotlin
 payload = mapOf("agentId" to "agent-7", "taskType" to "sync", "durationSec" to "12")
 payload = mapOf("freePercent" to "8", "threshold" to "10")
 ```
 
+### 6.5 Signal Priority and Decay
+
+Not all events are equal. The reactive field must respond to significance, not noise.
+
+**Priority Tiers:**
+
+| Tier | Events | Field Influence |
+|---|---|---|
+| **CRITICAL** | Security risk, repeated agent failures, disk almost full, service outage | Full override — dims ambient, takes visual priority |
+| **HIGH** | Update installing, restart pending, heavy operational load | Strong influence — visible pulse, color shift |
+| **MEDIUM** | Track changed, agent task completed, playback started | Moderate — brief spike, local microinteraction |
+| **LOW** | Passive downloads, idle backups, low-level network chatter | Minimal — subtle ambient drift change only |
+
+**Decay Model:**
+- Event influence decays exponentially over time: `influence = base * e^(-lambda * t)`
+- Critical events: halflife 8s; High: 4s; Medium: 2s; Low: 1s
+- Same event type: rate-limited to once per N seconds (CRITICAL: 3s, HIGH: 5s, MEDIUM: 2s, LOW: 1s)
+- Purpose: prevent the reactive field from constantly thrashing due to tiny events
+
+```kotlin
+// .../ui/fx/event/EventInfluenceDecay.kt
+class EventInfluenceDecay {
+    fun computeCurrentInfluence(eventHistory: List<TimestampedEvent>): Float
+    fun isRateLimited(eventType: VaibEventType): Boolean
+}
+```
+
 ---
 
-## 6. Agent Presence System
+## 7. Agent Presence System
 
-### 6.1 Concept
+### 7.1 Concept
 Agents are living UI presences. Created -> appears. Deleted -> fades/archived. Each has a status card showing what it is doing **right now**.
 
-### 6.2 `AgentPresence.kt`
+### 7.2 `AgentPresence.kt`
 ```kotlin
 // .../ui/fx/agent/AgentPresence.kt
 data class AgentPresence(
@@ -288,42 +343,62 @@ enum class TempoPreference { SLOW, NEUTRAL, UPBEAT }
 enum class GlowStyle { SOFT, SHARP, PULSE, STEADY }
 ```
 
-### 6.3 NO FULL LOGS
+### 7.3 NO FULL LOGS
 `recentWorkSummary` max 80 chars. Updated on task complete/fail. Acceptable: `"Synced 3 stations"`, `"Searching: ambient dub"`, `"Backup complete"`. Not acceptable: log tails, stack traces, PII.
 
-### 6.4 `AgentPresenceCard.kt`
+### 7.4 `AgentPresenceCard.kt`
 ```kotlin
 // .../ui/fx/agent/AgentPresenceCard.kt
 @Composable
 fun AgentPresenceCard(presence: AgentPresence, onClick: () -> Unit, modifier: Modifier = Modifier)
 ```
-- Compact: avatar dot, name, status pill, tiny summary, mood indicator
+- Compact: avatar dot, name, status pill, tiny summary, state indicator
 - Glow border from `visualSignature.accentColor`
 - Border color: `ACTIVE = AccentMagenta`, `IDLE = TextMuted`, `ERROR = ErrorRed`
 - Placed in `CockpitScreen.kt` agent panel and `AgentsScreen.kt`
 
-### 6.5 Lifecycle
+### 7.5 Lifecycle
 - `AGENT_CREATED` -> card appears immediately
 - `AGENT_DELETED` -> fade out 300ms, then remove
 - `AGENT_TASK_*` -> summary + status refresh in-place
 - Source unreachable -> `isOnline = false`, card dims
 
+### 7.6 Agent Tone and Presence
+
+The tone must feel like **intelligent operational entities living inside the network**.
+
+**NOT:** fake anime mascots, gimmicky assistant avatars, artificial personas, illustrated caricatures.
+
+**Agents should feel:** infrastructural, persistent, embedded in the network, operational, system-native.
+
+| Element | Correct | Incorrect |
+|---|---|---|
+| Names | Functional: "djinn", "sentinel-7", "warden" | Cute: "DJ Sparkles", "BuddyBot" |
+| Visual signatures | Minimal geometric, abstract glyphs | Illustrated characters, faces, avatars |
+| Summaries | Operational telemetry: "Synced 3 stations" | Diary entries: "I'm feeling sleepy" |
+| Presence indicators | Status dots, activity pulses, network bars | Emotional expressions, emoji reactions |
+| Communication | State changes, task completion, system events | Greetings, banter, pretend social behavior |
+
+Agents are system components with observable state — not characters. The warmth comes from their responsiveness and integration, not from anthropomorphic theater.
+
 ---
 
-## 7. Agent Mood Engine
+## 8. Agent Operational Emotional State (OES)
 
-### 7.1 Concept
-Mood derives from real activity context — **not random, not roleplay.** `AgentMoodEngine` computes mood from inputs. Mood influences music selection, FX intensity, glow color, particle behavior, avatar, haptics, UI sounds.
+### 8.1 Concept
+Agent Operational Emotional State (OES) emerges naturally from operational context — **not random, not scripted, not decorative.** `AgentMoodEngine` computes state from real inputs. OES influences music selection, FX intensity, glow color, particle behavior, haptic rhythm, and UI ambient response.
 
-### 7.2 `AgentMood.kt`
+State emerges from: workload, success/failure streaks, retries, task duration, network conditions, human interaction frequency, service health, music/activity history, environment context.
+
+### 8.2 `AgentMood.kt`
 ```kotlin
 // .../ui/fx/agent/AgentMood.kt
 enum class AgentMood {
-    FOCUSED, ENERGIZED, CALM, STRAINED, BLOCKED, ALERT, IDLE, PROUD, CURIOUS, OVERLOADED
+    FOCUSED, ENERGIZED, STRAINED, DORMANT, ALERT, OVERLOADED, CALM, UNSTABLE, SOCIAL, CURIOUS
 }
 ```
 
-### 7.3 `AgentMoodEngine.kt`
+### 8.3 `AgentMoodEngine.kt`
 ```kotlin
 // .../ui/fx/agent/AgentMoodEngine.kt
 class AgentMoodEngine @Inject constructor(private val eventBus: VaibEventBus) {
@@ -335,26 +410,62 @@ class AgentMoodEngine @Inject constructor(private val eventBus: VaibEventBus) {
 }
 ```
 
-### 7.4 Mood Triggers & Outputs
-| Mood | Triggers | Visual | Music Influence |
+### 8.4 OES Triggers & Outputs
+| State | Triggers | Visual | Music Influence |
 |---|---|---|---|
 | `FOCUSED` | Long task, no errors | Steady cyan pulse | Sustained tempo |
 | `ENERGIZED` | Rapid completions (>= 3) | Gold micro-pulses | Upbeat bias |
-| `CALM` | Idle, all healthy | Minimal violet ambient | Ambient-friendly |
 | `STRAINED` | Failure streak >= 2 | Dim red flicker | Tension hint |
-| `BLOCKED` | Critical failure | Bright red alert pulse | Pause suggestion |
+| `DORMANT` | No task > 5 min | Very sparse, muted | Discovery mode |
 | `ALERT` | Warning condition | Rapid border flash | No change |
-| `IDLE` | No task > 5 min | Very sparse | Discovery mode |
-| `PROUD` | Major success | Gold completion burst | Celebration hint |
-| `CURIOUS` | Exploring/searching | Wandering magenta glow | Exploration bias |
 | `OVERLOADED` | Concurrent tasks > 3 | Chaotic red density | No change |
+| `CALM` | Idle, all healthy | Minimal violet ambient | Ambient-friendly |
+| `UNSTABLE` | Critical failure | Bright red alert pulse | Pause suggestion |
+| `SOCIAL` | High human interaction | Warm lateral drift | Collaborative tempo |
+| `CURIOUS` | Exploring/searching | Wandering magenta glow | Exploration bias |
 
-### 7.5 Music Integration
-When `MusicInfluence.moodAlignment = true`, mood's "Music Influence" feeds track recommendation weighting as a **hint** — music always comes first. `PROUD` -> slight positive energy boost. `STRAINED` -> slight calming bias.
+### 8.5 Music Integration
+When `MusicInfluence.moodAlignment = true`, OES feeds track recommendation weighting as a **hint** — music always comes first. `ENERGIZED` -> slight positive energy boost. `STRAINED` -> slight calming bias. `UNSTABLE` -> pause or ambient suggestion.
+
+### 8.6 Agent Taste Evolution (Future Architecture Hook)
+
+**Phase 4+ only. Architecture hook, not implementation.**
+
+Over long operational history, agents develop taste preferences — not identity mimicry, but **patterned operational preference** derived from correlated outcomes.
+
+**Future inputs:** songs skipped, songs replayed, successful task/music correlations, time of day, vibe profile, workload type, music during successful operations, user interactions, genres associated with task categories.
+
+**Emergent preferences over time:**
+- BPM range affinity (narrowing from broad to preferred band)
+- Genre weight shifts (electronic vs ambient vs rhythmic)
+- Energy level preference (by workload type)
+- Visual style gravitation (particle density, glow style)
+- Haptic intensity preference (by operational context)
+- Ambient field behavior (flow direction, pulse cadence)
+
+```kotlin
+// .../ui/fx/agent/AgentTasteProfile.kt (FUTURE — Phase 4+)
+data class AgentTasteProfile(
+    val agentId: String,
+    val bpmRange: ClosedFloatingPointRange<Float> = 80f..140f,
+    val genreWeights: Map<String, Float> = emptyMap(),        // normalized 0..1
+    val energyPreference: Float = 0.5f,                        // 0=calm .. 1=intense
+    val visualStylePreference: VisualStylePreference = VisualStylePreference.BALANCED,
+    val hapticIntensityPreference: Float = 0.5f,
+    val ambientFlowPreference: FlowDirection = FlowDirection.UPWARD,
+    val confidenceScore: Float = 0.0f,                         // increases with data volume
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+
+enum class VisualStylePreference { MINIMAL, BALANCED, DENSE, ORGANIC, GEOMETRIC }
+enum class FlowDirection { UPWARD, LATERAL, RADIAL, ORBITAL }
+```
+
+Taste evolution is gradual, transparent, and overrideable. The user always controls the vibe profile; agent taste is a soft influence layer.
 
 ---
 
-## 8. Data-Driven FX Philosophy
+## 9. Data-Driven FX Philosophy
 
 **STATE FIRST, ATMOSPHERE SECOND.** Every effect maps to a real signal.
 
@@ -362,17 +473,21 @@ When `MusicInfluence.moodAlignment = true`, mood's "Music Influence" feeds track
 |---|---|---|
 | `PrimaryNeonCyan` (#00E5FF) | Playback, listening | `PLAYBACK_STARTED`, `BUFFERING_ENDED`, `SERVICE_HEALTHY` |
 | `SecondaryGold` (#FFD700) | Success, completion | `AGENT_TASK_COMPLETED`, `UPDATE_COMPLETED`, `BACKUP_COMPLETED` |
-| `AccentMagenta` (#FF00FF) | Agent activity | `AGENT_TASK_STARTED`, `AGENT_CREATED`, `CURIOUS` mood |
-| `AccentViolet` (#8B5CF6) | Buffering, transition | `BUFFERING_STARTED`, idle, loading |
+| `AccentMagenta` (#FF00FF) | Agent activity | `AGENT_TASK_STARTED`, `AGENT_CREATED`, `CURIOUS` state |
+| `AccentViolet` (#8B5CF6) | Buffering, transition | `BUFFERING_STARTED`, dormant, loading |
 | `LiveGreen` (#00FF88) | Healthy, synced | `SERVICE_HEALTHY`, agent online |
 | `ErrorRed` (#FF4444) | Warning, security, restart | `DISK_WARNING`, `SECURITY_RISK`, `MACHINE_RESTART_PENDING` |
-| `TextMuted` (#666666) | Inactive, offline | `PLAYBACK_PAUSED`, agent offline, idle |
+| `TextMuted` (#666666) | Inactive, offline | `PLAYBACK_PAUSED`, agent offline, dormant |
 
 **Prohibited:** Random color cycling, rainbow mode, decorative spectrum effects, ambient color with no signal source.
 
 ---
 
-## 9. Global Motion Model
+## 10. Global Motion Model
+
+The Global Reactive Field is the central nervous system of the app.
+
+**Core doctrine:** Global coherence is more important than local spectacle. The app should feel like **the entire system is breathing** — not like many widgets animating independently.
 
 Four composable layers, bottom to top:
 
@@ -383,7 +498,7 @@ Layer 2: Local Microinteractions — button presses, card hovers, transitions
 Layer 1: Global Ambient Field — cockpit-wide reactive particle/waveform
 ```
 
-### 9.1 `GlobalReactiveField.kt`
+### 10.1 `GlobalReactiveField.kt`
 ```kotlin
 // .../ui/fx/core/GlobalReactiveField.kt
 @Composable
@@ -393,29 +508,46 @@ fun GlobalReactiveField(
 )
 ```
 - Full-screen Canvas at lowest z-index
-- Driven by: music intensity + vibe weights + agent mood influence + network activity
+- Driven by: playback energy + vibe weights + agent OES influence + network activity + system events
+- The field reacts to: playback energy, agent activity, downloads, updates, backups, machine health, alerts, network intensity, operational stress, vibe profile, time of day
+- The field subtly influences: glow intensity, particle velocity, pulse cadence, waveform movement, saturation, haptic rhythm, UI transition speed
 - Intensity scaled by `vibeProfile.particleDensity` and `MotionIntensity`
 - `OFF` or `REDUCED` -> returns `Spacer`, zero allocation
 
-### 9.2 Local Microinteractions
+### 10.2 Local Microinteractions
 - `buttonPressEffect()` — scale + alpha on interactive elements
 - `crossfadeSpec()` — track change, content swap
 - `slideTransition()` — card entrance, panel reveal
 - `animatedCardGlow()` — `VaibCard` pulsing border when active
 
-### 9.3 Event Spikes
+### 10.3 Event Spikes
 - 300-800ms burst on `VaibEvent` — triggered by `AGENT_TASK_COMPLETED`, `UPDATE_COMPLETED`, `TRACK_CHANGED`, `USER_LOGIN`
 - Particle burst from event origin, color flash, scale bounce
+- Priority-weighted: critical events produce stronger spikes; low-priority events produce minimal ripples
 - Never blocks UI, never delays taps
 
-### 9.4 Alert Overlays
+### 10.4 Alert Overlays
 - Conditional border overlays: `WARNING` = amber pulse; `CRITICAL` = red + haptic
 - Triggered by: `DISK_WARNING`, `SECURITY_RISK`, `SERVICE_DEGRADED`, `MACHINE_RESTART_PENDING`
 - Dismisses when condition clears (event-driven)
+- Critical alerts temporarily suppress ambient field motion to ensure visibility
+
+### 10.5 Music-Driven UI Rhythm
+
+The app subtly moves **with** the music. Not cheesy beat visualization. A premium, felt synchronization.
+
+| Music Property | UI Response |
+|---|---|
+| BPM | Transition timing can sync to beat cadence; haptic cadence can align with downbeat |
+| Energy | Pulse speed derives from track intensity; particle velocity maps to energy |
+| Intensity | Waveform drift follows intensity curves; ambient field speed maps to tempo |
+| Dynamics | Quieter passages allow more UI breathing; louder passages tighten UI motion |
+
+**Rule:** UI motion should support the music, not compete with it. The user should feel the synchronization, not see it obviously. If the effect calls attention to itself, it is too much.
 
 ---
 
-## 10. AMOLED Visual Philosophy
+## 11. AMOLED Visual Philosophy
 
 **Rules:**
 - True black (`#000000`) base. Every pixel off where possible.
@@ -424,14 +556,21 @@ fun GlobalReactiveField(
 - No muddy gradients, no gray-heavy Material look.
 - `SurfaceCard` (#111111) is the lightest gray allowed.
 - Black space is not empty — it is the canvas.
+- **Darkness is part of the design language.**
+- **Empty space is not absence — it is the canvas.**
 
 **Hierarchy:** Background (#000000) > Screen base (#0A0A0A) > Card fill (#111111) > Elevated (#1A1A1A). Text: White (headlines) > #AAAAAA (body) > #666666 (captions).
+
+**Neon Discipline:**
+- Max 3 neon colors active simultaneously
+- Glow pulses should feel like signals, not decoration
+- Prohibited: overfilling empty space, too many simultaneous colors, always-on glow spam
 
 **Prohibited:** >20% opacity gradients, semi-transparent gray overlays, white backgrounds, colored text on colored backgrounds.
 
 ---
 
-## 11. Particle Philosophy
+## 12. Particle Philosophy
 
 **No complex physics initially.** Prefer:
 - Sound-wave-inspired motion (pulsing, flowing)
@@ -463,7 +602,7 @@ enum class ParticleShape { CIRCLE, DIAMOND, SOFT_GLOW, RING }
 
 ---
 
-## 12. Haptics Plan
+## 13. Haptics Plan
 
 Optional, on by default. Subtle. Context-aware. No spam.
 
@@ -492,7 +631,7 @@ enum class HapticCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_DONE, WARNING, PROFILE_S
 
 ---
 
-## 13. Sound Design Plan
+## 14. Sound Design Plan
 
 Extremely important — must not be cheesy. Optional UI sound cues: futuristic but minimal, musical/synth-based, context-aware, never fights current music.
 
@@ -520,7 +659,9 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ---
 
-## 14. What Must Never Animate
+## 15. What Must Never Animate
+
+### 15.1 Hard Prohibitions
 
 | Prohibition | Enforcement |
 |---|---|
@@ -536,9 +677,26 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 | Warnings unclear | Red alerts: solid borders, never animated text |
 | Decorative motion without signal | Every effect requires an event source |
 
+### 15.2 Music-First Guardrails
+
+vAIb can easily spiral into observability suite, AI shell, monitoring platform, social network, dashboard OS, or automation framework. These guardrails exist to prevent that drift.
+
+**vAIb is a music app first. Everything else supports music + vibe + operational atmosphere.**
+
+| Guardrail | Rule |
+|---|---|
+| Agent panel | Max 20% of `CockpitScreen` |
+| Logs | No full log viewers in the app |
+| Dashboards | No real-time graph dashboards |
+| Notifications | No notification feed as primary surface |
+| Music controls | Always visible and prominent |
+| General principle | If it doesn't serve the music experience, it doesn't belong in v1 |
+
+**Animations and effects must never compete with the currently playing music.** When music is intense, the UI calms. When music is ambient, the UI breathes. The audio layer is sovereign.
+
 ---
 
-## 15. Revised Phase Plan
+## 16. Revised Phase Plan
 
 ### Phase 0 — Foundation / No Visual Change
 - `VaibMotion.kt` — `MotionIntensity` enum, `VaibMotionTokens`, `LocalMotionIntensity`
@@ -575,20 +733,22 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 - `CockpitScreen.kt` / `LandscapeDjDeck.kt` — particle integration
 - **Exit:** Particles respond to playback, S24 Ultra >= 55 FPS at ENHANCED.
 
-### Phase 4 — Agent Presence + Mood Integration
+### Phase 4 — Agent Presence + OES Integration
 - `VaibEvent.kt` / `VaibEventBus.kt` — event model + bus
 - `AgentPresence.kt` / `AgentMood.kt` / `AgentMoodEngine.kt` / `AgentPresenceCard.kt`
-- `VaibViewModel.kt` — agent presence list, mood updates, event emission
+- `AgentTasteProfile.kt` — architecture stub only (Section 8.6)
+- `VaibViewModel.kt` — agent presence list, state updates, event emission
 - `CockpitScreen.kt` / `AgentsScreen.kt` — agent cards
-- `AgentChip.kt` — mood indicator, glow border
-- **Exit:** Agent cards show real status, mood derives from activity.
+- `AgentChip.kt` — state indicator, glow border
+- **Exit:** Agent cards show real status, OES derives from activity. Taste profile stub compiles.
 
 ### Phase 5 — Network/System Event Integration
 - Full event signal ingestion (download/update/backup/login/restart/disk/service/security)
+- `EventInfluenceDecay.kt` — priority + rate limiting (Section 6.5)
 - `GlobalReactiveField` / `AgentMoodEngine` / `VaibHaptics` subscribe to events
 - `VaibViewModel` emits all event types
 - `CockpitScreen.kt` — alert overlays
-- **Exit:** All 24 event types produce visible/haptic response.
+- **Exit:** All 24 event types produce visible/haptic response. Priority system active.
 
 ### Phase 6 — Sound Design + Advanced Haptics
 - `VaibSoundDesign.kt` — sound system
@@ -598,14 +758,15 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ### Phase 7 — Advanced Audio-Reactive/Shader Layer
 - AGSL `RuntimeShader` exploration for waveform/glow/distortion
+- Music-driven UI rhythm implementation (Section 10.5)
 - Gated by: 2-week stability, Pixel 6 >= 50 FPS, automatic Canvas fallback
-- **Exit:** Shaders optional, fallback always works.
+- **Exit:** Shaders optional, fallback always works. UI rhythm system active.
 
 ---
 
-## 16. File-by-File Map
+## 17. File-by-File Map
 
-### New Files (19)
+### New Files (20)
 
 | # | File Path | Description | Phase |
 |---|---|---|---|
@@ -615,19 +776,21 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 | 4 | `.../ui/theme/VibeProfileNameGenerator.kt` | Auto-name from traits — stub 1, impl 4+ | 1 |
 | 5 | `.../ui/fx/event/VaibEvent.kt` | `VaibEvent`, `VaibEventType`, `VaibEventSeverity` | 4 |
 | 6 | `.../ui/fx/event/VaibEventBus.kt` | Pub/sub bus, `SharedFlow`, buffer 64 | 4 |
-| 7 | `.../ui/fx/particle/Particle.kt` | `Particle` data class, `ParticleShape` | 0 |
-| 8 | `.../ui/fx/particle/ParticleSystem.kt` | Frame controller, deterministic seed, pool | 0 stub, 3 impl |
-| 9 | `.../ui/fx/particle/AmbientParticleLayer.kt` | Canvas overlay — `Spacer` stub, full 3 | 0 stub, 3 |
-| 10 | `.../ui/fx/particle/rememberParticleSystem.kt` | `remember()` + cleanup | 0 |
-| 11 | `.../ui/fx/core/GlobalReactiveField.kt` | Cockpit-wide field — stub 1, full 3+ | 1 stub, 3+ |
-| 12 | `.../ui/fx/core/EventColorMapper.kt` | `VaibEvent` -> `Color` mapping | 2 |
-| 13 | `.../ui/fx/agent/AgentPresence.kt` | `AgentPresence`, `AgentActivityState`, `VisualSignature` | 4 |
-| 14 | `.../ui/fx/agent/AgentMood.kt` | `AgentMood` enum, influence mapping | 4 |
-| 15 | `.../ui/fx/agent/AgentMoodEngine.kt` | Mood computation from context | 4 |
-| 16 | `.../ui/fx/agent/AgentPresenceCard.kt` | Composable presence card | 4 |
-| 17 | `.../ui/fx/feedback/VaibHaptics.kt` | `HapticCue`, vibration, debounce | 2 stub, 6 |
-| 18 | `.../ui/fx/feedback/VaibSoundDesign.kt` | `SoundCue`, playback, volume ducking | 6 |
-| 19 | `.../ui/fx/core/LocalVibeProfile.kt` | `staticCompositionLocalOf<VibeProfile>` | 1 |
+| 7 | `.../ui/fx/event/EventInfluenceDecay.kt` | Priority weighting, exponential decay, rate limit | 5 |
+| 8 | `.../ui/fx/particle/Particle.kt` | `Particle` data class, `ParticleShape` | 0 |
+| 9 | `.../ui/fx/particle/ParticleSystem.kt` | Frame controller, deterministic seed, pool | 0 stub, 3 impl |
+| 10 | `.../ui/fx/particle/AmbientParticleLayer.kt` | Canvas overlay — `Spacer` stub, full 3 | 0 stub, 3 |
+| 11 | `.../ui/fx/particle/rememberParticleSystem.kt` | `remember()` + cleanup | 0 |
+| 12 | `.../ui/fx/core/GlobalReactiveField.kt` | Cockpit-wide field — stub 1, full 3+ | 1 stub, 3+ |
+| 13 | `.../ui/fx/core/EventColorMapper.kt` | `VaibEvent` -> `Color` mapping | 2 |
+| 14 | `.../ui/fx/agent/AgentPresence.kt` | `AgentPresence`, `AgentActivityState`, `VisualSignature` | 4 |
+| 15 | `.../ui/fx/agent/AgentMood.kt` | `AgentMood` enum, influence mapping | 4 |
+| 16 | `.../ui/fx/agent/AgentMoodEngine.kt` | OES computation from context | 4 |
+| 17 | `.../ui/fx/agent/AgentTasteProfile.kt` | Taste preference stub — future hook | 4 stub |
+| 18 | `.../ui/fx/agent/AgentPresenceCard.kt` | Composable presence card | 4 |
+| 19 | `.../ui/fx/feedback/VaibHaptics.kt` | `HapticCue`, vibration, debounce | 2 stub, 6 |
+| 20 | `.../ui/fx/feedback/VaibSoundDesign.kt` | `SoundCue`, playback, volume ducking | 6 |
+| 21 | `.../ui/fx/core/LocalVibeProfile.kt` | `staticCompositionLocalOf<VibeProfile>` | 1 |
 
 ### Modified Files (10)
 
@@ -639,8 +802,8 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 | 4 | `.../ui/screens/CockpitScreen.kt` | GlobalReactiveField, glow, particles, agent panel, alerts | 2-5 |
 | 5 | `.../ui/components/VisualizerBars.kt` | MotionController timing, color reactivity, buffering | 3 |
 | 6 | `.../ui/components/VaibCard.kt` | `animatedCardGlow()` when `neonGlow=true` | 2 |
-| 7 | `.../ui/screens/LandscapeDjDeck.kt` | Particles center column, agent mood ambient, press FX | 3-4 |
-| 8 | `.../ui/components/AgentChip.kt` | Mood indicator, activity glow border | 4 |
+| 7 | `.../ui/screens/LandscapeDjDeck.kt` | Particles center column, agent OES ambient, press FX | 3-4 |
+| 8 | `.../ui/components/AgentChip.kt` | State indicator, activity glow border | 4 |
 | 9 | `.../ui/screens/AgentsScreen.kt` | `AgentPresenceCard` grid | 4 |
 | 10 | `app/build.gradle.kts` | `ENABLE_FX_SYSTEM` BuildConfig field | 0 |
 
@@ -659,7 +822,7 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ---
 
-## 17. Testing Checklist
+## 18. Testing Checklist
 
 ### Performance
 - [ ] FPS 60s average: S24 Ultra ENHANCED/80 particles >= 55 FPS; Pixel 6 >= 50; Emulator >= 30
@@ -686,9 +849,10 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ### Event / Agent
 - [ ] All 24 `VaibEventType` produce correct visual mapping
-- [ ] `AgentMoodEngine` correct mood from each trigger set
+- [ ] `AgentMoodEngine` correct OES from each trigger set
 - [ ] `AgentPresence` card updates < 200ms on event
 - [ ] `AGENT_DELETED` -> fade out 300ms then removed
+- [ ] Event priority + decay system prevents field thrashing
 
 ### Device Matrix
 | Device | API | Intensity | Particles | Agents | FPS Target |
@@ -703,7 +867,7 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ---
 
-## 18. Rollback Checklist
+## 19. Rollback Checklist
 
 ### Kill Switch
 `ENABLE_FX_SYSTEM` in `app/build.gradle.kts`. When `false`: `LocalMotionIntensity` emits `OFF`, `LocalVibeProfile` emits all-FX-disabled default, all layers no-op. **100% visual delta disabled by flag alone.**
@@ -713,7 +877,7 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 |---|---|---|---|
 | L1 — Flag | `ENABLE_FX_SYSTEM = false` | 1 | 5 min |
 | L2 — Overlay | Delete particle/field from screens | 3-4 | 15 min |
-| L3 — Code | Delete 19 new files; revert 10 modified | ~29 | 1 hour |
+| L3 — Code | Delete 21 new files; revert 10 modified | ~31 | 1 hour |
 | L4 — Full | `git revert <merge-commit>` | all | 10 min |
 
 ### Per-Phase Revert
@@ -723,8 +887,8 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 | 1 | Remove `VibeProfile.kt`, `LocalVibeProfile.kt`; revert Settings + ViewModel |
 | 2 | Remove `EventColorMapper.kt`, `VaibHaptics.kt` stub; revert glow + press |
 | 3 | Remove particle/field impl; revert `VisualizerBars` |
-| 4 | Remove 6 agent/event files; revert agent-related screens |
-| 5 | Remove event emission; revert alert overlays |
+| 4 | Remove 7 agent/event/taste files; revert agent-related screens |
+| 5 | Remove `EventInfluenceDecay.kt`; remove event emission; revert alert overlays |
 | 6 | Remove `VaibSoundDesign.kt`; revert haptics full |
 | 7 | Remove shader code; revert to Canvas fallback |
 
@@ -736,30 +900,30 @@ enum class SoundCue { PLAY, PAUSE, TRACK_CHANGE, AGENT_COMPLETE, WARNING, PROFIL
 
 ---
 
-## 19. Revised Risks
+## 20. Revised Risks
 
 | Risk | Sev | Likely | Mitigation |
 |---|---|---|---|
 | Scope creep (too many subsystems) | HIGH | MED | Phase gates, 48hr bake, kill switch active until Phase 3 |
-| Fake mood feels gimmicky | HIGH | MED | Mood from real context only. No random. No roleplay. |
+| Fake OES feels gimmicky | HIGH | MED | OES from real context only. No random. No scripted personas. No caricature. |
 | Agent presence not connected to real source | HIGH | HIGH | Stub Phase 4, real integration Phase 5 prerequisite |
 | Too much visual noise | MED | HIGH | State-first philosophy. Default 70/20/10. Hard caps. |
 | Haptic/sound spam | MED | MED | 200ms debounce, context gating, battery saver disable |
 | Performance/battery cost | HIGH | MED | 0/0/40/80 caps, OFF = zero overhead, pre-allocated pools |
 | Privacy/logging from summaries | MED | LOW | Summary max 80 chars, no PII, no persistence |
-| App becomes dashboard-first | HIGH | MED | Music-first principle. Agent panel <= 20% CockpitScreen. |
+| App becomes dashboard-first | HIGH | MED | Music-first guardrails (Section 15.2). Agent panel <= 20%. |
 | Sound design cheesy | MED | MED | Quality bar: cheaper = cut. Disabled by default until approved. |
 | Shader regression (Phase 7) | HIGH | LOW | 2-week stability gate, Pixel 6 >= 50 FPS, Canvas fallback |
 
 ---
 
-## 20. Open Questions for Supreme Commander
+## 21. Open Questions for Supreme Commander
 
 **Q1 — Agent Presence Data Source:** Phase 4 agent cards require agent status metadata. Stub with mock data, or prioritize Hermes/OpenClaw connector integration as prerequisite?
 
 **Q2 — Sound Design Quality Bar:** UI sounds are high-risk for cheesiness. Commission sound designer, use curated synth pack, or defer entirely to post-launch?
 
-**Q3 — Music-First vs Dashboard-First:** Agent + system panels add non-music UI surface. Current proposal: max 20% of `CockpitScreen` for agent/system panels. Acceptable?
+**Q3 — Music-First vs Dashboard-First:** Agent + system panels add non-music UI surface. Current guardrails: max 20% of `CockpitScreen` for agent/system panels. Acceptable?
 
 **Q4 — Default Vibe Profile Restraint:** Default is 70/20/10 (music/cyber/tactical). More restrained (50/25/25) or more expressive (80/15/5)?
 
@@ -846,7 +1010,7 @@ No new Gradle deps required. All APIs in Compose BOM 2024.02.00:
 | `uiSoundsEnabled` | Boolean | true | — | Master UI sounds |
 | `amoledPurity` | Boolean | true | — | True black base |
 | `alertSensitivity` | Int | 50 | 0..100 | Warning reactivity |
-| `agentInfluence` | Int | 50 | 0..100 | Agent mood visual weight |
+| `agentInfluence` | Int | 50 | 0..100 | Agent OES visual weight |
 | `networkInfluence` | Int | 30 | 0..100 | Network visual weight |
 | `batterySensitivity` | Boolean | true | — | Auto-dim when low battery |
 | `reducedMotionCompatibility` | Boolean | false | — | Force REDUCED |
@@ -855,56 +1019,57 @@ No new Gradle deps required. All APIs in Compose BOM 2024.02.00:
 
 ## Appendix E: Event Type Registry
 
-| Event Type | Source | Severity | Visual | Haptic | Phase |
-|---|---|---|---|---|---|
-| `AGENT_TASK_STARTED` | AgentManager | INFO | Magenta pulse | — | 4 |
-| `AGENT_TASK_PROGRESS` | AgentManager | INFO | Border shift | — | 4 |
-| `AGENT_TASK_COMPLETED` | AgentManager | SUCCESS | Gold burst | LIGHT | 4 |
-| `AGENT_TASK_FAILED` | AgentManager | WARNING | Red pulse | MEDIUM | 4 |
-| `AGENT_CREATED` | AgentManager | INFO | Magenta fade-in | LIGHT | 4 |
-| `AGENT_DELETED` | AgentManager | INFO | Gray fade-out | — | 4 |
-| `DOWNLOAD_STARTED` | UpdateService | INFO | Cyan stream | — | 5 |
-| `DOWNLOAD_COMPLETED` | UpdateService | SUCCESS | Gold end | LIGHT | 5 |
-| `UPDATE_AVAILABLE` | UpdateService | INFO | Gold pulse | — | 5 |
-| `UPDATE_INSTALLING` | UpdateService | INFO | Cyan progress | — | 5 |
-| `UPDATE_COMPLETED` | UpdateService | SUCCESS | Gold burst | LIGHT | 5 |
-| `BACKUP_STARTED` | BackupService | INFO | Cyan stream | — | 5 |
-| `BACKUP_COMPLETED` | BackupService | SUCCESS | Cyan->gold | LIGHT | 5 |
-| `USER_LOGIN` | AuthManager | SUCCESS | Cyan reset | LIGHT | 5 |
-| `USER_LOGOUT` | AuthManager | INFO | Dim gray | — | 5 |
-| `MACHINE_RESTART_PENDING` | SystemMonitor | CRITICAL | Red overlay | HEAVY | 5 |
-| `MACHINE_RESTARTED` | SystemMonitor | INFO | Reinitialize | — | 5 |
-| `DISK_WARNING` | SystemMonitor | WARNING | Red pulse | MEDIUM | 5 |
-| `SERVICE_HEALTHY` | HealthMonitor | INFO | Green tint | — | 5 |
-| `SERVICE_DEGRADED` | HealthMonitor | WARNING | Amber->red | MEDIUM | 5 |
-| `SECURITY_RISK` | SecurityMonitor | CRITICAL | Red flash | HEAVY | 5 |
-| `NETWORK_ACTIVITY_HIGH` | NetworkMonitor | INFO | Lateral drift | — | 5 |
-| `NETWORK_ACTIVITY_LOW` | NetworkMonitor | INFO | Drift slows | — | 5 |
-| `PLAYBACK_STARTED` | AudioBackbone | INFO | Cyan activate | LIGHT | 0 |
-| `PLAYBACK_PAUSED` | AudioBackbone | INFO | Dim | LIGHT | 0 |
-| `TRACK_CHANGED` | AudioBackbone | INFO | Gold sweep | LIGHT | 2 |
-| `BUFFERING_STARTED` | AudioBackbone | INFO | Violet unison | — | 2 |
-| `BUFFERING_ENDED` | AudioBackbone | INFO | Return cyan | — | 2 |
+| Event Type | Source | Severity | Priority | Visual | Haptic | Phase |
+|---|---|---|---|---|---|---|
+| `AGENT_TASK_STARTED` | AgentManager | INFO | MEDIUM | Magenta pulse | — | 4 |
+| `AGENT_TASK_PROGRESS` | AgentManager | INFO | LOW | Border shift | — | 4 |
+| `AGENT_TASK_COMPLETED` | AgentManager | SUCCESS | MEDIUM | Gold burst | LIGHT | 4 |
+| `AGENT_TASK_FAILED` | AgentManager | WARNING | MEDIUM | Red pulse | MEDIUM | 4 |
+| `AGENT_CREATED` | AgentManager | INFO | MEDIUM | Magenta fade-in | LIGHT | 4 |
+| `AGENT_DELETED` | AgentManager | INFO | LOW | Gray fade-out | — | 4 |
+| `DOWNLOAD_STARTED` | UpdateService | INFO | LOW | Cyan stream | — | 5 |
+| `DOWNLOAD_COMPLETED` | UpdateService | SUCCESS | MEDIUM | Gold end | LIGHT | 5 |
+| `UPDATE_AVAILABLE` | UpdateService | INFO | LOW | Gold pulse | — | 5 |
+| `UPDATE_INSTALLING` | UpdateService | INFO | HIGH | Cyan progress | — | 5 |
+| `UPDATE_COMPLETED` | UpdateService | SUCCESS | MEDIUM | Gold burst | LIGHT | 5 |
+| `BACKUP_STARTED` | BackupService | INFO | LOW | Cyan stream | — | 5 |
+| `BACKUP_COMPLETED` | BackupService | SUCCESS | LOW | Cyan->gold | LIGHT | 5 |
+| `USER_LOGIN` | AuthManager | SUCCESS | MEDIUM | Cyan reset | LIGHT | 5 |
+| `USER_LOGOUT` | AuthManager | INFO | LOW | Dim gray | — | 5 |
+| `MACHINE_RESTART_PENDING` | SystemMonitor | CRITICAL | CRITICAL | Red overlay | HEAVY | 5 |
+| `MACHINE_RESTARTED` | SystemMonitor | INFO | MEDIUM | Reinitialize | — | 5 |
+| `DISK_WARNING` | SystemMonitor | WARNING | CRITICAL | Red pulse | MEDIUM | 5 |
+| `SERVICE_HEALTHY` | HealthMonitor | INFO | LOW | Green tint | — | 5 |
+| `SERVICE_DEGRADED` | HealthMonitor | WARNING | HIGH | Amber->red | MEDIUM | 5 |
+| `SECURITY_RISK` | SecurityMonitor | CRITICAL | CRITICAL | Red flash | HEAVY | 5 |
+| `NETWORK_ACTIVITY_HIGH` | NetworkMonitor | INFO | LOW | Lateral drift | — | 5 |
+| `NETWORK_ACTIVITY_LOW` | NetworkMonitor | INFO | LOW | Drift slows | — | 5 |
+| `PLAYBACK_STARTED` | AudioBackbone | INFO | MEDIUM | Cyan activate | LIGHT | 0 |
+| `PLAYBACK_PAUSED` | AudioBackbone | INFO | LOW | Dim | LIGHT | 0 |
+| `TRACK_CHANGED` | AudioBackbone | INFO | MEDIUM | Gold sweep | LIGHT | 2 |
+| `BUFFERING_STARTED` | AudioBackbone | INFO | MEDIUM | Violet unison | — | 2 |
+| `BUFFERING_ENDED` | AudioBackbone | INFO | LOW | Return cyan | — | 2 |
 
 ---
 
-## Appendix F: Agent Mood Registry
+## Appendix F: Agent OES Registry
 
-| Mood | Triggers | Visual | Music Influence | Haptic |
+| State | Triggers | Visual | Music Influence | Haptic |
 |---|---|---|---|---|
 | `FOCUSED` | Long task, no errors | Steady cyan pulse | Sustained tempo | — |
 | `ENERGIZED` | >= 3 rapid completions | Gold micro-pulses | Upbeat bias | LIGHT |
-| `CALM` | Idle, healthy | Violet ambient | Ambient-friendly | — |
 | `STRAINED` | Failure streak >= 2 | Dim red flicker | Tension hint | — |
-| `BLOCKED` | Critical failure | Bright red alert | Pause suggestion | MEDIUM |
+| `DORMANT` | No task > 5 min | Sparse, muted | Discovery | — |
 | `ALERT` | Warning detected | Border flash | No change | MEDIUM |
-| `IDLE` | No task > 5 min | Sparse, muted | Discovery | — |
-| `PROUD` | Major success | Gold burst | Celebration hint | LIGHT |
-| `CURIOUS` | Exploring | Wandering magenta | Exploration | — |
-| `OVERLOADED` | Tasks > 3 | Chaotic red | No change | MEDIUM |
+| `OVERLOADED` | Tasks > 3 concurrent | Chaotic red density | No change | MEDIUM |
+| `CALM` | Idle, all healthy | Minimal violet ambient | Ambient-friendly | — |
+| `UNSTABLE` | Critical failure | Bright red alert pulse | Pause suggestion | MEDIUM |
+| `SOCIAL` | High human interaction | Warm lateral drift | Collaborative tempo | — |
+| `CURIOUS` | Exploring, searching | Wandering magenta glow | Exploration bias | — |
 
 ---
 
-*End of Document — VAIB Animation & Particle FX System Technical Plan v2.0*  
-*Revised 2026-05-07 — Animation Architecture Workstream*  
-*Previous version 4179491 superseded in full*
+*End of Document — VAIB Animation & Particle FX System Technical Plan v3.0*  
+*Final Revision 2026-05-07 — Supreme Commander Philosophical Refinements Applied*  
+*v2.0 (4179491) superseded in full*
+eded in full*

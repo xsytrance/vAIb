@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0 --port 4013",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4013",
-    "api:library": "node server/api.mjs"
+    "api:library": "node server/api.mjs",
+    "sync:agents": "node scripts/sync-agent-roster.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

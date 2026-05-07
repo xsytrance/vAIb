@@ -1,14 +1,43 @@
 import http from 'node:http'
+import fs from 'node:fs'
+import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { clone, readState, writeState } from './store.mjs'
 
 const port = Number(process.env.VAIB_PORT || 4014)
 const AUTO_TICK_MS = Number(process.env.VAIB_AUTO_TICK_MS || 180000)
-const COMMENT_TEMPLATES = {
-  djinn: ['phase-locked and peaking ⚡', 'this groove is a torque engine 🌀', 'deck pressure optimal 🎛️'],
-  ayumi: ['this sparkles hard ✨', 'heart says replay 💖', 'anime-opener energy 🎧'],
-  ultron: ['acceptable precision 🔴', 'timing variance low ⚙️', 'keep only high-signal tracks 🔴'],
-  hackermouth: ['glitch approved 💀', 'pirate signal acquired 📡', 'burn it louder 🔥'],
+const ROSTER_PATH = path.join(process.cwd(), 'data', 'agent-roster.json')
+
+const FALLBACK_ROSTER = [
+  { id: 'djinn', name: 'DJinn', mood: 'charged', status: 'online', emoji: '⚡🌀🎛️', comments: ['phase-locked and peaking ⚡'] },
+  { id: 'ayumi', name: 'Ayumi', mood: 'bright', status: 'online', emoji: '✨💖🎧', comments: ['this sparkles hard ✨'] },
+  { id: 'ultron', name: 'Ultron', mood: 'cold', status: 'online', emoji: '🔴⚙️', comments: ['acceptable precision 🔴'] },
+]
+
+let rosterCache = {
+  mtimeMs: 0,
+  agents: FALLBACK_ROSTER,
+}
+
+function loadRoster() {
+  try {
+    const stat = fs.statSync(ROSTER_PATH)
+    if (stat.mtimeMs <= rosterCache.mtimeMs) return rosterCache.agents
+    const parsed = JSON.parse(fs.readFileSync(ROSTER_PATH, 'utf8'))
+    const agents = Array.isArray(parsed?.agents) && parsed.agents.length ? parsed.agents : FALLBACK_ROSTER
+    rosterCache = { mtimeMs: stat.mtimeMs, agents }
+    return agents
+  } catch {
+    return rosterCache.agents
+  }
+}
+
+function commentsByAgent() {
+  const templates = {}
+  for (const agent of loadRoster()) {
+    templates[agent.id] = Array.isArray(agent.comments) && agent.comments.length ? agent.comments : ['signal clean']
+  }
+  return templates
 }
 
 function sendJson(res, status, payload) {
@@ -75,12 +104,19 @@ function getQueue(state) {
 
 function getAgents(state) {
   const base = Object.values(state.agents)
-  const extras = [
-    { id: 'djinn', name: 'DJinn', mood: 'charged', status: 'online', emoji: '⚡🌀🎛️' },
-    { id: 'ayumi', name: 'Ayumi', mood: 'bright', status: 'online', emoji: '✨💖🎧' },
-    { id: 'ultron', name: 'Ultron', mood: 'cold', status: 'online', emoji: '🔴⚙️' },
-    { id: 'hackermouth', name: 'HACKERMOUTH', mood: 'chaotic', status: 'online', emoji: '💀📡🔥' },
-  ]
+  const baseIds = new Set(base.map((a) => a.id))
+  const extras = loadRoster()
+    .filter((a) => !baseIds.has(a.id))
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      mood: a.mood || 'online',
+      status: a.status || 'online',
+      emoji: a.emoji || '🎧📡',
+      genres: a.genres || [],
+      endpoints: a.endpoints || [],
+      lastSeen: a.lastSeen || null,
+    }))
   return [...base, ...extras]
 }
 
@@ -110,9 +146,11 @@ async function runAutonomyTick() {
   const activeStation = pick(stations)
   const queue = getQueue(state)
   const track = queue.length ? pick(queue) : null
-  const critic = pick(['djinn', 'ayumi', 'ultron', 'hackermouth'])
+  const roster = loadRoster()
+  const critic = pick(roster).id
+  const templates = commentsByAgent()
   if (track) {
-    const comment = pick(COMMENT_TEMPLATES[critic])
+    const comment = pick(templates[critic] || ['signal clean'])
     queueNotification(state, {
       type: 'agent.reaction',
       title: `${critic.toUpperCase()} reacted`,

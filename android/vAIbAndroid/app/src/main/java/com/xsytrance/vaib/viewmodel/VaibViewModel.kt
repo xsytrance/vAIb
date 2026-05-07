@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
+import com.xsytrance.vaib.BuildConfig
 import com.xsytrance.vaib.data.AudioBackbone
 import com.xsytrance.vaib.data.AutomationEngine
 import com.xsytrance.vaib.data.ChangeFeedEngine
@@ -19,6 +20,9 @@ import com.xsytrance.vaib.data.tts.BroadcastSafetyMode
 import com.xsytrance.vaib.data.tts.DjScriptSanitizer
 import com.xsytrance.vaib.data.tts.ElevenLabsClient
 import com.xsytrance.vaib.data.tts.NarrationService
+import com.xsytrance.vaib.data.update.ApkInstallBridge
+import com.xsytrance.vaib.data.update.AppUpdateCoordinator
+import com.xsytrance.vaib.data.update.UpdateReleaseClient
 import java.io.File
 import java.util.Calendar
 import kotlin.collections.emptyMap
@@ -43,6 +47,10 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("vaib_state", Context.MODE_PRIVATE)
     private val strictModePrefKey = "strict_broadcast_mode"
     private val statsPrefKey = "listening_stats_json"
+    private val updateAutoCheckPrefKey = "update_auto_check"
+    private val updateEndpointPrefKey = "update_endpoint"
+    private var updateEndpoint: String = prefs.getString(updateEndpointPrefKey, "") ?: ""
+    private var updateAutoCheckEnabled: Boolean = prefs.getBoolean(updateAutoCheckPrefKey, true)
     private var elevenLabsApiKey: String = ""
     private val elevenLabsClient = ElevenLabsClient { elevenLabsApiKey }
     private val narrationService = NarrationService(
@@ -110,6 +118,15 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _strictBroadcastModeState = MutableStateFlow(false)
     val strictBroadcastModeState: StateFlow<Boolean> = _strictBroadcastModeState.asStateFlow()
+
+    private val updateCoordinator = AppUpdateCoordinator(
+        releaseClient = UpdateReleaseClient(),
+        prefs = prefs,
+        currentVersionNameProvider = { BuildConfig.VERSION_NAME }
+    )
+    private val apkInstallBridge = ApkInstallBridge(application.applicationContext)
+    private val _updateUiState = MutableStateFlow(UpdateUiState())
+    val updateUiState: StateFlow<UpdateUiState> = _updateUiState.asStateFlow()
 
     private val _backendUrlState = MutableStateFlow(backendUrl)
     val backendUrlState: StateFlow<String> = _backendUrlState.asStateFlow()
@@ -199,6 +216,13 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
         bindPlayer()
         loadDemoData()
         _strictBroadcastModeState.value = prefs.getBoolean(strictModePrefKey, false)
+        _updateUiState.value = updateCoordinator.initialState(
+            endpoint = updateEndpoint,
+            autoCheckEnabled = updateAutoCheckEnabled
+        )
+        if (updateAutoCheckEnabled && updateCoordinator.isEligibleForScheduledCheck(System.currentTimeMillis())) {
+            checkForAppUpdates()
+        }
         hydrateListeningStatsFromPrefs()
         startPolling()
         loadVoiceId()
@@ -1389,6 +1413,42 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     fun setStrictBroadcastMode(enabled: Boolean) {
         _strictBroadcastModeState.value = enabled
         prefs.edit().putBoolean(strictModePrefKey, enabled).apply()
+    }
+
+    fun setUpdateEndpoint(endpoint: String) {
+        updateEndpoint = endpoint.trim()
+        prefs.edit().putString(updateEndpointPrefKey, updateEndpoint).apply()
+        _updateUiState.update { it.copy(endpoint = updateEndpoint, message = null) }
+    }
+
+    fun setAutoUpdateCheckEnabled(enabled: Boolean) {
+        updateAutoCheckEnabled = enabled
+        prefs.edit().putBoolean(updateAutoCheckPrefKey, enabled).apply()
+        _updateUiState.update { it.copy(autoCheckEnabled = enabled, message = null) }
+    }
+
+    fun checkForAppUpdates() {
+        viewModelScope.launch {
+            _updateUiState.update { it.copy(checking = true, message = null) }
+            val checked = updateCoordinator.checkNow(updateEndpoint)
+            _updateUiState.value = checked.copy(checking = false, autoCheckEnabled = updateAutoCheckEnabled)
+        }
+    }
+
+    fun dismissAvailableUpdate() {
+        val version = _updateUiState.value.availableUpdate?.versionName ?: return
+        updateCoordinator.dismissVersion(version)
+        _updateUiState.update {
+            it.copy(availableUpdate = null, message = "Dismissed update $version")
+        }
+    }
+
+    fun downloadAvailableUpdate() {
+        val update = _updateUiState.value.availableUpdate ?: return
+        val downloadId = apkInstallBridge.enqueueApkDownload(update.apkUrl, update.versionName)
+        _updateUiState.update {
+            it.copy(message = "Downloading ${update.versionName} (id=$downloadId)")
+        }
     }
 
     fun generateDjNarrationPreview(script: String) {

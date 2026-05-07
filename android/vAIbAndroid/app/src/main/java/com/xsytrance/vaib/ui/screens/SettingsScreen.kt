@@ -39,6 +39,7 @@ fun SettingsScreen(
     val strictBroadcastMode by viewModel.strictBroadcastModeState.collectAsState()
     val refreshMode by viewModel.refreshMode.collectAsState()
     val nextRefreshAtMillis by viewModel.nextRefreshAtMillis.collectAsState()
+    val updateUiState by viewModel.updateUiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -173,6 +174,83 @@ fun SettingsScreen(
                         viewModel.setPollInterval(it.toInt())
                     }
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        VaibCard {
+            Column {
+                Text(
+                    text = "App Updates",
+                    color = PrimaryNeonCyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = updateUiState.endpoint,
+                    onValueChange = { viewModel.setUpdateEndpoint(it) },
+                    label = { Text("Update feed URL", color = TextMuted) },
+                    placeholder = { Text("https://.../latest.json", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = PrimaryNeonCyan,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedContainerColor = SurfaceElevated,
+                        unfocusedContainerColor = SurfaceElevated
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Auto-check updates", color = TextSecondary, fontSize = 14.sp)
+                    Switch(
+                        checked = updateUiState.autoCheckEnabled,
+                        onCheckedChange = { viewModel.setAutoUpdateCheckEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = PrimaryNeonCyan,
+                            checkedTrackColor = PrimaryNeonCyan.copy(alpha = 0.4f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { viewModel.checkForAppUpdates() }) {
+                        Text(if (updateUiState.checking) "Checking..." else "Check now")
+                    }
+                    if (updateUiState.availableUpdate != null) {
+                        OutlinedButton(onClick = { viewModel.downloadAvailableUpdate() }) {
+                            Text("Download APK")
+                        }
+                        OutlinedButton(onClick = { viewModel.dismissAvailableUpdate() }) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+
+                updateUiState.availableUpdate?.let { update ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Available: ${update.versionName}", color = TextPrimary, fontSize = 13.sp)
+                    update.releaseNotes?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, color = TextMuted, fontSize = 11.sp)
+                    }
+                }
+
+                updateUiState.message?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(it, color = TextMuted, fontSize = 11.sp)
+                }
             }
         }
 

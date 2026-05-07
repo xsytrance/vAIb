@@ -8,6 +8,7 @@ import com.xsytrance.vaib.data.AudioBackbone
 import com.xsytrance.vaib.data.DemoData
 import com.xsytrance.vaib.data.VaibRepository
 import com.xsytrance.vaib.data.model.*
+import kotlin.collections.emptyMap
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +39,12 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _voiceId = MutableStateFlow("")
     val voiceId: StateFlow<String> = _voiceId
+
+    private val _agentLiveSignals = MutableStateFlow<Map<String, AgentLiveSignal>>(emptyMap())
+    val agentLiveSignals: StateFlow<Map<String, AgentLiveSignal>> = _agentLiveSignals
+
+    private val _cockpitPressure = MutableStateFlow<Int?>(null)
+    val cockpitPressure: StateFlow<Int?> = _cockpitPressure
 
     private val _voiceSaveState = MutableStateFlow<String?>(null)
     val voiceSaveState: StateFlow<String?> = _voiceSaveState
@@ -110,6 +117,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             result.fold(
                 onSuccess = { state ->
                     _appState.value = state.copy(isLoading = false, isBackendConnected = true)
+                    refreshLiveSignals()
                     applyPresencePulse(force = true)
                     _appState.value.playback.currentStation?.let { playStation(it) }
                 },
@@ -132,13 +140,25 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                 if (!useDemoMode) {
                     repository.fetchState().onSuccess { state ->
                         _appState.value = state.copy(isBackendConnected = true)
+                        if (pulseTicks % 2 == 0) refreshLiveSignals()
                         if (pulseTicks % 3 == 0 && Random.nextFloat() > 0.35f) applyPresencePulse(force = false)
-                    }.onFailure { _appState.update { it.copy(isBackendConnected = false) } }
+                    }.onFailure {
+                        _appState.update { it.copy(isBackendConnected = false) }
+                        _agentLiveSignals.value = emptyMap()
+                        _cockpitPressure.value = null
+                    }
                 } else {
                     _appState.update { it.copy(isBackendConnected = repository.checkConnection()) }
                     if (pulseTicks % 2 == 0 && Random.nextFloat() > 0.45f) applyPresencePulse(force = false)
                 }
             }
+        }
+    }
+
+    private fun refreshLiveSignals() {
+        viewModelScope.launch {
+            _agentLiveSignals.value = repository.fetchAgentLiveSignals()
+            _cockpitPressure.value = repository.fetchCockpitPressure()
         }
     }
 

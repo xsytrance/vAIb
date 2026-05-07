@@ -1,5 +1,6 @@
 package com.xsytrance.vaib.data
 
+import com.xsytrance.vaib.data.model.AgentLiveSignal
 import com.xsytrance.vaib.data.model.AppState
 import com.xsytrance.vaib.data.model.ListeningStats
 import com.xsytrance.vaib.data.model.TasteProfile
@@ -108,6 +109,41 @@ class VaibRepository(
             })
         }
         apiClient.post("/action", body.toString()) != null
+    }
+
+    suspend fun fetchAgentLiveSignals(): Map<String, AgentLiveSignal> = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext emptyMap()
+        val payload = apiClient.get("/agents") ?: return@withContext emptyMap()
+        val arr = payload.optJSONArray("agents") ?: return@withContext emptyMap()
+        buildMap {
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val id = o.optString("id", "")
+                if (id.isBlank()) continue
+                val genres = mutableListOf<String>()
+                val genresArr = o.optJSONArray("genres")
+                if (genresArr != null) {
+                    for (g in 0 until genresArr.length()) {
+                        val v = genresArr.optString(g, "")
+                        if (v.isNotBlank()) genres.add(v)
+                    }
+                }
+                put(
+                    id,
+                    AgentLiveSignal(
+                        moodFromWork = o.optString("mood", ""),
+                        workload = o.optInt("workload", 0),
+                        preferredGenresNow = genres
+                    )
+                )
+            }
+        }
+    }
+
+    suspend fun fetchCockpitPressure(): Int? = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext null
+        val stats = apiClient.get("/stats") ?: return@withContext null
+        stats.optInt("cockpitPressure", -1).takeIf { it >= 0 }
     }
 
     private fun parseAppState(json: JSONObject): AppState {

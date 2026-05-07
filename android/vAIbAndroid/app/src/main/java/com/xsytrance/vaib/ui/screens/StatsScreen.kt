@@ -24,6 +24,7 @@ fun StatsScreen(
     viewModel: VaibViewModel
 ) {
     val stats by viewModel.listeningStats.collectAsState()
+    val cockpitPressure by viewModel.cockpitPressure.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -59,13 +60,13 @@ fun StatsScreen(
             ) {
                 StatTile(
                     label = "Listen Time",
-                    value = "${'$'}{stats.totalListeningMinutes}m",
+                    value = "${stats.totalListeningMinutes}m",
                     modifier = Modifier.weight(1f),
                     accentColor = PrimaryNeonCyan
                 )
                 StatTile(
                     label = "Sessions",
-                    value = "${'$'}{stats.sessionsToday}",
+                    value = "${stats.sessionsToday}",
                     modifier = Modifier.weight(1f),
                     accentColor = SecondaryGold
                 )
@@ -100,10 +101,14 @@ fun StatsScreen(
                     accentColor = LiveGreen
                 )
                 StatTile(
-                    label = "Agents",
-                    value = "${'$'}{stats.agentLeaderboard.size}",
+                    label = "Cockpit Pressure",
+                    value = cockpitPressure?.let { "$it%" } ?: "--",
                     modifier = Modifier.weight(1f),
-                    accentColor = LiveGreen
+                    accentColor = when {
+                        (cockpitPressure ?: 0) >= 70 -> ErrorRed
+                        (cockpitPressure ?: 0) >= 40 -> SecondaryGold
+                        else -> LiveGreen
+                    }
                 )
             }
         }
@@ -134,7 +139,7 @@ fun StatsScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Avg: ${'$'}{String.format("%.1f", agentStat.averageRating)}",
+                            text = "Avg: ${"%.1f".format(agentStat.averageRating)}",
                             color = SecondaryGold,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -142,7 +147,7 @@ fun StatsScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Queued: ${'$'}{agentStat.tracksQueued} • Liked: ${'$'}{agentStat.tracksLiked} • Disliked: ${'$'}{agentStat.tracksDisliked}",
+                        text = "Queued: ${agentStat.tracksQueued} • Liked: ${agentStat.tracksLiked} • Disliked: ${agentStat.tracksDisliked}",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -175,7 +180,7 @@ fun StatsScreen(
                         fontSize = 14.sp
                     )
                     Text(
-                        text = "${'$'}{tokenUsage.tokensUsed} / ${'$'}{tokenUsage.tokensBudget}",
+                        text = "${tokenUsage.tokensUsed} / ${tokenUsage.tokensBudget}",
                         color = if (tokenUsage.tokensUsed > 400) SecondaryGold else PrimaryNeonCyan,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -219,7 +224,7 @@ fun StatsScreen(
                         fontSize = 14.sp
                     )
                     Text(
-                        text = "${'$'}{stationStat.totalListens} listens",
+                        text = "${stationStat.totalListens} listens",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -235,7 +240,7 @@ fun StatsScreen(
                         fontSize = 11.sp
                     )
                     Text(
-                        text = "${'$'}{String.format("%.0f%%", stationStat.likeRatio * 100)}",
+                        text = "${"%.0f".format(stationStat.likeRatio * 100)}%",
                         color = LiveGreen,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold

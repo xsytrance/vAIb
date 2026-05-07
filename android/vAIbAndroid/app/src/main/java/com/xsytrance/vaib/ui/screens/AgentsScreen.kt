@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xsytrance.vaib.data.model.AgentLiveSignal
 import com.xsytrance.vaib.data.model.AppState
 import com.xsytrance.vaib.data.model.Agent
 import com.xsytrance.vaib.data.model.TasteProfile
@@ -24,6 +25,7 @@ fun AgentsScreen(
     viewModel: VaibViewModel
 ) {
     val tasteProfiles by viewModel.tasteProfiles.collectAsState()
+    val liveSignals by viewModel.agentLiveSignals.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -43,7 +45,7 @@ fun AgentsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${'$'}{appState.agents.size} active agents",
+                    text = "${appState.agents.size} active agents",
                     color = TextSecondary,
                     fontSize = 14.sp
                 )
@@ -53,7 +55,8 @@ fun AgentsScreen(
         items(appState.agents) { agent ->
             AgentDetailCard(
                 agent = agent,
-                tasteProfile = tasteProfiles[agent.id]
+                tasteProfile = tasteProfiles[agent.id],
+                liveSignal = liveSignals[agent.id]
             )
         }
 
@@ -64,7 +67,8 @@ fun AgentsScreen(
 @Composable
 fun AgentDetailCard(
     agent: Agent,
-    tasteProfile: TasteProfile?
+    tasteProfile: TasteProfile?,
+    liveSignal: AgentLiveSignal?
 ) {
     VaibCard {
         Column {
@@ -92,12 +96,38 @@ fun AgentDetailCard(
 
             AgentChip(name = agent.name, colorHex = agent.color)
 
+            if (liveSignal != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Workload: ${liveSignal.workload}%",
+                    color = SecondaryGold,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (liveSignal.moodFromWork.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Work Mood: ${liveSignal.moodFromWork}",
+                        color = PrimaryNeonCyan,
+                        fontSize = 12.sp
+                    )
+                }
+                if (liveSignal.preferredGenresNow.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Now spinning: ${liveSignal.preferredGenresNow.joinToString(", ")}",
+                        color = AccentMagenta,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
             if (tasteProfile != null) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (tasteProfile.favoriteGenres.isNotEmpty()) {
                     Text(
-                        text = "Likes: ${'$'}{tasteProfile.favoriteGenres.joinToString(", ")}",
+                        text = "Likes: ${tasteProfile.favoriteGenres.joinToString(", ")}",
                         color = LiveGreen,
                         fontSize = 12.sp
                     )
@@ -106,7 +136,7 @@ fun AgentDetailCard(
                 if (tasteProfile.dislikedGenres.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Dislikes: ${'$'}{tasteProfile.dislikedGenres.joinToString(", ")}",
+                        text = "Dislikes: ${tasteProfile.dislikedGenres.joinToString(", ")}",
                         color = ErrorRed,
                         fontSize = 12.sp
                     )
@@ -114,7 +144,7 @@ fun AgentDetailCard(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "BPM: ${'$'}{tasteProfile.preferredBpmMin}-${'$'}{tasteProfile.preferredBpmMax} • Energy: ${'$'}{String.format("%.0f%%", tasteProfile.energyPreference * 100)}",
+                    text = "BPM: ${tasteProfile.preferredBpmMin}-${tasteProfile.preferredBpmMax} • Energy: ${"%.0f".format(tasteProfile.energyPreference * 100)}%",
                     color = PrimaryNeonCyan,
                     fontSize = 12.sp
                 )
@@ -124,13 +154,13 @@ fun AgentDetailCard(
                 TokenBudgetPill(
                     used = tasteProfile.tokenBudgetUsed,
                     total = tasteProfile.tokenBudgetPerSession,
-                    label = "${'$'}{agent.name} Token Budget"
+                    label = "${agent.name} Token Budget"
                 )
 
                 if (tasteProfile.commentStyle.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Style: ${'$'}{tasteProfile.commentStyle}",
+                        text = "Style: ${tasteProfile.commentStyle}",
                         color = TextMuted,
                         fontSize = 11.sp
                     )
@@ -139,7 +169,7 @@ fun AgentDetailCard(
                 if (tasteProfile.emojiStyle.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Emojis: ${'$'}{tasteProfile.emojiStyle.joinToString(", ")}",
+                        text = "Emojis: ${tasteProfile.emojiStyle.joinToString(", ")}",
                         color = TextMuted,
                         fontSize = 11.sp
                     )

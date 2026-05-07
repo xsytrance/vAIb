@@ -20,22 +20,25 @@ import com.xsytrance.vaib.viewmodel.VaibViewModel
 fun SettingsScreen(
     viewModel: VaibViewModel
 ) {
-    var backendUrl by remember { mutableStateOf("http://192.168.1.147:4014") }
+    val backendUrl by viewModel.backendUrlState.collectAsState()
+    val tailnetHostname by viewModel.tailnetHostnameState.collectAsState()
+    val tailnetPort by viewModel.tailnetPortState.collectAsState()
     var demoMode by remember { mutableStateOf(false) }
     var pollInterval by remember { mutableStateOf(6f) }
     var bluetoothMode by remember { mutableStateOf(true) }
     var tokenCommentLimit by remember { mutableStateOf("280") }
     var maxReactions by remember { mutableStateOf("25") }
-    var voiceIdDraft by remember { mutableStateOf("") }
+    var djScriptDraft by remember { mutableStateOf("Tonight's vibe is adaptive, hypnotic, and collaborative. Our agents are flowing between deep focus and pulse-driving grooves.") }
 
-    val voiceId by viewModel.voiceId.collectAsState()
+    val appState by viewModel.appState.collectAsState()
     val voiceSaveState by viewModel.voiceSaveState.collectAsState()
+    val agentVoiceDrafts by viewModel.agentVoiceDrafts.collectAsState()
+    val djHostAgentId by viewModel.djHostAgentId.collectAsState()
+    val elevenLabsApiKey by viewModel.elevenLabsApiKeyState.collectAsState()
+    val djNarrationPreviewState by viewModel.djNarrationPreviewState.collectAsState()
+    val strictBroadcastMode by viewModel.strictBroadcastModeState.collectAsState()
     val refreshMode by viewModel.refreshMode.collectAsState()
     val nextRefreshAtMillis by viewModel.nextRefreshAtMillis.collectAsState()
-
-    LaunchedEffect(voiceId) {
-        voiceIdDraft = voiceId
-    }
 
     Column(
         modifier = Modifier
@@ -73,10 +76,7 @@ fun SettingsScreen(
 
                 OutlinedTextField(
                     value = backendUrl,
-                    onValueChange = {
-                        backendUrl = it
-                        viewModel.setBackendUrl(it)
-                    },
+                    onValueChange = { viewModel.setBackendUrl(it) },
                     label = { Text("Backend URL", color = TextMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -88,6 +88,53 @@ fun SettingsScreen(
                         unfocusedContainerColor = SurfaceElevated
                     )
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = tailnetHostname,
+                    onValueChange = { viewModel.setTailnetHostname(it) },
+                    label = { Text("Tailnet MagicDNS Host", color = TextMuted) },
+                    placeholder = { Text("vaib-host.tailnet-name.ts.net", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = PrimaryNeonCyan,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedContainerColor = SurfaceElevated,
+                        unfocusedContainerColor = SurfaceElevated
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = tailnetPort,
+                    onValueChange = { viewModel.setTailnetPort(it) },
+                    label = { Text("Tailnet Port", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = PrimaryNeonCyan,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedContainerColor = SurfaceElevated,
+                        unfocusedContainerColor = SurfaceElevated
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { viewModel.testAllTailnetRoutes() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryNeonCyan,
+                        contentColor = BackgroundAmoled
+                    )
+                ) {
+                    Text("Test all tailnet routes")
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -210,10 +257,10 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
-                    value = voiceIdDraft,
-                    onValueChange = { voiceIdDraft = it },
-                    label = { Text("Voice ID", color = TextMuted) },
-                    placeholder = { Text("Enter ElevenLabs voice ID", color = TextMuted) },
+                    value = elevenLabsApiKey,
+                    onValueChange = { viewModel.setElevenLabsApiKey(it) },
+                    label = { Text("ElevenLabs API Key (runtime)", color = TextMuted) },
+                    placeholder = { Text("sk_...", color = TextMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
@@ -225,25 +272,125 @@ fun SettingsScreen(
                     )
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Strict Broadcast Mode", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (strictBroadcastMode)
+                                "Blocks risky DJ scripts and uses a canned safe station-ID message."
+                            else
+                                "Balanced mode redacts sensitive fragments while preserving safe context.",
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = strictBroadcastMode,
+                        onCheckedChange = { viewModel.setStrictBroadcastMode(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = AccentMagenta,
+                            checkedTrackColor = AccentMagenta.copy(alpha = 0.4f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Agent Voice Assignments", color = TextSecondary, fontSize = 13.sp)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = { viewModel.saveVoiceId(voiceIdDraft) },
-                    enabled = voiceSaveState != "saving",
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryNeonCyan,
-                        contentColor = BackgroundAmoled
+                appState.agents.forEach { agent ->
+                    val isDj = agent.id == djHostAgentId
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isDj) "🎧 ${agent.name} (DJ Host)" else agent.name,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (isDj) FontWeight.Bold else FontWeight.Normal
+                        )
+                        TextButton(onClick = { viewModel.setDjHostAgent(agent.id) }) {
+                            Text(if (isDj) "DJ Selected" else "Make DJ")
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = agentVoiceDrafts[agent.id] ?: agent.voiceId.orEmpty(),
+                        onValueChange = { viewModel.setAgentVoiceDraft(agent.id, it) },
+                        label = { Text("${agent.name} Voice ID", color = TextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = PrimaryNeonCyan,
+                            unfocusedBorderColor = BorderSubtle,
+                            focusedContainerColor = SurfaceElevated,
+                            unfocusedContainerColor = SurfaceElevated
+                        )
                     )
-                ) {
-                    Text(if (voiceSaveState == "saving") "Saving..." else "Save Voice ID")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                OutlinedTextField(
+                    value = djScriptDraft,
+                    onValueChange = { djScriptDraft = it },
+                    label = { Text("DJ Narration Preview Script", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = AccentMagenta,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedContainerColor = SurfaceElevated,
+                        unfocusedContainerColor = SurfaceElevated
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.generateDjNarrationPreview(djScriptDraft) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentMagenta,
+                            contentColor = BackgroundAmoled
+                        )
+                    ) {
+                        Text("Preview DJ")
+                    }
+
+                    Button(
+                        onClick = { viewModel.saveAgentVoiceAssignments() },
+                        enabled = voiceSaveState != "saving",
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryNeonCyan,
+                            contentColor = BackgroundAmoled
+                        )
+                    ) {
+                        Text(if (voiceSaveState == "saving") "Saving..." else "Save Voice Roster")
+                    }
                 }
 
                 if (voiceSaveState == "saved") {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Voice ID saved", color = PrimaryNeonCyan, fontSize = 12.sp)
+                    Text("Voice roster saved", color = PrimaryNeonCyan, fontSize = 12.sp)
                 } else if (voiceSaveState == "error") {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Failed to save Voice ID", color = AccentMagenta, fontSize = 12.sp)
+                    Text("Failed to save voice roster", color = AccentMagenta, fontSize = 12.sp)
+                }
+
+                if (djNarrationPreviewState != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("DJ preview: ${djNarrationPreviewState}", color = TextSecondary, fontSize = 12.sp)
                 }
             }
         }

@@ -37,7 +37,7 @@ fun QueueScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${'$'}{appState.queue.size} tracks queued",
+                    text = "${appState.queue.size} tracks queued",
                     color = TextSecondary,
                     fontSize = 14.sp
                 )

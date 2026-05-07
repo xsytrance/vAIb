@@ -6,5 +6,8 @@ data class Agent(
     val role: String,
     val status: String,
     val color: String,
-    val currentStationId: String? = null
+    val currentStationId: String? = null,
+    val voiceId: String? = null,
+    val voiceStyle: String? = null,
+    val isDjHost: Boolean = false
 )

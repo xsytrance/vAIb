@@ -2,10 +2,13 @@ package com.xsytrance.vaib.data
 
 import com.xsytrance.vaib.data.model.AgentLiveSignal
 import com.xsytrance.vaib.data.model.AppState
+import com.xsytrance.vaib.data.model.BackendEndpoint
+import com.xsytrance.vaib.data.model.ConnectionConsensus
 import com.xsytrance.vaib.data.model.ListeningStats
 import com.xsytrance.vaib.data.model.TasteProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 class VaibRepository(
@@ -20,6 +23,14 @@ class VaibRepository(
 
     suspend fun checkConnection(): Boolean = withContext(Dispatchers.IO) {
         apiClient.checkConnection()
+    }
+
+    suspend fun checkConnectionAny(endpoints: List<BackendEndpoint>): ConnectionConsensus = withContext(Dispatchers.IO) {
+        apiClient.checkConnectionAny(endpoints)
+    }
+
+    fun buildDefaultEndpoints(baseUrl: String, tailnetHostname: String?, tailnetPort: Int): List<BackendEndpoint> {
+        return apiClient.buildDefaultEndpoints(baseUrl, tailnetHostname, tailnetPort)
     }
 
     suspend fun fetchState(): Result<AppState> = withContext(Dispatchers.IO) {
@@ -106,6 +117,38 @@ class VaibRepository(
                 put("humanView", JSONObject().apply {
                     put("voiceId", voiceId)
                 })
+            })
+        }
+        apiClient.post("/action", body.toString()) != null
+    }
+
+    suspend fun saveAgentVoices(agentVoiceMap: Map<String, String>): Boolean = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext true
+        val voiceArray = JSONArray().apply {
+            agentVoiceMap.forEach { (agentId, voiceId) ->
+                if (voiceId.isNotBlank()) {
+                    put(JSONObject().apply {
+                        put("agentId", agentId)
+                        put("voiceId", voiceId)
+                    })
+                }
+            }
+        }
+        val body = JSONObject().apply {
+            put("action", "agent_voice_map")
+            put("payload", JSONObject().apply {
+                put("voices", voiceArray)
+            })
+        }
+        apiClient.post("/action", body.toString()) != null
+    }
+
+    suspend fun saveDjHostAgent(agentId: String): Boolean = withContext(Dispatchers.IO) {
+        if (useDemoMode) return@withContext true
+        val body = JSONObject().apply {
+            put("action", "dj_host")
+            put("payload", JSONObject().apply {
+                put("agentId", agentId)
             })
         }
         apiClient.post("/action", body.toString()) != null

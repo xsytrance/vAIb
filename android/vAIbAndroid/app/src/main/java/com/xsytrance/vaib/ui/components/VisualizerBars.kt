@@ -48,10 +48,11 @@ fun VisualizerBars(
             if (isPlaying) {
                 for (i in barHeights.indices) {
                     val wave = ((sin(phase + (i * 0.35f)) + 1f) / 2f).coerceIn(0f, 1f)
-                    val jitter = Random.nextFloat() * 0.12f
-                    val target = (0.14f + (wave * 0.62f) + jitter) * intensity.coerceIn(0.2f, 1f)
+                    val jitter = Random.nextFloat() * 0.05f
+                    val shapedIntensity = intensity.coerceIn(0.2f, 1f)
+                    val target = (0.16f + (wave * 0.58f) + jitter) * shapedIntensity
                     val prev = barHeights[i]
-                    barHeights[i] = (prev * 0.66f + target * 0.34f).coerceIn(0.08f, 1f)
+                    barHeights[i] = (prev * 0.78f + target * 0.22f).coerceIn(0.10f, 0.92f)
                 }
             } else {
                 for (i in barHeights.indices) {

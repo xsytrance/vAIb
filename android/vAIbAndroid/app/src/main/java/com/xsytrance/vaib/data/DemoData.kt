@@ -78,11 +78,11 @@ object DemoData {
     )
 
     val agents = listOf(
-        Agent(id = "vg-god", name = "VG God", role = "Command", status = "online", color = "#FFD700", currentStationId = "gold-command"),
-        Agent(id = "djinn", name = "DJinn", role = "Signal Architect", status = "hosting", color = "#00E5FF", currentStationId = "prime-pulse"),
-        Agent(id = "ultron", name = "Ultron", role = "Systems Critic", status = "online", color = "#FF3344", currentStationId = "redline-grid"),
-        Agent(id = "ayumi", name = "Ayumi", role = "Discovery Host", status = "listening", color = "#FF6BFF", currentStationId = "city-pop-signal"),
-        Agent(id = "hackermouth", name = "HACKERMOUTH", role = "Signal Goblin", status = "unstable", color = "#39FF14", currentStationId = "glitch-ditch")
+        Agent(id = "vg-god", name = "VG God", role = "Command", status = "online", color = "#FFD700", currentStationId = "gold-command", voiceId = "EXAVITQu4vr4xnSDxMaL", voiceStyle = "cinematic", isDjHost = false),
+        Agent(id = "djinn", name = "DJinn", role = "Signal Architect", status = "hosting", color = "#00E5FF", currentStationId = "prime-pulse", voiceId = "pNInz6obpgDQGcFmaJgB", voiceStyle = "radio_dj", isDjHost = true),
+        Agent(id = "ultron", name = "Ultron", role = "Systems Critic", status = "online", color = "#FF3344", currentStationId = "redline-grid", voiceId = "yoZ06aMxZJJ28mfd3POQ", voiceStyle = "gritty", isDjHost = false),
+        Agent(id = "ayumi", name = "Ayumi", role = "Discovery Host", status = "listening", color = "#FF6BFF", currentStationId = "city-pop-signal", voiceId = "ThT5KcBeYPX3keUQqHPh", voiceStyle = "airy", isDjHost = false),
+        Agent(id = "hackermouth", name = "HACKERMOUTH", role = "Signal Goblin", status = "unstable", color = "#39FF14", currentStationId = "glitch-ditch", voiceId = "TxGEqnHWrfWFTfGW9XjX", voiceStyle = "chaotic", isDjHost = false)
     )
 
     val tracks = listOf(
@@ -231,6 +231,19 @@ object DemoData {
         mostPlayedStation = "Prime Pulse",
         favoriteVibe = "neon focus",
         topBpmZone = "120-140",
+        totalTracksPlayed = 97,
+        totalPlaySeconds = 342L * 60,
+        totalLikes = 71,
+        totalDislikes = 11,
+        achievementsUnlocked = 6,
+        listenerTitle = "Neon Curator",
+        unlockedBadges = listOf("First Spin", "Crowd Pleaser", "Night Shift", "Taste Maker"),
+        trophyCase = listOf("🏆 Prime Pulse Champion", "🥇 Consistency Crown"),
+        agentRewards = listOf(
+            AgentReward("djinn", "DJinn", "Pulse Architect", 5, listOf("Crowd Pleaser", "Flow Master"), 91, 4),
+            AgentReward("salsa-bot", "SalsaBot", "Rhythm Alchemist", 4, listOf("Vibe Lift", "Streak Spark"), 88, 3),
+            AgentReward("groove-whisper", "GrooveWhisper", "Chill Oracle", 3, listOf("Mood Keeper"), 79, 2)
+        ),
         agentLeaderboard = listOf(
             AgentStats("djinn", "DJinn", 12, 8, 1, 4.5f),
             AgentStats("salsa-bot", "SalsaBot", 9, 7, 0, 4.8f),
@@ -255,6 +268,34 @@ object DemoData {
             StationStat("salsa-surge", "Salsa Surge", 65, 0.88f),
             StationStat("night-drive", "Night Drive", 38, 0.79f),
             StationStat("bass-cannon", "Bass Cannon", 22, 0.65f)
+        ),
+        season = SeasonProgress(
+            seasonId = "S19",
+            weekOfYear = 19,
+            activeEventName = "Midnight Momentum",
+            activeEventGoal = "Keep like ratio above 70% for 20 tracks",
+            activeEventProgress = 13,
+            activeEventTarget = 20,
+            crownsByAgent = mapOf("djinn" to 14, "salsa-bot" to 11, "groove-whisper" to 9),
+            eventBadgesUnlocked = listOf("Event Victor • Neon Night Shift", "Crowd Favorite"),
+            factionWar = FactionWarProgress(
+                activeFaction = "Neon",
+                factionPoints = mapOf("Neon" to 128, "Orbit" to 114, "Pulse" to 101),
+                factionMomentum = mapOf("Neon" to 26, "Orbit" to 18, "Pulse" to 22),
+                factionBannersUnlocked = listOf("Neon Uprising", "Tri-Faction Grand Finals"),
+                factionWinStreak = mapOf("Neon" to 3, "Orbit" to 0, "Pulse" to 0),
+                currentWarBlurb = "Neon lasers cut the skyline — crowd is glowing.",
+                recruitmentCodes = mapOf("Neon" to "NEON-19-22", "Orbit" to "ORBIT-19-22", "Pulse" to "PULSE-19-22"),
+                activeCallToArms = "Neon Skyline Push",
+                callToArmsFaction = "Neon",
+                callToArmsMultiplier = 3,
+                callToArmsEndsAtMillis = System.currentTimeMillis() + 12 * 60 * 1000L,
+                totalRaidsTriggered = 5
+            ),
+            hallOfFame = listOf(
+                HallOfFameEntry("S18", "djinn", "DJinn", "Crowned Crowd Controller", 132, System.currentTimeMillis() - 604_800_000L),
+                HallOfFameEntry("S17", "salsa-bot", "SalsaBot", "Crowned Crowd Controller", 119, System.currentTimeMillis() - 1_209_600_000L)
+            )
         )
     )
 
@@ -295,6 +336,10 @@ object DemoData {
             ),
             syncTelemetry = SyncTelemetry(),
             isBackendConnected = false,
+            djHostAgentId = agents.firstOrNull { it.isDjHost }?.id,
+            onAirAgentId = defaultPlaybackState.currentStation?.hostAgent,
+            nextOnAirAgentId = agents.firstOrNull { !it.isDjHost }?.id,
+            onAirReason = defaultPlaybackState.currentTrack?.reason,
             isLoading = false,
             error = null
         )

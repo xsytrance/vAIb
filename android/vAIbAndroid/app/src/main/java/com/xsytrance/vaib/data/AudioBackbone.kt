@@ -1,5 +1,6 @@
 package com.xsytrance.vaib.data
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -7,7 +8,6 @@ import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
-import android.os.Build
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -19,6 +19,7 @@ import com.xsytrance.vaib.MainActivity
 import com.xsytrance.vaib.data.model.Station
 import java.io.File
 
+@SuppressLint("UnsafeOptInUsageError")
 class AudioBackbone(private val context: Context) {
 
     private val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
@@ -30,6 +31,7 @@ class AudioBackbone(private val context: Context) {
             true
         )
         playWhenReady = false
+        repeatMode = Player.REPEAT_MODE_ONE
     }
 
     private val mediaSession = MediaSession.Builder(context, player)
@@ -83,10 +85,29 @@ class AudioBackbone(private val context: Context) {
                     .build()
             )
             .build()
+        player.repeatMode = Player.REPEAT_MODE_ONE
         player.setMediaItem(mediaItem)
         player.prepare()
         player.playWhenReady = true
         notificationManager
+    }
+
+    fun playNarrationFile(file: File, announcer: String = "vAIb DJ") {
+        if (!file.exists() || file.length() <= 0L) return
+        val mediaItem = MediaItem.Builder()
+            .setUri(Uri.fromFile(file))
+            .setMediaId("dj-narration-${file.nameWithoutExtension}")
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle("DJ Interstitial")
+                    .setArtist(announcer)
+                    .build()
+            )
+            .build()
+        player.repeatMode = Player.REPEAT_MODE_OFF
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.playWhenReady = true
     }
 
     fun togglePlayPause() {
@@ -169,11 +190,9 @@ class AudioBackbone(private val context: Context) {
     }
 
     private fun ensureNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel("vaib-playback", "vAIb Playback", NotificationManager.IMPORTANCE_LOW)
-            manager.createNotificationChannel(channel)
-        }
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel("vaib-playback", "vAIb Playback", NotificationManager.IMPORTANCE_LOW)
+        manager.createNotificationChannel(channel)
     }
 
     fun release() {

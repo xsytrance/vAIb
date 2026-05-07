@@ -1,10 +1,14 @@
 package com.xsytrance.vaib.data
 
+import com.xsytrance.vaib.data.model.BackendEndpoint
+import com.xsytrance.vaib.data.model.BackendEndpointType
+import com.xsytrance.vaib.data.model.ConnectionConsensus
+import com.xsytrance.vaib.data.model.EndpointHealthResult
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-class VaibApiClient(var baseUrl: String = "http://10.0.2.2:4014") {
+class VaibApiClient(var baseUrl: String = "http://192.168.1.147:4014") {
 
     companion object {
         private const val CONNECT_TIMEOUT = 5000
@@ -32,7 +36,7 @@ class VaibApiClient(var baseUrl: String = "http://10.0.2.2:4014") {
                 connection.disconnect()
                 null
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -64,13 +68,99 @@ class VaibApiClient(var baseUrl: String = "http://10.0.2.2:4014") {
                 connection.disconnect()
                 null
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
     fun checkConnection(): Boolean {
+        return checkConnectionForBaseUrl(baseUrl).healthy
+    }
+
+    fun checkConnectionAny(endpoints: List<BackendEndpoint>): ConnectionConsensus {
+        if (endpoints.isEmpty()) {
+            return ConnectionConsensus(isConnected = false)
+        }
+
+        val ordered = endpoints.sortedBy { it.priority }
+        val results = mutableListOf<EndpointHealthResult>()
+        var attempted = 0
+        var active: EndpointHealthResult? = null
+
+        for (endpoint in ordered) {
+            attempted += 1
+            val result = checkConnectionForBaseUrl(endpoint.baseUrl, endpoint)
+            results.add(result)
+            if (active == null && result.healthy) {
+                active = result
+                break
+            }
+        }
+
+        val healthyCount = results.count { it.healthy }
+        return ConnectionConsensus(
+            isConnected = active != null,
+            activeEndpoint = active?.endpoint,
+            activeLatencyMs = active?.latencyMs,
+            attempted = attempted,
+            healthyCount = healthyCount,
+            results = results
+        )
+    }
+
+    fun buildDefaultEndpoints(
+        baseUrl: String,
+        tailnetHostname: String?,
+        tailnetPort: Int,
+        includeLocalLan: Boolean = true
+    ): List<BackendEndpoint> {
+        val endpoints = mutableListOf<BackendEndpoint>()
+        val cleanHostname = tailnetHostname?.trim().orEmpty()
+        val cleanBaseUrl = baseUrl.trim()
+
+        if (cleanHostname.isNotBlank()) {
+            endpoints += BackendEndpoint(
+                id = "tailnet-dns",
+                label = "Tailnet DNS",
+                baseUrl = "http://$cleanHostname:$tailnetPort",
+                type = BackendEndpointType.TAILNET_DNS,
+                priority = 1
+            )
+        }
+
+        if (includeLocalLan && cleanBaseUrl.isNotBlank()) {
+            endpoints += BackendEndpoint(
+                id = "local-lan",
+                label = "Local LAN",
+                baseUrl = cleanBaseUrl,
+                type = BackendEndpointType.LOCAL_LAN,
+                priority = 2
+            )
+        }
+
+        if (cleanBaseUrl.isNotBlank() && endpoints.none { it.baseUrl == cleanBaseUrl }) {
+            endpoints += BackendEndpoint(
+                id = "custom-url",
+                label = "Custom URL",
+                baseUrl = cleanBaseUrl,
+                type = BackendEndpointType.CUSTOM,
+                priority = 3
+            )
+        }
+
+        return endpoints
+    }
+
+    private fun checkConnectionForBaseUrl(baseUrl: String, endpoint: BackendEndpoint? = null): EndpointHealthResult {
+        val resolvedEndpoint = endpoint ?: BackendEndpoint(
+            id = "adhoc",
+            label = baseUrl,
+            baseUrl = baseUrl,
+            type = BackendEndpointType.CUSTOM,
+            priority = Int.MAX_VALUE
+        )
         return try {
+            val started = System.currentTimeMillis()
             val url = URL("$baseUrl/health")
             val connection = url.openConnection() as HttpURLConnection
             connection.apply {
@@ -80,9 +170,18 @@ class VaibApiClient(var baseUrl: String = "http://10.0.2.2:4014") {
             }
             val responseCode = connection.responseCode
             connection.disconnect()
-            responseCode == HttpURLConnection.HTTP_OK
+            EndpointHealthResult(
+                endpoint = resolvedEndpoint,
+                healthy = responseCode == HttpURLConnection.HTTP_OK,
+                latencyMs = System.currentTimeMillis() - started,
+                error = if (responseCode == HttpURLConnection.HTTP_OK) null else "HTTP $responseCode"
+            )
         } catch (e: Exception) {
-            false
+            EndpointHealthResult(
+                endpoint = resolvedEndpoint,
+                healthy = false,
+                error = e.message
+            )
         }
     }
 }

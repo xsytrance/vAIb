@@ -23,30 +23,31 @@ fun StatusPill(
     status: String,
     modifier: Modifier = Modifier
 ) {
-    val (dotColor, labelColor) = when (status.lowercase()) {
-        "online", "hosting" -> StatusOnline to StatusOnline
-        "listening" -> Color(0xFFFFD700) to Color(0xFFFFD700)
-        "unstable" -> ErrorRed to ErrorRed
-        "routing" -> StatusRouting to StatusRouting
-        "building" -> StatusBuilding to StatusBuilding
-        "offline" -> TextMuted to TextMuted
-        "connected" -> StatusOnline to StatusOnline
-        "disconnected" -> ErrorRed to ErrorRed
-        "bluetooth" -> Color(0xFF4488FF) to Color(0xFF4488FF)
+    val normalized = status.lowercase()
+    val (dotColor, labelColor) = when {
+        normalized.contains("connected") || normalized == "online" || normalized == "hosting" -> StatusOnline to StatusOnline
+        normalized.contains("reconnecting") || normalized.contains("trying") || normalized == "routing" -> StatusRouting to StatusRouting
+        normalized.contains("offline") || normalized.contains("disconnected") || normalized == "unstable" -> ErrorRed to ErrorRed
+        normalized == "listening" -> Color(0xFFFFD700) to Color(0xFFFFD700)
+        normalized == "building" -> StatusBuilding to StatusBuilding
+        normalized == "bluetooth" -> Color(0xFF4488FF) to Color(0xFF4488FF)
         else -> TextMuted to TextSecondary
     }
 
-    val displayLabel = when (status.lowercase()) {
-        "online" -> "Online"
-        "hosting" -> "Hosting"
-        "listening" -> "Listening"
-        "unstable" -> "Unstable"
-        "routing" -> "Routing"
-        "building" -> "Building"
-        "offline" -> "Offline"
-        "connected" -> "Connected"
-        "disconnected" -> "Disconnected"
-        "bluetooth" -> "Bluetooth"
+    val displayLabel = when {
+        normalized.contains("connected •") -> status
+        normalized.contains("reconnecting •") -> status
+        normalized.contains("offline •") -> status
+        normalized == "online" -> "Online"
+        normalized == "hosting" -> "Hosting"
+        normalized == "listening" -> "Listening"
+        normalized == "unstable" -> "Unstable"
+        normalized == "routing" -> "Routing"
+        normalized == "building" -> "Building"
+        normalized == "offline" -> "Offline"
+        normalized == "connected" -> "Connected"
+        normalized == "disconnected" -> "Disconnected"
+        normalized == "bluetooth" -> "Bluetooth"
         else -> status.replaceFirstChar { it.uppercase() }
     }
 

@@ -40,7 +40,7 @@ fun StationsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${'$'}{appState.stations.count { it.isLive }} live • ${'$'}{appState.stations.sumOf { it.listeners }} listeners",
+                    text = "${appState.stations.count { it.isLive }} live • ${appState.stations.sumOf { it.listeners }} listeners",
                     color = TextSecondary,
                     fontSize = 14.sp
                 )

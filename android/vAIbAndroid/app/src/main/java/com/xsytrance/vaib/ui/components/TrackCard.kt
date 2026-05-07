@@ -43,7 +43,7 @@ fun TrackCard(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${'$'}{track.bpm} BPM",
+                    text = "${track.bpm} BPM",
                     color = PrimaryNeonCyan,
                     fontSize = 12.sp
                 )
@@ -72,7 +72,7 @@ fun TrackCard(
         if (track.reason.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Reason: ${'$'}{track.reason}",
+                text = "Reason: ${track.reason}",
                 color = TextMuted,
                 fontSize = 11.sp
             )
@@ -88,14 +88,14 @@ fun QueueTrackCard(
     VaibCard(modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = queueItem.title,
                     color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -103,26 +103,27 @@ fun QueueTrackCard(
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "by ${'$'}{queueItem.requestedBy} • ${'$'}{queueItem.stationId} • ${'$'}{queueItem.mood}",
+                    text = "Requested by ${queueItem.requestedBy}",
+                    color = SecondaryGold,
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${queueItem.bpm} BPM • ${queueItem.mood}",
+                    color = PrimaryNeonCyan,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Duration ${queueItem.duration}",
                     color = TextMuted,
                     fontSize = 11.sp
                 )
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${'$'}{queueItem.bpm} BPM",
-                    color = PrimaryNeonCyan,
-                    fontSize = 12.sp
-                )
-                Text(
-                    text = queueItem.duration,
-                    color = TextMuted,
-                    fontSize = 11.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.ThumbUp,
@@ -130,24 +131,26 @@ fun QueueTrackCard(
                         tint = LiveGreen,
                         modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "${'$'}{queueItem.likes}",
+                        text = "${queueItem.likes}",
                         color = LiveGreen,
-                        fontSize = 11.sp
+                        fontSize = 12.sp
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.ThumbDown,
                         contentDescription = "Dislikes",
                         tint = ErrorRed,
                         modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "${'$'}{queueItem.dislikes}",
+                        text = "${queueItem.dislikes}",
                         color = ErrorRed,
-                        fontSize = 11.sp
+                        fontSize = 12.sp
                     )
                 }
             }

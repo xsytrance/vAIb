@@ -1,6 +1,7 @@
 package com.xsytrance.vaib.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,7 +54,9 @@ fun LandscapeDjDeck(
 
             appState.stations.forEach { station ->
                 VaibCard(
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .clickable { viewModel.selectStation(station) },
                     neonGlow = currentStation?.id == station.id
                 ) {
                     Column {

@@ -24,6 +24,7 @@ import com.xsytrance.vaib.ui.components.*
 import com.xsytrance.vaib.ui.theme.*
 import com.xsytrance.vaib.viewmodel.VaibViewModel
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun CockpitScreen(
     appState: AppState,
@@ -76,9 +77,7 @@ fun CockpitScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusPill(
-                    status = if (appState.isBackendConnected) "connected" else "disconnected"
-                )
+                StatusPill(status = appState.connectivityLabel)
                 StatusPill(status = if (playback.outputMode == "bluetooth") "bluetooth" else "listening")
                 IconButton(onClick = { viewModel.togglePlayPause() }) {
                     Icon(
@@ -93,6 +92,33 @@ fun CockpitScreen(
                         contentDescription = "Refresh",
                         tint = PrimaryNeonCyan
                     )
+                }
+            }
+        }
+
+        item {
+            val route = appState.activeEndpointLabel ?: "none"
+            val latency = appState.activeEndpointLatencyMs?.let { "${it}ms" } ?: "--"
+            Text(
+                text = "Route: $route • probe ${appState.endpointAttempted}/${appState.endpointTotal} • latency $latency",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        item {
+            val onAirName = appState.agents.firstOrNull { it.id == appState.onAirAgentId }?.name ?: "Auto-DJ"
+            val nextName = appState.agents.firstOrNull { it.id == appState.nextOnAirAgentId }?.name ?: "calculating"
+            VaibCard {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("On Air: $onAirName", color = PrimaryNeonCyan, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(appState.onAirShowName ?: "Show: Neon Drift Hour", color = SecondaryGold, fontSize = 12.sp)
+                    Text("Next Slot: $nextName", color = TextSecondary, fontSize = 12.sp)
+                    Text(appState.onAirReason ?: "One agent is always on deck.", color = AccentMagenta, fontSize = 12.sp)
+                    appState.tonightLineup.takeIf { it.isNotEmpty() }?.forEach { line ->
+                        Text("• $line", color = TextSecondary, fontSize = 11.sp)
+                    }
                 }
             }
         }

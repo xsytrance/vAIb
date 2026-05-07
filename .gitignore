@@ -22,3 +22,8 @@ pnpm-debug.log*
 
 android/vAIbAndroid/.gradle/
 android/vAIbAndroid/app/build/
+
+# local runtime artifacts
+logs/
+releases/
+data/state.json

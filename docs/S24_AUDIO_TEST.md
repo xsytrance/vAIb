@@ -20,7 +20,14 @@
 - Visualizer intensity tied to playback buffering/playing state.
 - Persona lanes feel more recognizable with iconic roster.
 
+## Additional soak checks executed
+- HOME/background transition: media session remained active.
+- Screen off -> wake/unlock -> recheck: media session remained active.
+- `dumpsys media_session` repeatedly reports:
+  - active `androidx.media3.session.id.vaib-media-session`
+  - `Audio playback ... com.xsytrance.vaib`
+
 ## Known gaps
-- Long soak battery/heat metrics still pending dedicated 20–30 minute session.
-- Earbuds + speaker route-switch stress test still pending scripted test matrix.
-- Notification transport controls not yet finalized.
+- Earbuds + speaker route-switch stress test still needs manual in-hand pass.
+- Battery/thermal measurements still need timed 20–30 min controlled run.
+- Notification permission UX prompt still needs first-run polish.

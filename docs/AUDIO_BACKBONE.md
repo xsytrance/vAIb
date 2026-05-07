@@ -36,7 +36,21 @@ This keeps local-first architecture while still proving live playback.
 
 Mission fit: believable Android AI-radio backbone with minimal risk.
 
+## Local demo assets shipped
+Bundled under:
+- `android/vAIbAndroid/app/src/main/assets/audio/prime-pulse.mp3`
+- `android/vAIbAndroid/app/src/main/assets/audio/city-pop-signal.mp3`
+- `android/vAIbAndroid/app/src/main/assets/audio/redline-grid.mp3`
+- `android/vAIbAndroid/app/src/main/assets/audio/glitch-ditch.mp3`
+- `android/vAIbAndroid/app/src/main/assets/audio/gold-command.mp3`
+
+These are synthetic/royalty-safe generated placeholders for station identity testing.
+
+## Notification controls foundation
+- Added `PlayerNotificationManager` wiring in `AudioBackbone`.
+- Added notification channel: `vaib-playback`.
+- Added manifest permission: `POST_NOTIFICATIONS`.
+
 ## Known limitations
-- Asset tracks are path-ready but no bundled audio files committed yet.
-- Notification transport controls are not fully wired yet (MediaSession is active foundation).
+- Notification permission prompt UX flow not yet explicit in-app.
 - EQ DSP binding to platform effects is deferred to next stable lane.

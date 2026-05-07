@@ -78,9 +78,15 @@ Requested handoff docs were missing at clone time:
 - Device evidence confirms active MediaSession under package `com.xsytrance.vaib`.
 
 ### Remaining
-- Bundle real local demo assets under `assets/audio/`.
-- Add notification transport controls.
-- Run dedicated Bluetooth soak test matrix (earbuds/speaker/screen-off/reconnect/heat).
+- Run dedicated manual earbuds/speaker switch matrix (in-hand).
+- Add first-run notification permission UX prompt.
+- Capture timed battery/heat report for 20–30 min audio run.
+
+### Follow-up executed after go-order "yes"
+- Bundled local synthetic demo tracks into `assets/audio/` for all iconic stations.
+- Added `PlayerNotificationManager` foundation + playback notification channel.
+- Added manifest `POST_NOTIFICATIONS` permission.
+- Rebuilt/reinstalled and revalidated background/session persistence via `dumpsys media_session` after HOME and screen off/on.
 
 ## 2026-05-07 Update — Agent Presence Polish Pass
 

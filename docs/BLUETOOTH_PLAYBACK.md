@@ -16,8 +16,12 @@ vAIb now acts like a Bluetooth-first receiver instead of a static dashboard.
 - Play/pause and station switch operate through ExoPlayer-backed path.
 - MediaSession is active and visible in device media session dump.
 
-## Next lane (not implemented yet)
-- Full notification controls with transport actions
+## Validation snapshot (S24)
+- Media session remains active after HOME and screen off/on checks.
+- Audio playback registry continues listing `com.xsytrance.vaib` during soak checks.
+
+## Next lane (partially implemented)
+- Notification controls foundation added; deeper action customization still pending.
 - Audio focus interruption policy (call/nav interruption edge cases)
 - Reconnect heuristics for BT route loss/rejoin
 - Optional per-device EQ profile persistence

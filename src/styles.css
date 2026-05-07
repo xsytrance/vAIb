@@ -1,0 +1,417 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #07111f;
+  color: #edf5ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(128, 84, 255, 0.24), transparent 32%),
+    radial-gradient(circle at top right, rgba(0, 229, 255, 0.16), transparent 26%),
+    linear-gradient(180deg, #08111e 0%, #03060d 100%);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7858ff, #18d0ff);
+  color: white;
+  padding: 0.85rem 1.1rem;
+  font-weight: 700;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+select {
+  border-radius: 999px;
+  background: rgba(14, 25, 42, 0.9);
+  color: #edf5ff;
+  border: 1px solid rgba(134, 176, 255, 0.18);
+  padding: 0.7rem 1rem;
+}
+
+.appShell {
+  position: relative;
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+
+.ambient {
+  position: fixed;
+  inset: auto;
+  width: 32rem;
+  height: 32rem;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.ambientA {
+  top: -8rem;
+  left: -8rem;
+  background: #8c52ff;
+}
+
+.ambientB {
+  bottom: -8rem;
+  right: -6rem;
+  background: #10d6ff;
+}
+
+.panel,
+.loadingCard,
+.errorBanner {
+  position: relative;
+  background: rgba(10, 18, 32, 0.8);
+  border: 1px solid rgba(124, 160, 255, 0.16);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.28);
+  border-radius: 28px;
+}
+
+.loadingCard {
+  margin-top: 20vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.hero,
+.panel {
+  padding: 24px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.hero h1,
+.panel h2,
+.panel h3 {
+  margin: 0;
+}
+
+.hero p,
+.muted,
+.reasonBox,
+.toastCard p,
+.emptyState,
+.trackRow span,
+.trackInfo span,
+.trackInfo small {
+  color: #b7c9ea;
+}
+
+.eyebrow {
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #7fcbff;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.heroBadges,
+.subStatRow,
+.tagRow,
+.controlRow,
+.prefsGrid,
+.metricGrid,
+.grid,
+.insightBlocks,
+.detailBlocks {
+  display: grid;
+  gap: 14px;
+}
+
+.heroBadges,
+.subStatRow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
+.grid.topGrid {
+  grid-template-columns: 1.25fr 1fr;
+}
+
+.grid.midGrid,
+.grid.bottomGrid {
+  grid-template-columns: 1.2fr 0.8fr;
+  margin-top: 20px;
+}
+
+.panelHeader,
+.inlineHeader,
+.trackRow,
+.metricBarTop,
+.rowMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inlineHeader {
+  align-items: start;
+}
+
+.statusDot,
+.tag,
+.miniBadge,
+.statPill,
+.toggleCard,
+.chipButton,
+.ghostButton {
+  border-radius: 999px;
+}
+
+.statusDot {
+  padding: 0.5rem 0.9rem;
+  background: rgba(46, 255, 176, 0.12);
+  color: #8effcb;
+  border: 1px solid rgba(46, 255, 176, 0.3);
+}
+
+.trackOrb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 24px;
+  margin: 16px 0;
+  background: linear-gradient(135deg, rgba(113, 89, 255, 0.28), rgba(8, 204, 255, 0.16));
+  min-height: 180px;
+}
+
+.trackAura {
+  position: absolute;
+  inset: -30% auto auto -10%;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 62%);
+  filter: blur(18px);
+}
+
+.trackInfo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  z-index: 1;
+}
+
+.trackInfo strong {
+  font-size: clamp(1.7rem, 4vw, 2.9rem);
+}
+
+.tagRow {
+  grid-template-columns: repeat(auto-fit, minmax(110px, max-content));
+}
+
+.tag,
+.miniBadge,
+.chipButton,
+.ghostButton,
+.toggleCard,
+.statPill {
+  padding: 0.55rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(142, 178, 255, 0.16);
+  color: #edf5ff;
+}
+
+.tag.soft {
+  color: #a9f2ff;
+}
+
+.tag.danger,
+.miniBadge.bad {
+  color: #ff9cba;
+  border-color: rgba(255, 90, 140, 0.32);
+}
+
+.miniBadge.good {
+  color: #ffe57c;
+  border-color: rgba(255, 229, 124, 0.3);
+}
+
+.reasonBox {
+  background: rgba(255,255,255,0.03);
+  border-radius: 20px;
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+
+.controlRow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.statPill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 72px;
+}
+
+.statPill span {
+  font-size: 0.78rem;
+  color: #9ab0d6;
+}
+
+.metricGrid,
+.prefsGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metricBar {
+  display: grid;
+  gap: 8px;
+}
+
+.metricTrack {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.metricTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7a61ff, #19d5ff);
+}
+
+.cleanList {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #d6e2f7;
+}
+
+.cleanList.compact,
+.eventList {
+  padding-left: 0;
+  list-style: none;
+}
+
+.eventList li,
+.trackRow,
+.toastCard {
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 18px;
+  border: 1px solid rgba(142, 178, 255, 0.1);
+}
+
+.trackList,
+.toastList {
+  display: grid;
+  gap: 10px;
+}
+
+.trackRow.active {
+  border-color: rgba(76, 221, 255, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(76, 221, 255, 0.18);
+}
+
+.trackRow strong,
+.toastCard strong,
+.eventList strong {
+  display: block;
+}
+
+.rowMeta {
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.ghostButton,
+.chipButton {
+  background: rgba(255,255,255,0.05);
+}
+
+.toggleCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggleCard input {
+  width: 18px;
+  height: 18px;
+}
+
+.futureNotes,
+.moodTools {
+  margin-top: 18px;
+}
+
+.toastCard.important {
+  border-color: rgba(255, 120, 160, 0.3);
+}
+
+.errorBanner {
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  border-color: rgba(255, 90, 140, 0.4);
+  color: #ffd0df;
+}
+
+@media (max-width: 1080px) {
+  .hero,
+  .grid.topGrid,
+  .grid.midGrid,
+  .grid.bottomGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .controlRow,
+  .metricGrid,
+  .prefsGrid,
+  .heroBadges,
+  .subStatRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .appShell {
+    width: min(100% - 20px, 100%);
+    padding: 20px 0 48px;
+  }
+
+  .panel,
+  .hero {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .controlRow,
+  .metricGrid,
+  .prefsGrid,
+  .heroBadges,
+  .subStatRow {
+    grid-template-columns: 1fr;
+  }
+}

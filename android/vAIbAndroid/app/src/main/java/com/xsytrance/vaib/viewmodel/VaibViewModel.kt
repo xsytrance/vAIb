@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import com.xsytrance.vaib.data.AudioBackbone
+import com.xsytrance.vaib.data.ChangeFeedEngine
 import com.xsytrance.vaib.data.DemoData
+import com.xsytrance.vaib.data.FreshnessScorer
 import com.xsytrance.vaib.data.RefreshScheduler
 import com.xsytrance.vaib.data.VaibRepository
 import com.xsytrance.vaib.data.model.*
@@ -28,6 +30,8 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = VaibRepository()
     private val audioBackbone = AudioBackbone(application.applicationContext)
     private val refreshScheduler = RefreshScheduler()
+    private val changeFeedEngine = ChangeFeedEngine()
+    private val freshnessScorer = FreshnessScorer()
     private var pollingJob: Job? = null
     private var backendUrl: String = "http://192.168.1.147:4014"
     private var useDemoMode: Boolean = false
@@ -59,6 +63,14 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _voiceSaveState = MutableStateFlow<String?>(null)
     val voiceSaveState: StateFlow<String?> = _voiceSaveState
+
+    private val _changeFeed = MutableStateFlow<List<ChangeEvent>>(emptyList())
+    val changeFeed: StateFlow<List<ChangeEvent>> = _changeFeed.asStateFlow()
+
+    private val _freshnessScore = MutableStateFlow(100)
+    val freshnessScore: StateFlow<Int> = _freshnessScore.asStateFlow()
+
+    private var lastSnapshot: AppState? = null
 
     private val reactionVoices = mapOf(
         "vg-god" to listOf("Signal approved. Hold formation.", "Command greenlights this lane.", "Broadcast discipline is solid."),
@@ -139,6 +151,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
         )
         _tasteProfiles.value = DemoData.tasteProfiles
         _listeningStats.value = DemoData.listeningStats
+        publishSnapshot(_appState.value, now)
     }
 
     fun refresh() {
@@ -150,6 +163,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                 val now = System.currentTimeMillis()
                 registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
                 _appState.value = DemoData.getDefaultAppState().copy(isLoading = false, isBackendConnected = true)
+                publishSnapshot(_appState.value, now)
                 applyPresencePulse(force = true)
                 _appState.value.playback.currentStation?.let { playStation(it) }
                 return@launch
@@ -159,7 +173,9 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                 onSuccess = { state ->
                     val now = System.currentTimeMillis()
                     registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
-                    _appState.value = state.copy(isLoading = false, isBackendConnected = true)
+                    val newState = state.copy(isLoading = false, isBackendConnected = true)
+                    _appState.value = newState
+                    publishSnapshot(newState, now)
                     refreshLiveSignals()
                     applyPresencePulse(force = true)
                     _appState.value.playback.currentStation?.let { playStation(it) }
@@ -170,6 +186,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                     _appState.update {
                         it.copy(isLoading = false, isBackendConnected = false, error = "Backend unavailable: ${error.message}")
                     }
+                    publishSnapshot(_appState.value, now)
                 }
             )
         }
@@ -202,7 +219,9 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                     repository.fetchState().onSuccess { state ->
                         val now = System.currentTimeMillis()
                         registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
-                        _appState.value = state.copy(isBackendConnected = true)
+                        val newState = state.copy(isBackendConnected = true)
+                        _appState.value = newState
+                        publishSnapshot(newState, now)
                         if (pulseTicks % 2 == 0) refreshLiveSignals()
                         if (pulseTicks % 3 == 0 && Random.nextFloat() > 0.35f) applyPresencePulse(force = false)
                     }.onFailure {
@@ -220,6 +239,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         _agentLiveSignals.value = emptyMap()
                         _cockpitPressure.value = null
+                        publishSnapshot(_appState.value, now)
                     }
                 } else {
                     _appState.update { it.copy(isBackendConnected = repository.checkConnection()) }
@@ -234,6 +254,15 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             _agentLiveSignals.value = repository.fetchAgentLiveSignals()
             _cockpitPressure.value = repository.fetchCockpitPressure()
         }
+    }
+
+    private fun publishSnapshot(newState: AppState, atMillis: Long = System.currentTimeMillis()) {
+        val deltaEvents = changeFeedEngine.compute(lastSnapshot, newState, atMillis)
+        if (deltaEvents.isNotEmpty()) {
+            _changeFeed.update { existing -> (deltaEvents + existing).take(100) }
+        }
+        _freshnessScore.value = freshnessScorer.score(newState, atMillis)
+        lastSnapshot = newState
     }
 
     private fun registerSyncSuccess(latencyMs: Long, atMillis: Long) {
@@ -382,6 +411,7 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             reactions = reactionPool,
             events = current.events.take(20)
         )
+        publishSnapshot(_appState.value)
 
         updateStatsPulse(switchedStation.name, pickedAgent.name)
     }

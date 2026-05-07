@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -35,6 +36,7 @@ object MoreRoutes {
     const val Eq = "eq"
     const val Api = "api"
     const val Settings = "settings"
+    const val Updates = "updates"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +46,8 @@ fun VaibNavHost(
     navController: NavHostController = rememberNavController()
 ) {
     val appState by viewModel.appState.collectAsStateWithLifecycle()
+    val freshnessScore by viewModel.freshnessScore.collectAsStateWithLifecycle()
+    val changeFeed by viewModel.changeFeed.collectAsStateWithLifecycle()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: BottomNavItem.Cockpit.route
 
@@ -68,6 +72,7 @@ fun VaibNavHost(
                             MoreRoutes.Eq -> "Equalizer"
                             MoreRoutes.Api -> "API"
                             MoreRoutes.Settings -> "Settings"
+                            MoreRoutes.Updates -> "Updates"
                             else -> "vAIb"
                         }
                         Text(text = title, color = TextPrimary)
@@ -179,6 +184,9 @@ fun VaibNavHost(
             }
             composable(MoreRoutes.Settings) {
                 SettingsScreen(viewModel = viewModel)
+            }
+            composable(MoreRoutes.Updates) {
+                UpdatesScreen(freshnessScore = freshnessScore, changeFeed = changeFeed)
             }
         }
     }

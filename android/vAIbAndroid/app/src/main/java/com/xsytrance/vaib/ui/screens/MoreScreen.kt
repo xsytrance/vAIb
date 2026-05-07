@@ -27,6 +27,7 @@ fun MoreScreen(
 ) {
     val items = listOf(
         Triple("Stats", Icons.Default.BarChart, "stats"),
+        Triple("Updates", Icons.Default.Update, "updates"),
         Triple("Equalizer", Icons.Default.Equalizer, "eq"),
         Triple("API", Icons.Default.Api, "api"),
         Triple("Settings", Icons.Default.Settings, "settings")

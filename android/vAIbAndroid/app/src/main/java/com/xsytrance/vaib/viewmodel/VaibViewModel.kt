@@ -7,10 +7,12 @@ import androidx.media3.common.Player
 import com.xsytrance.vaib.data.AudioBackbone
 import com.xsytrance.vaib.data.AutomationEngine
 import com.xsytrance.vaib.data.ChangeFeedEngine
+import com.xsytrance.vaib.data.ConflictResolver
 import com.xsytrance.vaib.data.DemoData
 import com.xsytrance.vaib.data.FreshnessScorer
 import com.xsytrance.vaib.data.RefreshScheduler
 import com.xsytrance.vaib.data.VaibRepository
+import com.xsytrance.vaib.data.WeeklyRefreshOps
 import com.xsytrance.vaib.data.model.*
 import kotlin.collections.emptyMap
 import kotlinx.coroutines.Job
@@ -34,6 +36,8 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val changeFeedEngine = ChangeFeedEngine()
     private val freshnessScorer = FreshnessScorer()
     private val automationEngine = AutomationEngine()
+    private val conflictResolver = ConflictResolver()
+    private val weeklyRefreshOps = WeeklyRefreshOps()
     private var pollingJob: Job? = null
     private var backendUrl: String = "http://192.168.1.147:4014"
     private var useDemoMode: Boolean = false
@@ -103,6 +107,20 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _automationLog = MutableStateFlow<List<AutomationDecision>>(emptyList())
     val automationLog: StateFlow<List<AutomationDecision>> = _automationLog.asStateFlow()
+
+    private val _conflicts = MutableStateFlow<List<ConflictItem>>(emptyList())
+    val conflicts: StateFlow<List<ConflictItem>> = _conflicts.asStateFlow()
+
+    private val _weeklySummary = MutableStateFlow(
+        WeeklyRefreshSummary(
+            generatedAtMillis = System.currentTimeMillis(),
+            staleSourceCount = 0,
+            unresolvedConflictCount = 0,
+            lowFreshnessWindowCount = 0,
+            notes = listOf("Waiting for next refresh cycle")
+        )
+    )
+    val weeklySummary: StateFlow<WeeklyRefreshSummary> = _weeklySummary.asStateFlow()
 
     private var lastForceRefreshAtMillis: Long = 0L
 
@@ -309,6 +327,15 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             _automationLog.update { existing -> (decisions + existing).take(120) }
             applyAutomationDecisions(decisions, atMillis)
         }
+
+        val detectedConflicts = conflictResolver.detect(newState)
+        _conflicts.value = detectedConflicts
+        _weeklySummary.value = weeklyRefreshOps.generate(
+            state = newState,
+            conflicts = detectedConflicts,
+            freshnessScore = _freshnessScore.value,
+            atMillis = atMillis
+        )
 
         lastSnapshot = newState
     }
@@ -572,6 +599,25 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     fun setRuleEnabled(ruleId: String, enabled: Boolean) {
         _automationRules.update { rules ->
             rules.map { rule -> if (rule.id == ruleId) rule.copy(enabled = enabled) else rule }
+        }
+    }
+
+    fun applySafeConflictFixes() {
+        val now = System.currentTimeMillis()
+        val fixed = conflictResolver.applySafeFixes(_appState.value)
+        _appState.value = fixed
+        publishSnapshot(fixed, now)
+        _automationLog.update { existing ->
+            listOf(
+                AutomationDecision(
+                    ruleId = "integrity-safe-fix",
+                    ruleName = "Integrity Safe Fixes",
+                    trigger = AutomationTriggerType.CONNECTOR_OFFLINE,
+                    action = AutomationActionType.PIN_UPDATE,
+                    detail = "Applied safe conflict fixes",
+                    atMillis = now
+                )
+            ) + existing.take(119)
         }
     }
 

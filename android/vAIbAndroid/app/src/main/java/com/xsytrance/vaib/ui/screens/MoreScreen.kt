@@ -29,6 +29,7 @@ fun MoreScreen(
         Triple("Stats", Icons.Default.BarChart, "stats"),
         Triple("Updates", Icons.Default.Update, "updates"),
         Triple("Automation", Icons.Default.AutoAwesome, "automation"),
+        Triple("Integrity", Icons.Default.VerifiedUser, "integrity"),
         Triple("Equalizer", Icons.Default.Equalizer, "eq"),
         Triple("API", Icons.Default.Api, "api"),
         Triple("Settings", Icons.Default.Settings, "settings")

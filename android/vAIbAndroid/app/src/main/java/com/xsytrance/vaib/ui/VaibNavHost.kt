@@ -38,6 +38,7 @@ object MoreRoutes {
     const val Settings = "settings"
     const val Updates = "updates"
     const val Automation = "automation"
+    const val Integrity = "integrity"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +52,8 @@ fun VaibNavHost(
     val changeFeed by viewModel.changeFeed.collectAsStateWithLifecycle()
     val automationRules by viewModel.automationRules.collectAsStateWithLifecycle()
     val automationLog by viewModel.automationLog.collectAsStateWithLifecycle()
+    val conflicts by viewModel.conflicts.collectAsStateWithLifecycle()
+    val weeklySummary by viewModel.weeklySummary.collectAsStateWithLifecycle()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: BottomNavItem.Cockpit.route
 
@@ -77,6 +80,7 @@ fun VaibNavHost(
                             MoreRoutes.Settings -> "Settings"
                             MoreRoutes.Updates -> "Updates"
                             MoreRoutes.Automation -> "Automation"
+                            MoreRoutes.Integrity -> "Integrity"
                             else -> "vAIb"
                         }
                         Text(text = title, color = TextPrimary)
@@ -197,6 +201,13 @@ fun VaibNavHost(
                     rules = automationRules,
                     log = automationLog,
                     onRuleToggled = { ruleId, enabled -> viewModel.setRuleEnabled(ruleId, enabled) }
+                )
+            }
+            composable(MoreRoutes.Integrity) {
+                IntegrityScreen(
+                    conflicts = conflicts,
+                    weeklySummary = weeklySummary,
+                    onApplySafeFixes = { viewModel.applySafeConflictFixes() }
                 )
             }
         }

@@ -30,6 +30,8 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private var useDemoMode: Boolean = false
     private var pollIntervalSeconds: Int = 5
     private var pulseTicks: Int = 0
+    private var consecutiveSyncFailures: Int = 0
+    private var averageSyncLatencyMs: Long? = null
 
     private val _tasteProfiles = MutableStateFlow<Map<String, TasteProfile>>(DemoData.tasteProfiles)
     val tasteProfiles: StateFlow<Map<String, TasteProfile>> = _tasteProfiles
@@ -98,7 +100,34 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadDemoData() {
-        _appState.value = DemoData.getDefaultAppState()
+        val now = System.currentTimeMillis()
+        _appState.value = DemoData.getDefaultAppState().copy(
+            connectorHealth = listOf(
+                ConnectorHealth(
+                    id = "backend-api",
+                    name = "Backend API",
+                    status = ConnectorStatus.DEGRADED,
+                    lastSyncAtMillis = now,
+                    lastError = "Demo mode enabled",
+                    latencyMs = 0,
+                    staleAfterSeconds = 20
+                ),
+                ConnectorHealth(
+                    id = "local-state",
+                    name = "Local State",
+                    status = ConnectorStatus.ONLINE,
+                    lastSyncAtMillis = now,
+                    latencyMs = 0,
+                    staleAfterSeconds = 60
+                )
+            ),
+            syncTelemetry = SyncTelemetry(
+                lastSuccessfulSyncAtMillis = now,
+                lastAttemptAtMillis = now,
+                consecutiveFailures = 0,
+                avgLatencyMs = 0
+            )
+        )
         _tasteProfiles.value = DemoData.tasteProfiles
         _listeningStats.value = DemoData.listeningStats
     }
@@ -106,8 +135,11 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh() {
         viewModelScope.launch {
             _appState.update { it.copy(isLoading = true, error = null) }
+            val attemptStarted = System.currentTimeMillis()
             if (useDemoMode) {
                 delay(250)
+                val now = System.currentTimeMillis()
+                registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
                 _appState.value = DemoData.getDefaultAppState().copy(isLoading = false, isBackendConnected = true)
                 applyPresencePulse(force = true)
                 _appState.value.playback.currentStation?.let { playStation(it) }
@@ -116,12 +148,16 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
             val result = repository.fetchState()
             result.fold(
                 onSuccess = { state ->
+                    val now = System.currentTimeMillis()
+                    registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
                     _appState.value = state.copy(isLoading = false, isBackendConnected = true)
                     refreshLiveSignals()
                     applyPresencePulse(force = true)
                     _appState.value.playback.currentStation?.let { playStation(it) }
                 },
                 onFailure = { error ->
+                    val now = System.currentTimeMillis()
+                    registerSyncFailure(error = error.message ?: "Unknown sync error", atMillis = now)
                     _appState.update {
                         it.copy(isLoading = false, isBackendConnected = false, error = "Backend unavailable: ${error.message}")
                     }
@@ -138,12 +174,26 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                 pulseTicks += 1
                 syncPlaybackState()
                 if (!useDemoMode) {
+                    val attemptStarted = System.currentTimeMillis()
                     repository.fetchState().onSuccess { state ->
+                        val now = System.currentTimeMillis()
+                        registerSyncSuccess(latencyMs = now - attemptStarted, atMillis = now)
                         _appState.value = state.copy(isBackendConnected = true)
                         if (pulseTicks % 2 == 0) refreshLiveSignals()
                         if (pulseTicks % 3 == 0 && Random.nextFloat() > 0.35f) applyPresencePulse(force = false)
                     }.onFailure {
-                        _appState.update { it.copy(isBackendConnected = false) }
+                        val now = System.currentTimeMillis()
+                        registerSyncFailure(error = it.message ?: "Polling sync failed", atMillis = now)
+                        _appState.update { current ->
+                            current.copy(
+                                isBackendConnected = false,
+                                connectorHealth = current.connectorHealth.map { connector ->
+                                    if (connector.id == "backend-api") {
+                                        connector.copy(status = ConnectorStatus.OFFLINE)
+                                    } else connector
+                                }
+                            )
+                        }
                         _agentLiveSignals.value = emptyMap()
                         _cockpitPressure.value = null
                     }
@@ -159,6 +209,77 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _agentLiveSignals.value = repository.fetchAgentLiveSignals()
             _cockpitPressure.value = repository.fetchCockpitPressure()
+        }
+    }
+
+    private fun registerSyncSuccess(latencyMs: Long, atMillis: Long) {
+        consecutiveSyncFailures = 0
+        averageSyncLatencyMs = when (val prev = averageSyncLatencyMs) {
+            null -> latencyMs
+            else -> ((prev * 3L) + latencyMs) / 4L
+        }
+
+        _appState.update { state ->
+            state.copy(
+                syncTelemetry = SyncTelemetry(
+                    lastSuccessfulSyncAtMillis = atMillis,
+                    lastAttemptAtMillis = atMillis,
+                    consecutiveFailures = consecutiveSyncFailures,
+                    avgLatencyMs = averageSyncLatencyMs
+                ),
+                connectorHealth = listOf(
+                    ConnectorHealth(
+                        id = "backend-api",
+                        name = "Backend API",
+                        status = ConnectorStatus.ONLINE,
+                        lastSyncAtMillis = atMillis,
+                        latencyMs = latencyMs,
+                        staleAfterSeconds = 20
+                    ),
+                    ConnectorHealth(
+                        id = "local-state",
+                        name = "Local State",
+                        status = ConnectorStatus.ONLINE,
+                        lastSyncAtMillis = atMillis,
+                        latencyMs = 0,
+                        staleAfterSeconds = 60
+                    )
+                )
+            )
+        }
+    }
+
+    private fun registerSyncFailure(error: String, atMillis: Long) {
+        consecutiveSyncFailures += 1
+        val backendStatus = if (consecutiveSyncFailures >= 3) ConnectorStatus.OFFLINE else ConnectorStatus.DEGRADED
+        _appState.update { state ->
+            val prevSuccess = state.syncTelemetry.lastSuccessfulSyncAtMillis
+            state.copy(
+                syncTelemetry = state.syncTelemetry.copy(
+                    lastAttemptAtMillis = atMillis,
+                    consecutiveFailures = consecutiveSyncFailures,
+                    avgLatencyMs = averageSyncLatencyMs
+                ),
+                connectorHealth = listOf(
+                    ConnectorHealth(
+                        id = "backend-api",
+                        name = "Backend API",
+                        status = backendStatus,
+                        lastSyncAtMillis = prevSuccess,
+                        latencyMs = averageSyncLatencyMs,
+                        lastError = error,
+                        staleAfterSeconds = 20
+                    ),
+                    ConnectorHealth(
+                        id = "local-state",
+                        name = "Local State",
+                        status = ConnectorStatus.ONLINE,
+                        lastSyncAtMillis = atMillis,
+                        latencyMs = 0,
+                        staleAfterSeconds = 60
+                    )
+                )
+            )
         }
     }
 

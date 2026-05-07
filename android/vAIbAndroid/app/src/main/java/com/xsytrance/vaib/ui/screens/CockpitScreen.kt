@@ -100,6 +100,33 @@ fun CockpitScreen(
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
         item {
+            if (appState.connectorHealth.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Connector Health",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    appState.connectorHealth.forEach { connector ->
+                        ConnectorHealthCard(connector = connector)
+                    }
+                    val telemetry = appState.syncTelemetry
+                    Text(
+                        text = "Sync: failures=${telemetry.consecutiveFailures} • avg=${telemetry.avgLatencyMs?.let { "${it}ms" } ?: "--"}",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+
+        item {
             if (currentStation != null) {
                 StationCard(
                     station = currentStation,

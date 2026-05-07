@@ -276,6 +276,24 @@ object DemoData {
             agents = agents,
             library = tracks,
             reactions = reactions,
+            connectorHealth = listOf(
+                ConnectorHealth(
+                    id = "backend-api",
+                    name = "Backend API",
+                    status = ConnectorStatus.DEGRADED,
+                    lastSyncAtMillis = null,
+                    lastError = "Awaiting first sync",
+                    staleAfterSeconds = 20
+                ),
+                ConnectorHealth(
+                    id = "local-state",
+                    name = "Local State",
+                    status = ConnectorStatus.ONLINE,
+                    lastSyncAtMillis = System.currentTimeMillis(),
+                    staleAfterSeconds = 60
+                )
+            ),
+            syncTelemetry = SyncTelemetry(),
             isBackendConnected = false,
             isLoading = false,
             error = null

@@ -8,6 +8,8 @@ data class AppState(
     val agents: List<Agent> = emptyList(),
     val library: List<Track> = emptyList(),
     val reactions: List<Reaction> = emptyList(),
+    val connectorHealth: List<ConnectorHealth> = emptyList(),
+    val syncTelemetry: SyncTelemetry = SyncTelemetry(),
     val isBackendConnected: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null

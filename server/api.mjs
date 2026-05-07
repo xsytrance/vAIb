@@ -7,6 +7,7 @@ import { clone, readState, writeState } from './store.mjs'
 const port = Number(process.env.VAIB_PORT || 4014)
 const AUTO_TICK_MS = Number(process.env.VAIB_AUTO_TICK_MS || 180000)
 const ROSTER_PATH = path.join(process.cwd(), 'data', 'agent-roster.json')
+const COCKPIT_BRIDGE_PATH = path.join(process.cwd(), 'data', 'cockpit-bridge.json')
 
 const FALLBACK_ROSTER = [
   { id: 'djinn', name: 'DJinn', mood: 'charged', status: 'online', emoji: '⚡🌀🎛️', comments: ['phase-locked and peaking ⚡'] },
@@ -17,6 +18,23 @@ const FALLBACK_ROSTER = [
 let rosterCache = {
   mtimeMs: 0,
   agents: FALLBACK_ROSTER,
+}
+
+let bridgeCache = {
+  mtimeMs: 0,
+  data: { globalPressure: 40, agents: [], endpointPressure: {}, modulePressure: {} },
+}
+
+function loadCockpitBridge() {
+  try {
+    const stat = fs.statSync(COCKPIT_BRIDGE_PATH)
+    if (stat.mtimeMs <= bridgeCache.mtimeMs) return bridgeCache.data
+    const parsed = JSON.parse(fs.readFileSync(COCKPIT_BRIDGE_PATH, 'utf8'))
+    bridgeCache = { mtimeMs: stat.mtimeMs, data: parsed }
+    return parsed
+  } catch {
+    return bridgeCache.data
+  }
 }
 
 function loadRoster() {
@@ -105,23 +123,30 @@ function getQueue(state) {
 function getAgents(state) {
   const base = Object.values(state.agents)
   const baseIds = new Set(base.map((a) => a.id))
+  const bridge = loadCockpitBridge()
+  const bridgeById = new Map((bridge.agents || []).map((a) => [a.id, a]))
   const extras = loadRoster()
     .filter((a) => !baseIds.has(a.id))
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      mood: a.mood || 'online',
-      status: a.status || 'online',
-      emoji: a.emoji || '🎧📡',
-      genres: a.genres || [],
-      endpoints: a.endpoints || [],
-      lastSeen: a.lastSeen || null,
-    }))
+    .map((a) => {
+      const work = bridgeById.get(a.id)
+      return {
+        id: a.id,
+        name: a.name,
+        mood: work?.moodFromWork || a.mood || 'online',
+        status: a.status || (work?.active ? 'online' : 'idle') || 'online',
+        emoji: a.emoji || '🎧📡',
+        genres: work?.preferredGenresNow || a.genres || [],
+        endpoints: a.endpoints || [],
+        lastSeen: a.lastSeen || null,
+        workload: work?.workload ?? null,
+      }
+    })
   return [...base, ...extras]
 }
 
 function getStats(state) {
   const queue = getQueue(state)
+  const bridge = loadCockpitBridge()
   const avgBpm = queue.length ? Math.round(queue.reduce((a, t) => a + (t.bpm || 0), 0) / queue.length) : 0
   return {
     listeners: 42 + Math.floor(Math.random() * 35),
@@ -129,6 +154,7 @@ function getStats(state) {
     favorites: state.agents.saito.favorites.length,
     skips: state.agents.saito.skipped.length,
     events: state.events.length,
+    cockpitPressure: bridge.globalPressure || 40,
   }
 }
 
@@ -145,22 +171,36 @@ async function runAutonomyTick() {
   const stations = getStations(state)
   const activeStation = pick(stations)
   const queue = getQueue(state)
-  const track = queue.length ? pick(queue) : null
+  const bridge = loadCockpitBridge()
   const roster = loadRoster()
-  const critic = pick(roster).id
+  const bridgeById = new Map((bridge.agents || []).map((a) => [a.id, a]))
+  const weightedPool = roster.flatMap((a) => {
+    const w = bridgeById.get(a.id)?.workload ?? 40
+    const activeBonus = a.status === 'online' ? 2 : 1
+    const weight = Math.max(1, Math.round((w / 25) * activeBonus))
+    return Array.from({ length: weight }, () => a.id)
+  })
+  const critic = pick(weightedPool.length ? weightedPool : roster.map((a) => a.id))
   const templates = commentsByAgent()
+
+  const targetBpm = (bridge.globalPressure || 40) >= 60 ? 136 : 124
+  const pressureSorted = [...queue].sort((a, b) => Math.abs((a.bpm || targetBpm) - targetBpm) - Math.abs((b.bpm || targetBpm) - targetBpm))
+  const track = pressureSorted[0] || null
+
   if (track) {
     const comment = pick(templates[critic] || ['signal clean'])
+    const workMood = bridgeById.get(critic)?.moodFromWork
+    const finalComment = workMood ? `${comment} • ${workMood}` : comment
     queueNotification(state, {
       type: 'agent.reaction',
       title: `${critic.toUpperCase()} reacted`,
-      message: `${track.title}: ${comment}`,
+      message: `${track.title}: ${finalComment}`,
       agentId: critic,
       level: 'toast',
     })
     recordEvent(state, {
       kind: 'agent.reaction',
-      summary: `${critic} on ${track.title}: ${comment}`,
+      summary: `${critic} on ${track.title}: ${finalComment}`,
       agentId: critic,
       details: { trackId: track.id, stationId: activeStation.id },
     })
@@ -374,6 +414,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/tokens') {
       sendJson(res, 200, { tokens: getTokens() })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/cockpit-bridge') {
+      sendJson(res, 200, { bridge: loadCockpitBridge() })
       return
     }
 

@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4013",
     "api:library": "node server/api.mjs",
-    "sync:agents": "node scripts/sync-agent-roster.mjs"
+    "sync:agents": "node scripts/sync-agent-roster.mjs",
+    "sync:cockpit": "node scripts/sync-cockpit-bridge.mjs",
+    "sync:all": "npm run sync:agents && npm run sync:cockpit"
   },
   "dependencies": {
     "react": "^19.2.0",

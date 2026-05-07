@@ -1,0 +1,279 @@
+{
+  "generatedAt": "2026-05-07T14:14:00.150Z",
+  "source": {
+    "rosterPath": "/home/xsyprime/vAIb/data/agent-roster.json",
+    "cockpitSnapshotPath": "/home/xsyprime/android-division/apps/prime-nexus/app/src/main/assets/prime_status_snapshot.json",
+    "cockpitLastUpdated": "19:57:07"
+  },
+  "globalPressure": 34,
+  "modulePressure": {
+    "Security": {
+      "severity": "GREEN",
+      "pressure": 20
+    },
+    "Android": {
+      "severity": "YELLOW",
+      "pressure": 55
+    },
+    "Knowledge": {
+      "severity": "GREEN",
+      "pressure": 20
+    },
+    "Fleet": {
+      "severity": "YELLOW",
+      "pressure": 55
+    },
+    "Gaming": {
+      "severity": "GREEN",
+      "pressure": 20
+    }
+  },
+  "endpointPressure": {
+    "prime": 30,
+    "vps": 30,
+    "pluto": 45,
+    "venus": 30
+  },
+  "agents": [
+    {
+      "id": "aishia",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "venus"
+      ],
+      "lastSeen": "2026-05-06T15:04:05.080Z"
+    },
+    {
+      "id": "ayla",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-07T14:11:41.440Z"
+    },
+    {
+      "id": "bubba",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-07T14:12:13.465Z"
+    },
+    {
+      "id": "davinci",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T14:12:38.271Z"
+    },
+    {
+      "id": "koden",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "venus"
+      ],
+      "lastSeen": "2026-05-07T14:10:50.396Z"
+    },
+    {
+      "id": "lean-ops",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T00:17:50.413Z"
+    },
+    {
+      "id": "leonidas",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": false,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-04T12:11:09.218Z"
+    },
+    {
+      "id": "localprime",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T14:12:38.271Z"
+    },
+    {
+      "id": "pn-recon",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T01:18:32.156Z"
+    },
+    {
+      "id": "prime-nexus-final",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T12:21:09.176Z"
+    },
+    {
+      "id": "prime-nexus-ultra-lean",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T14:13:23.098Z"
+    },
+    {
+      "id": "snow",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-07T14:10:40.982Z"
+    },
+    {
+      "id": "supersort",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "prime"
+      ],
+      "lastSeen": "2026-05-07T14:12:38.271Z"
+    },
+    {
+      "id": "tyler",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-07T14:12:52.847Z"
+    },
+    {
+      "id": "tyler6",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "vps"
+      ],
+      "lastSeen": "2026-05-07T14:12:04.442Z"
+    },
+    {
+      "id": "zero",
+      "workload": 31,
+      "moodFromWork": "creative drift",
+      "preferredGenresNow": [
+        "ambient",
+        "chillwave",
+        "dream-pop"
+      ],
+      "active": true,
+      "endpoints": [
+        "venus"
+      ],
+      "lastSeen": "2026-05-06T15:04:05.081Z"
+    }
+  ]
+}

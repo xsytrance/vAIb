@@ -1,32 +1,32 @@
 {
-  "generatedAt": "2026-05-07T14:07:49.818Z",
+  "generatedAt": "2026-05-07T14:13:50.554Z",
   "monitorIntervalMinutes": 20,
   "endpoints": {
     "prime": {
       "host": "local",
       "online": true,
-      "checkedAt": "2026-05-07T14:07:49.818Z",
+      "checkedAt": "2026-05-07T14:13:50.554Z",
       "error": null,
       "count": 7
     },
     "vps": {
       "host": "vps",
       "online": true,
-      "checkedAt": "2026-05-07T14:07:49.818Z",
+      "checkedAt": "2026-05-07T14:13:50.554Z",
       "error": null,
       "count": 6
     },
     "pluto": {
       "host": "pluto",
       "online": false,
-      "checkedAt": "2026-05-07T14:07:49.818Z",
+      "checkedAt": "2026-05-07T14:13:50.554Z",
       "error": null,
       "count": 0
     },
     "venus": {
       "host": "venus",
       "online": true,
-      "checkedAt": "2026-05-07T14:07:49.818Z",
+      "checkedAt": "2026-05-07T14:13:50.554Z",
       "error": null,
       "count": 3
     }
@@ -72,7 +72,7 @@
       "endpoints": [
         "vps"
       ],
-      "lastSeen": "2026-05-07T14:06:41.431Z"
+      "lastSeen": "2026-05-07T14:11:41.440Z"
     },
     {
       "id": "bubba",
@@ -93,7 +93,7 @@
       "endpoints": [
         "vps"
       ],
-      "lastSeen": "2026-05-07T14:07:13.452Z"
+      "lastSeen": "2026-05-07T14:12:13.465Z"
     },
     {
       "id": "davinci",
@@ -114,7 +114,7 @@
       "endpoints": [
         "prime"
       ],
-      "lastSeen": "2026-05-07T14:07:38.254Z"
+      "lastSeen": "2026-05-07T14:12:38.271Z"
     },
     {
       "id": "koden",
@@ -135,7 +135,7 @@
       "endpoints": [
         "venus"
       ],
-      "lastSeen": "2026-05-07T14:05:50.303Z"
+      "lastSeen": "2026-05-07T14:10:50.396Z"
     },
     {
       "id": "lean-ops",
@@ -198,7 +198,7 @@
       "endpoints": [
         "prime"
       ],
-      "lastSeen": "2026-05-07T14:07:38.254Z"
+      "lastSeen": "2026-05-07T14:12:38.271Z"
     },
     {
       "id": "pn-recon",
@@ -261,7 +261,7 @@
       "endpoints": [
         "prime"
       ],
-      "lastSeen": "2026-05-07T14:03:23.062Z"
+      "lastSeen": "2026-05-07T14:13:23.098Z"
     },
     {
       "id": "snow",
@@ -282,7 +282,7 @@
       "endpoints": [
         "vps"
       ],
-      "lastSeen": "2026-05-07T14:05:40.971Z"
+      "lastSeen": "2026-05-07T14:10:40.982Z"
     },
     {
       "id": "supersort",
@@ -303,7 +303,7 @@
       "endpoints": [
         "prime"
       ],
-      "lastSeen": "2026-05-07T14:07:38.254Z"
+      "lastSeen": "2026-05-07T14:12:38.271Z"
     },
     {
       "id": "tyler",
@@ -324,7 +324,7 @@
       "endpoints": [
         "vps"
       ],
-      "lastSeen": "2026-05-07T14:02:52.820Z"
+      "lastSeen": "2026-05-07T14:12:52.847Z"
     },
     {
       "id": "tyler6",
@@ -345,7 +345,7 @@
       "endpoints": [
         "vps"
       ],
-      "lastSeen": "2026-05-07T14:07:04.429Z"
+      "lastSeen": "2026-05-07T14:12:04.442Z"
     },
     {
       "id": "zero",

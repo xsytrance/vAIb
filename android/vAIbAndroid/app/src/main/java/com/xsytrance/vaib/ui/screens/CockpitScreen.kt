@@ -1,298 +1,272 @@
 package com.xsytrance.vaib.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xsytrance.vaib.data.model.AppState
-import com.xsytrance.vaib.data.model.Station
-import com.xsytrance.vaib.data.model.Track
-import com.xsytrance.vaib.ui.components.*
+import com.xsytrance.vaib.data.model.PlaybackState
+import com.xsytrance.vaib.ui.components.AgentChip
+import com.xsytrance.vaib.ui.components.QueueTrackCard
+import com.xsytrance.vaib.ui.components.StatusPill
+import com.xsytrance.vaib.ui.components.VaibCard
+import com.xsytrance.vaib.ui.components.VisualizerBars
 import com.xsytrance.vaib.ui.theme.*
 import com.xsytrance.vaib.viewmodel.VaibViewModel
 
-@Suppress("UNUSED_PARAMETER")
+/**
+ * CockpitScreen v2 — Visualizer-first music cockpit.
+ *
+ * Hybrid Safe Slice: visualizer always visible, big Now Playing,
+ * minimal metadata, no hardcoded fake entities.
+ *
+ * Layout (top to bottom):
+ *   Pinned: Visualizer strip (36dp, always visible)
+ *   LazyColumn:
+ *     1. App header ("vAIb" 36sp, no subtitle)
+ *     2. Status row (connectivity + play/pause)
+ *     3. Now Playing card (L1, neonGlow) — track, artist, agent, bpm/vibe
+ *     4. On Air — agent name + show name
+ *     5. Queue preview — header + 3 items
+ *     6. Bottom spacer (80dp)
+ *
+ * Removed from v1: route text, connector health, station card,
+ *   "Now Broadcasting" label, hardcoded AgentChip("DJinn"),
+ *   hardcoded "Vibe: neon focus", reactions preview, token budget.
+ */
 @Composable
 fun CockpitScreen(
-    appState: AppState,
     viewModel: VaibViewModel,
-    onStationClick: (Station) -> Unit = {},
-    onNavigateToStations: () -> Unit = {},
-    onNavigateToQueue: () -> Unit = {},
-    onNavigateToAgents: () -> Unit = {}
+    appState: AppState,
+    modifier: Modifier = Modifier
 ) {
     val playback = appState.playback
-    val currentStation = playback.currentStation ?: appState.stations.firstOrNull()
-    val currentTrack = playback.currentTrack ?: Track(
-        id = "demo-001",
-        title = "Synthetic Sunrise",
-        artist = "Procedural Ghost",
-        bpm = 132
-    )
+    val currentStation = appState.stations.find { it.id == playback.currentStation.id }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 8.dp)
-    ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+    // Dynamic agent resolution (no hardcoded "DJinn")
+    val onAirAgent = remember(appState.onAirAgentId, appState.agents) {
+        appState.agents.firstOrNull { it.id == appState.onAirAgentId }
+    }
+    val agentName = onAirAgent?.name?.lowercase() ?: appState.onAirAgentId.lowercase()
+    val agentColor = onAirAgent?.color ?: PrimaryNeonCyan.toString()
+
+    // Connectivity
+    val connectivity = appState.connectivityLabel
+    val outputMode = playback.outputMode
+    val activeLabel = appState.activeEndpointLabel ?: "no link"
+    val attempted = appState.endpointAttempted
+    val total = appState.endpointTotal
+    val latencyMs = appState.activeEndpointLatencyMs
+
+    Column(modifier = modifier.fillMaxSize()) {
+        // === PINNED: Visualizer strip (always visible, NOT in LazyColumn) ===
+        // 36dp compact strip at top of screen. Never scrolls away.
+        // Height is caller-controlled; default 64dp overridden to 36dp here.
+        VisualizerBars(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp),
+            isPlaying = playback.isPlaying,
+            intensity = if (playback.isBuffering) 0.35f else 0.9f
+        )
+
+        // === SCROLLABLE: Everything below the visualizer ===
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 8.dp)
+        ) {
+            // --- 1. App Header ---
+            // "vAIb" 36sp Bold Cyan. No subtitle. The app name is enough.
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "vAIb",
                     color = PrimaryNeonCyan,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Agent-native music cockpit",
-                    color = TextSecondary,
-                    fontSize = 14.sp
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-        }
 
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatusPill(status = appState.connectivityLabel)
-                StatusPill(status = if (playback.outputMode == "bluetooth") "bluetooth" else "listening")
-                IconButton(onClick = { viewModel.togglePlayPause() }) {
-                    Icon(
-                        imageVector = if (playback.isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                        contentDescription = "Play/Pause",
-                        tint = SecondaryGold
-                    )
-                }
-                IconButton(onClick = { viewModel.refresh() }) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh",
-                        tint = PrimaryNeonCyan
-                    )
-                }
-            }
-        }
-
-        item {
-            val route = appState.activeEndpointLabel ?: "none"
-            val latency = appState.activeEndpointLatencyMs?.let { "${it}ms" } ?: "--"
-            Text(
-                text = "Route: $route • probe ${appState.endpointAttempted}/${appState.endpointTotal} • latency $latency",
-                color = TextSecondary,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        item {
-            val onAirName = appState.agents.firstOrNull { it.id == appState.onAirAgentId }?.name ?: "Auto-DJ"
-            val nextName = appState.agents.firstOrNull { it.id == appState.nextOnAirAgentId }?.name ?: "calculating"
-            VaibCard {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("On Air: $onAirName", color = PrimaryNeonCyan, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(appState.onAirShowName ?: "Show: Neon Drift Hour", color = SecondaryGold, fontSize = 12.sp)
-                    Text("Next Slot: $nextName", color = TextSecondary, fontSize = 12.sp)
-                    Text(appState.onAirReason ?: "One agent is always on deck.", color = AccentMagenta, fontSize = 12.sp)
-                    appState.tonightLineup.takeIf { it.isNotEmpty() }?.forEach { line ->
-                        Text("• $line", color = TextSecondary, fontSize = 11.sp)
-                    }
-                }
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(8.dp)) }
-
-        item {
-            if (appState.connectorHealth.isNotEmpty()) {
-                Column(
+            // --- 2. Status Row ---
+            // Simplified: connectivity pill + play/pause icon only.
+            // Route text removed (was 11sp dev telemetry).
+            // Refresh icon removed (redundant with pull-to-refresh or automatic).
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Connector Health",
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    appState.connectorHealth.forEach { connector ->
-                        ConnectorHealthCard(connector = connector)
+                    // Connection status
+                    val connectivityColor = when {
+                        connectivity.contains("online") -> LiveGreen
+                        connectivity.contains("degraded") -> SecondaryGold
+                        else -> ErrorRed
                     }
-                    val telemetry = appState.syncTelemetry
-                    Text(
-                        text = "Sync: failures=${telemetry.consecutiveFailures} • avg=${telemetry.avgLatencyMs?.let { "${it}ms" } ?: "--"}",
-                        color = TextSecondary,
-                        fontSize = 11.sp
+                    StatusPill(
+                        label = if (latencyMs != null) "$activeLabel ${latencyMs}ms" else connectivity,
+                        color = connectivityColor
                     )
-                }
-            }
-        }
 
-        item {
-            if (currentStation != null) {
-                StationCard(
-                    station = currentStation,
-                    isCurrentStation = true
-                )
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-
-        item {
-            VaibCard(neonGlow = true) {
-                Column {
-                    Text(
-                        text = if (playback.isBuffering) "Now Broadcasting (buffering…)" else "Now Broadcasting",
-                        color = PrimaryNeonCyan,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = currentTrack.title,
-                        color = TextPrimary,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = currentTrack.artist,
-                        color = TextSecondary,
-                        fontSize = 15.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row {
-                        AgentChip(name = "DJinn", colorHex = "#00E5FF")
-                        Spacer(modifier = Modifier.width(8.dp))
+                    // Play / Pause
+                    val isActuallyPlaying = playback.isPlaying && !playback.isBuffering
+                    IconButton(onClick = { viewModel.togglePlayPause() }) {
                         Text(
-                            text = "Vibe: neon focus",
-                            color = AccentMagenta,
-                            fontSize = 13.sp,
-                            modifier = Modifier.align(Alignment.CenterVertically)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "BPM: ${currentTrack.bpm}",
-                            color = PrimaryNeonCyan,
-                            fontSize = 13.sp,
-                            modifier = Modifier.align(Alignment.CenterVertically)
+                            text = if (isActuallyPlaying) "⏸" else "▶",
+                            fontSize = 24.sp,
+                            color = PrimaryNeonCyan
                         )
                     }
                 }
             }
-        }
 
-        item { Spacer(modifier = Modifier.height(4.dp)) }
+            // --- 3. Now Playing (L1 Card, neonGlow) ---
+            // The most important card on screen. Music is sovereign here.
+            // Track title: 20sp Bold (headlineMedium) — largest text below header.
+            // Artist: 18sp (headlineSmall)
+            // Agent + BPM + Vibe: single line, 13sp, dynamic (no hardcoded values).
+            item {
+                Spacer(modifier = Modifier.height(20.dp))
+                VaibCard(neonGlow = true) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Track title — MUSIC IS SOVEREIGN
+                        val trackTitle = playback.currentTrack?.title
+                        Text(
+                            text = trackTitle ?: "No track playing",
+                            color = if (trackTitle != null) TextPrimary else TextMuted,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-        item {
-            VaibCard {
-                Column {
-                    Text(
-                        text = "Visualizer",
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Artist name
+                        val artistName = playback.currentTrack?.artist
+                        if (artistName != null) {
+                            Text(
+                                text = artistName,
+                                color = TextSecondary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // Agent + BPM + Vibe — single line, dynamic
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Dynamic agent chip (was hardcoded "DJinn")
+                            AgentChip(
+                                name = agentName,
+                                colorHex = agentColor
+                            )
+
+                            // BPM
+                            val bpm = playback.currentTrack?.bpm
+                            if (bpm != null) {
+                                Text(
+                                    text = "$bpm BPM",
+                                    color = PrimaryNeonCyan,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // Dynamic vibe from station (was hardcoded "neon focus")
+                            val vibe = currentStation?.vibe
+                            if (!vibe.isNullOrBlank()) {
+                                Text(
+                                    text = vibe,
+                                    color = AccentMagenta,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 4. On Air ---
+            // Compact: agent name + show name only (2 lines).
+            // Next slot, reason, lineup moved to QueueScreen / AgentsScreen.
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                VaibCard {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "On Air: $agentName",
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        val showName = appState.onAirShowName
+                        if (showName.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = showName,
+                                color = TextSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- 5. Queue Preview ---
+            // Header + first 3 queue items. Unchanged from v1.
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                val queue = appState.queue
+                if (queue.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Queue (${queue.size})",
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    VisualizerBars(
-                        isPlaying = playback.isPlaying,
-                        intensity = if (playback.isBuffering) 0.35f else 0.9f
-                    )
+                    queue.take(3).forEach { item ->
+                        QueueTrackCard(
+                            title = item.title,
+                            artist = item.artist,
+                            requestedBy = item.requestedBy,
+                            likes = item.likes,
+                            dislikes = item.dislikes
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
-        }
 
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Queue (${appState.queue.size})",
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "See all >",
-                    color = PrimaryNeonCyan,
-                    fontSize = 12.sp,
-                    modifier = Modifier.clickable { onNavigateToQueue() }
-                )
+            // --- 6. Bottom Spacer ---
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
-
-        items(appState.queue.take(3)) { queueItem ->
-            QueueTrackCard(queueItem = queueItem)
-        }
-
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recent Reactions (${appState.reactions.size})",
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "See all >",
-                    color = PrimaryNeonCyan,
-                    fontSize = 12.sp,
-                    modifier = Modifier.clickable { onNavigateToAgents() }
-                )
-            }
-        }
-
-        items(appState.reactions.take(3)) { reaction ->
-            ReactionBadge(reaction = reaction)
-        }
-
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-
-        item {
-            TokenBudgetPill(
-                used = 420,
-                total = 800,
-                label = "Session Token Budget (DJinn)"
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(80.dp)) }
     }
 }

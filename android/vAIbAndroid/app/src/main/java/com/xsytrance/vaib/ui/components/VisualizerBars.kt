@@ -25,7 +25,7 @@ import kotlin.random.Random
 
 @Composable
 fun VisualizerBars(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.height(64.dp),
     barCount: Int = 24,
     isPlaying: Boolean = true,
     intensity: Float = 0.75f
@@ -66,7 +66,6 @@ fun VisualizerBars(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom

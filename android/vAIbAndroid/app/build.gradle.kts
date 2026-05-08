@@ -13,6 +13,10 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.2.0"
+        // Phase 0: Global kill switch for the FX system.
+        // When false: all FX layers become no-ops, zero visual impact.
+        // Can be flipped without code changes for emergency rollback.
+        buildConfigField("boolean", "ENABLE_FX_SYSTEM", "true")
     }
 
     buildFeatures {

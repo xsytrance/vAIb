@@ -14,6 +14,7 @@ import com.xsytrance.vaib.data.model.RefreshMode
 import com.xsytrance.vaib.ui.components.RefreshControlCard
 import com.xsytrance.vaib.ui.components.VaibCard
 import com.xsytrance.vaib.ui.theme.*
+import com.xsytrance.vaib.ui.fx.core.MotionIntensity
 import com.xsytrance.vaib.viewmodel.VaibViewModel
 
 @Composable
@@ -40,6 +41,7 @@ fun SettingsScreen(
     val refreshMode by viewModel.refreshMode.collectAsState()
     val nextRefreshAtMillis by viewModel.nextRefreshAtMillis.collectAsState()
     val updateUiState by viewModel.updateUiState.collectAsState()
+    val motionIntensity by viewModel.motionIntensity.collectAsState()
 
     Column(
         modifier = Modifier
@@ -290,6 +292,68 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
+        VaibCard {
+            Column {
+                Text(
+                    text = "Motion",
+                    color = PrimaryNeonCyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Animation Level",
+                        color = TextSecondary,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = motionIntensity.name,
+                        color = PrimaryNeonCyan,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    MotionIntensity.values().forEach { level ->
+                        val selected = motionIntensity == level
+                        TextButton(
+                            onClick = { viewModel.setMotionIntensity(level) }
+                        ) {
+                            Text(
+                                text = level.name,
+                                color = if (selected) PrimaryNeonCyan else TextMuted,
+                                fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = when (motionIntensity) {
+                        MotionIntensity.OFF -> "All animation and FX disabled. Maximum battery."
+                        MotionIntensity.REDUCED -> "Minimal transitions. No particles. No glow."
+                        MotionIntensity.STANDARD -> "Balanced animation. Subtle particles when active."
+                        MotionIntensity.ENHANCED -> "Full expression. Rich particles and glow."
+                    },
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
+            }
+        }
         VaibCard {
             Column {
                 Text(

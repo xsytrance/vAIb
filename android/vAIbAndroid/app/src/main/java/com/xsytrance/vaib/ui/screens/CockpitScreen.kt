@@ -46,13 +46,13 @@ fun CockpitScreen(
     modifier: Modifier = Modifier
 ) {
     val playback = appState.playback
-    val currentStation = appState.stations.find { it.id == playback.currentStation.id }
+    val currentStation = appState.stations.find { it.id == playback.currentStation?.id }
 
     // Dynamic agent resolution (no hardcoded "DJinn")
     val onAirAgent = remember(appState.onAirAgentId, appState.agents) {
         appState.agents.firstOrNull { it.id == appState.onAirAgentId }
     }
-    val agentName = onAirAgent?.name?.lowercase() ?: appState.onAirAgentId.lowercase()
+    val agentName = onAirAgent?.name?.lowercase() ?: appState.onAirAgentId?.lowercase() ?: "unknown"
     val agentColor = onAirAgent?.color ?: PrimaryNeonCyan.toString()
 
     // Connectivity
@@ -211,7 +211,7 @@ fun CockpitScreen(
                             fontWeight = FontWeight.Medium
                         )
                         val showName = appState.onAirShowName
-                        if (showName.isNotBlank()) {
+                        if (showName?.isNotBlank() == true) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = showName,

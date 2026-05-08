@@ -598,4 +598,30 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                   
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Build", color = TextSecondary, fontSize = 14.sp)
+                    Text(text = "1", color = TextPrimary, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Min SDK", color = TextSecondary, fontSize = 14.sp)
+                    Text(text = "28 (Android 9)", color = TextPrimary, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Target SDK", color = TextSecondary, fontSize = 14.sp)
+                    Text(text = "34 (Android 14)", color = TextPrimary, fontSize = 14.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
+    }
+}

@@ -154,10 +154,7 @@ fun VaibNavHost(
             composable(BottomNavItem.Cockpit.route) {
                 CockpitScreen(
                     appState = appState,
-                    viewModel = viewModel,
-                    onNavigateToStations = { navController.navigate(BottomNavItem.Stations.route) },
-                    onNavigateToQueue = { navController.navigate(BottomNavItem.Queue.route) },
-                    onNavigateToAgents = { navController.navigate(BottomNavItem.Agents.route) }
+                    viewModel = viewModel
                 )
             }
             composable(BottomNavItem.Stations.route) {

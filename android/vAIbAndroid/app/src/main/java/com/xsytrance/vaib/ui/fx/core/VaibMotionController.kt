@@ -64,7 +64,7 @@ object VaibMotionController {
         // STUB: Phase 2 will implement actual crossfade.
         // Currently snap — no transition animation.
         @Suppress("UNCHECKED_CAST")
-        return snap() as FiniteAnimationSpec<T>
+        return snap<T>() as FiniteAnimationSpec<T>
     }
 
     /**
@@ -78,7 +78,7 @@ object VaibMotionController {
         // STUB: Phase 2 will implement actual slide.
         // Currently snap — no entrance animation.
         @Suppress("UNCHECKED_CAST")
-        return snap() as FiniteAnimationSpec<T>
+        return snap<T>() as FiniteAnimationSpec<T>
     }
 
     /**

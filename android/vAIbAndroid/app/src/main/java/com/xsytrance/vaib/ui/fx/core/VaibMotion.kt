@@ -95,7 +95,7 @@ object VaibMotionTokens {
 
     /** Default easing for all vAIb transitions.
      * Calm and gentle — never jarring or aggressive. */
-    val defaultEasing: FastOutSlowInEasing = FastOutSlowInEasing
+    val defaultEasing: Easing = FastOutSlowInEasing
 
     /** Press feedback scale factor (1.0 = no scale). Subtle, almost imperceptible. */
     const val pressScaleDown = 0.97f

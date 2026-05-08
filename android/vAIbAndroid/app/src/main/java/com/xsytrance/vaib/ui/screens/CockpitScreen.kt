@@ -6,13 +6,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xsytrance.vaib.data.model.AppState
-import com.xsytrance.vaib.data.model.PlaybackState
 import com.xsytrance.vaib.ui.components.AgentChip
 import com.xsytrance.vaib.ui.components.QueueTrackCard
 import com.xsytrance.vaib.ui.components.StatusPill
@@ -59,10 +57,7 @@ fun CockpitScreen(
 
     // Connectivity
     val connectivity = appState.connectivityLabel
-    val outputMode = playback.outputMode
     val activeLabel = appState.activeEndpointLabel ?: "no link"
-    val attempted = appState.endpointAttempted
-    val total = appState.endpointTotal
     val latencyMs = appState.activeEndpointLatencyMs
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -116,8 +111,7 @@ fun CockpitScreen(
                         else -> ErrorRed
                     }
                     StatusPill(
-                        label = if (latencyMs != null) "$activeLabel ${latencyMs}ms" else connectivity,
-                        color = connectivityColor
+                        status = if (latencyMs != null) "$activeLabel ${latencyMs}ms" else connectivity
                     )
 
                     // Play / Pause
@@ -251,13 +245,7 @@ fun CockpitScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     queue.take(3).forEach { item ->
-                        QueueTrackCard(
-                            title = item.title,
-                            artist = item.artist,
-                            requestedBy = item.requestedBy,
-                            likes = item.likes,
-                            dislikes = item.dislikes
-                        )
+                        QueueTrackCard(queueItem = item)
                         Spacer(modifier = Modifier.height(4.dp))
                     }
                 }

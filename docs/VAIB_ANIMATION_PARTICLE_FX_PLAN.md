@@ -39,6 +39,12 @@ It is not a fake AI companion app.
 
 It should feel like: music, systems, agents, and operational energy are all resonating together inside one living environment.
 
+**Core pillars:**
+- **Music sovereignty** — audio layer is always primary; FX serve the music
+- **State-first everything** — every visual/haptic/audio effect answers "what is happening?"
+- **Operational Silence** — the absence of signal IS signal; a healthy silence is the user's baseline; deviation is meaningful
+- **Global coherence** — the app breathes as one system, not many animated widgets
+
 Everything in this plan serves that single sensation. If a feature does not deepen the feeling of a living, breathing, music-driven operational space, it does not belong.
 
 ---
@@ -58,8 +64,11 @@ Everything in this plan serves that single sensation. If a feature does not deep
 | **Machine** | `MACHINE_RESTART_*`, `DISK_WARNING` | Red alert overlay, warning pulses |
 | **Services** | `SERVICE_HEALTHY/DEGRADED` | Green/amber status tint |
 | **Security** | `SECURITY_RISK` | Magenta-red flash, alert overlay |
+| **System Vitality** | Aggregate operational state | Ambient field intensity, silence/deviation |
 
 **Core Principle:** STATE FIRST, ATMOSPHERE SECOND. Every particle, glow, haptic pulse answers: *"What is happening right now?"*
+
+**Operational Silence is the inverse.** When nothing is happening, the atmosphere quiets. The absence of signal IS signal. A healthy silence becomes the user's baseline — gradual deviation becomes meaningful. See Section 10.6.
 
 ### 3.1 Golden Rule — Sensory Balance
 
@@ -301,12 +310,23 @@ Not all events are equal. The reactive field must respond to significance, not n
 - Same event type: rate-limited to once per N seconds (CRITICAL: 3s, HIGH: 5s, MEDIUM: 2s, LOW: 1s)
 - Purpose: prevent the reactive field from constantly thrashing due to tiny events
 
+**Vitality Baseline (Operational Silence):**
+- When NO events are active above LOW tier, the reactive field enters its **baseline vitality state**
+- This is NOT "nothingness" — it is the **healthy default atmosphere** of the app
+- Baseline state represents: all systems nominal, music playing (or paused but present), agents idle, network stable
+- The user learns what "healthy" feels like through daily use
+- Deviations from this baseline — thinning atmosphere, interrupted cadence, reduced particle density — signal degradation without requiring explicit alerts
+- True operational silence (total system offline): field goes completely dormant, `BackgroundAmoled` only, zero motion
+
 ```kotlin
 // .../ui/fx/event/EventInfluenceDecay.kt
 class EventInfluenceDecay {
     fun computeCurrentInfluence(eventHistory: List<TimestampedEvent>): Float
     fun isRateLimited(eventType: VaibEventType): Boolean
+    fun computeVitalityBaseline(eventHistory: List<TimestampedEvent>): VitalityLevel
 }
+
+enum class VitalityLevel { NOMINAL, THINNED, DORMANT, ABSENT }
 ```
 
 ---
@@ -545,6 +565,51 @@ The app subtly moves **with** the music. Not cheesy beat visualization. A premiu
 
 **Rule:** UI motion should support the music, not compete with it. The user should feel the synchronization, not see it obviously. If the effect calls attention to itself, it is too much.
 
+### 10.6 Operational Silence
+
+Operational Silence is one of the core emotional pillars of vAIb. The atmosphere layer represents overall ecosystem vitality — and the absence of activity is as meaningful as its presence.
+
+| System State | Atmosphere Response | Description |
+|---|---|---|
+| **Healthy active systems** | Full ambient field, operational rhythm, musical continuity | The app feels alive. Particles drift at nominal density, waveform pulses gently, glow breathes. This is the "healthy default" the user learns. |
+| **Degraded systems** | Thinner atmosphere, interrupted cadence, reduced particle density | Fewer particles, slower pulse, dimmed glow. The app feels "under the weather." The change is felt, not announced. |
+| **Widespread outages / failures** | Quiet, dormant, near-silent field | Particles fade to near-zero. Waveform becomes a faint trace. Glow is minimal. The app is still present but unmistakably subdued. |
+| **Total system offline** | True silence, dead field, `BackgroundAmoled` only | Zero motion. Zero particles. Pure black. The app exists only as its static UI shell. This is the operational void. |
+
+**What Operational Silence is:**
+- **Ambient situational awareness** — the user gradually learns what "healthy" feels like
+- **Natural, cold, operational, empty** — no horror aesthetics, no dramatic "system death" theatrics
+- **Subtle, restrained, atmospheric, non-gimmicky** — deviation from baseline registers emotionally without demanding attention
+- **The inverse of signal** — where events create spikes, their absence creates space
+
+**What Operational Silence is NOT:**
+- NOT a log viewer or dashboard
+- NOT an alert or notification system
+- NOT manipulative emotional framing
+- NOT decorative emptiness — it carries operational meaning
+
+**Technical implementation:**
+- `GlobalReactiveField` computes a `VitalityLevel` from `EventInfluenceDecay.computeVitalityBaseline()`
+- Field intensity multiplies by vitality factor: NOMINAL=1.0, THINNED=0.4, DORMANT=0.1, ABSENT=0.0
+- Music playback continues during degraded states — Operational Silence affects FX only, never playback
+- Transition between vitality levels is gradual (3-5s crossfade) — never jarring
+- No text labels or indicators for vitality state — pure atmosphere
+
+```kotlin
+// .../ui/fx/core/GlobalReactiveField.kt
+fun computeFieldIntensity(
+    playbackState: PlaybackState,
+    vitality: VitalityLevel,
+    vibeProfile: VibeProfile
+): Float {
+    val baseIntensity = playbackState.toIntensity() * vibeProfile.particleDensity
+    val vitalityMultiplier = vitality.toMultiplier() // NOMINAL=1.0, THINNED=0.4, DORMANT=0.1, ABSENT=0.0
+    return baseIntensity * vitalityMultiplier
+}
+```
+
+**Design principle:** The silence should feel like walking into an empty server room at night — cold, operational, humming with potential but currently still. Not dead. Dormant.
+
 ---
 
 ## 11. AMOLED Visual Philosophy
@@ -558,6 +623,7 @@ The app subtly moves **with** the music. Not cheesy beat visualization. A premiu
 - Black space is not empty — it is the canvas.
 - **Darkness is part of the design language.**
 - **Empty space is not absence — it is the canvas.**
+- **Silence is part of the visual language.** The dead field (zero particles, zero glow, pure black) is a valid and meaningful operational state. Not everything needs to glow.
 
 **Hierarchy:** Background (#000000) > Screen base (#0A0A0A) > Card fill (#111111) > Elevated (#1A1A1A). Text: White (headlines) > #AAAAAA (body) > #666666 (captions).
 
@@ -565,6 +631,7 @@ The app subtly moves **with** the music. Not cheesy beat visualization. A premiu
 - Max 3 neon colors active simultaneously
 - Glow pulses should feel like signals, not decoration
 - Prohibited: overfilling empty space, too many simultaneous colors, always-on glow spam
+- Operational Silence is not a bug: a dead field during system outage is the correct visual response
 
 **Prohibited:** >20% opacity gradients, semi-transparent gray overlays, white backgrounds, colored text on colored backgrounds.
 
@@ -693,6 +760,15 @@ vAIb can easily spiral into observability suite, AI shell, monitoring platform, 
 | General principle | If it doesn't serve the music experience, it doesn't belong in v1 |
 
 **Animations and effects must never compete with the currently playing music.** When music is intense, the UI calms. When music is ambient, the UI breathes. The audio layer is sovereign.
+
+### 15.3 Ambient Situational Awareness
+
+Operational Silence (Section 10.6) provides ambient situational awareness without competing with the music experience.
+- During healthy operation: subtle atmospheric field reinforces the music experience
+- During degraded operation: thinner atmosphere naturally draws attention to operational issues
+- Music playback continues unaffected — Operational Silence modulates FX, never audio
+- No explicit indicators, no status labels — pure atmospheric communication
+- The user learns the "healthy baseline" through daily use, making deviations self-evident
 
 ---
 

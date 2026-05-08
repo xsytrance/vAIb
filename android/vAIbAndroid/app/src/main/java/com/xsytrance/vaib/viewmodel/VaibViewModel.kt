@@ -41,26 +41,31 @@ import kotlin.random.Random
 
 class VaibViewModel(application: Application) : AndroidViewModel(application) {
 
+    // Phase 0: SharedPreferences instances — declared BEFORE any StateFlow that reads them.
+    // fxPrefs is isolated ("vaib_fx") to prevent key collisions with existing prefs.
+    private val prefs = application.getSharedPreferences("vaib_state", Context.MODE_PRIVATE)
+    private val fxPrefs = application.getSharedPreferences("vaib_fx", Context.MODE_PRIVATE)
+
+    // Preference key constants — declared BEFORE StateFlow initializers that reference them.
+    private val strictModePrefKey = "strict_broadcast_mode"
+    private val statsPrefKey = "listening_stats_json"
+    private val updateAutoCheckPrefKey = "update_auto_check"
+    private val updateEndpointPrefKey = "update_endpoint"
+    private val motionIntensityPrefKey = "motion_intensity"
+
     private val _appState = MutableStateFlow(DemoData.getDefaultAppState())
     val appState: StateFlow<AppState> = _appState
 
-
-    /** Phase 0: Motion intensity controls all FX levels. Persisted in isolated vaib_fx prefs. */
+    /** Phase 0: Motion intensity controls all FX levels. Persisted in isolated vaib_fx prefs.
+     * Initialized AFTER fxPrefs and motionIntensityPrefKey to avoid forward-reference crash. */
     private val _motionIntensity = MutableStateFlow(
         MotionIntensity.valueOf(
             fxPrefs.getString(motionIntensityPrefKey, MotionIntensity.STANDARD.name) ?: MotionIntensity.STANDARD.name
         )
     )
     val motionIntensity: StateFlow<MotionIntensity> = _motionIntensity
+
     private val repository = VaibRepository()
-    private val prefs = application.getSharedPreferences("vaib_state", Context.MODE_PRIVATE)
-    /** Isolated SharedPreferences for FX system. Never overlaps with existing keys. */
-    private val fxPrefs = application.getSharedPreferences("vaib_fx", Context.MODE_PRIVATE)
-    private val strictModePrefKey = "strict_broadcast_mode"
-    private val statsPrefKey = "listening_stats_json"
-    private val updateAutoCheckPrefKey = "update_auto_check"
-    private val updateEndpointPrefKey = "update_endpoint"
-    private val motionIntensityPrefKey = "motion_intensity"
     private var updateEndpoint: String = prefs.getString(updateEndpointPrefKey, "") ?: ""
     private var updateAutoCheckEnabled: Boolean = prefs.getBoolean(updateAutoCheckPrefKey, true)
     private var elevenLabsApiKey: String = ""

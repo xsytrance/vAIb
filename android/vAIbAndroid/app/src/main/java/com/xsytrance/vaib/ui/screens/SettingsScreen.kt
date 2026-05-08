@@ -354,6 +354,37 @@ fun SettingsScreen(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        VaibCard {
+            Column {
+                Text(
+                    text = "Visualizer",
+                    color = PrimaryNeonCyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Style", color = TextSecondary, fontSize = 14.sp)
+                    Text(
+                        text = "CLASSIC_BARS",
+                        color = PrimaryNeonCyan,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Future: WAVEFORM, PULSE, EQUALIZER, OSCILLOSCOPE...",
+                    color = TextMuted, fontSize = 11.sp)
+            }
+        }
+
         VaibCard {
             Column {
                 Text(
@@ -567,30 +598,4 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Build", color = TextSecondary, fontSize = 14.sp)
-                    Text(text = "1", color = TextPrimary, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Min SDK", color = TextSecondary, fontSize = 14.sp)
-                    Text(text = "28 (Android 9)", color = TextPrimary, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Target SDK", color = TextSecondary, fontSize = 14.sp)
-                    Text(text = "34 (Android 14)", color = TextPrimary, fontSize = 14.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(80.dp))
-    }
-}
+                   

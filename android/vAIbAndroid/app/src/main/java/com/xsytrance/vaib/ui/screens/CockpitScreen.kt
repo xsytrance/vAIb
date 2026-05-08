@@ -146,7 +146,7 @@ fun CockpitScreen(
                         Text(
                             text = trackTitle ?: "No track playing",
                             color = if (trackTitle != null) TextPrimary else TextMuted,
-                            fontSize = 20.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

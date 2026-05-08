@@ -11,6 +11,7 @@ import com.xsytrance.vaib.data.AutomationEngine
 import com.xsytrance.vaib.data.ChangeFeedEngine
 import com.xsytrance.vaib.data.ConflictResolver
 import com.xsytrance.vaib.data.DemoData
+import com.xsytrance.vaib.ui.fx.core.MotionIntensity
 import com.xsytrance.vaib.data.FreshnessScorer
 import com.xsytrance.vaib.data.RefreshScheduler
 import com.xsytrance.vaib.data.VaibRepository
@@ -43,12 +44,23 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
     private val _appState = MutableStateFlow(DemoData.getDefaultAppState())
     val appState: StateFlow<AppState> = _appState
 
+
+    /** Phase 0: Motion intensity controls all FX levels. Persisted in isolated vaib_fx prefs. */
+    private val _motionIntensity = MutableStateFlow(
+        MotionIntensity.valueOf(
+            fxPrefs.getString(motionIntensityPrefKey, MotionIntensity.STANDARD.name) ?: MotionIntensity.STANDARD.name
+        )
+    )
+    val motionIntensity: StateFlow<MotionIntensity> = _motionIntensity
     private val repository = VaibRepository()
     private val prefs = application.getSharedPreferences("vaib_state", Context.MODE_PRIVATE)
+    /** Isolated SharedPreferences for FX system. Never overlaps with existing keys. */
+    private val fxPrefs = application.getSharedPreferences("vaib_fx", Context.MODE_PRIVATE)
     private val strictModePrefKey = "strict_broadcast_mode"
     private val statsPrefKey = "listening_stats_json"
     private val updateAutoCheckPrefKey = "update_auto_check"
     private val updateEndpointPrefKey = "update_endpoint"
+    private val motionIntensityPrefKey = "motion_intensity"
     private var updateEndpoint: String = prefs.getString(updateEndpointPrefKey, "") ?: ""
     private var updateAutoCheckEnabled: Boolean = prefs.getBoolean(updateAutoCheckPrefKey, true)
     private var elevenLabsApiKey: String = ""
@@ -251,6 +263,12 @@ class VaibViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         })
+    }
+
+    /** Phase 0: Set motion intensity preference. Persists to isolated vaib_fx store. */
+    fun setMotionIntensity(intensity: MotionIntensity) {
+        fxPrefs.edit().putString(motionIntensityPrefKey, intensity.name).apply()
+        _motionIntensity.value = intensity
     }
 
     private fun syncPlaybackState() {

@@ -81,9 +81,21 @@ function ToastStack({ notifications, onReadAll }) {
  * NetworkPanel — minimal connection UI embedded in the settings area.
  * Shows relay URL input, connect/disconnect, node roster, and RI indicator.
  */
+/**
+ * Build the default relay WebSocket URL from the current page host.
+ * The relay runs on the same host as the frontend (port 4014).
+ * This works for localhost, LAN IPs, and Tailscale hostnames.
+ */
+function getDefaultRelayUrl() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname;
+  return `${protocol}//${host}:4014/signal`;
+}
+
 function NetworkPanel() {
   const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere();
-  const [relayUrl, setRelayUrl] = useState('ws://localhost:4014/signal');
+  const [relayUrl, setRelayUrl] = useState(getDefaultRelayUrl);
+  const defaultUrl = getDefaultRelayUrl();
 
   const handleConnect = () => connect(relayUrl);
 
@@ -480,9 +492,24 @@ function AppContent() {
 // App — exported root component wrapped with AtmosphereProvider
 // ============================================================
 
+/**
+ * Generate a unique node name for this tab so every instance is
+ * individually recognizable in the roster. PRIME is reserved for
+ * the first-opened tab; every additional tab gets a random short
+ * name (e.g. node_4k1t) which is still human-readable in the
+ * node list.
+ */
+function getSessionNodeName() {
+  const stored = sessionStorage.getItem('vaib_node_name');
+  if (stored) return stored;
+  const name = 'node_' + Math.random().toString(36).slice(2, 6);
+  sessionStorage.setItem('vaib_node_name', name);
+  return name;
+}
+
 export default function App() {
   return (
-    <AtmosphereProvider nodeOptions={{ name: 'PRIME', type: 'desktop' }}>
+    <AtmosphereProvider nodeOptions={{ name: getSessionNodeName(), type: 'desktop' }}>
       <AppContent />
     </AtmosphereProvider>
   )

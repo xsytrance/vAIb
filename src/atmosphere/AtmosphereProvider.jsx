@@ -109,11 +109,36 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
       if (!msg || !msg.type) return;
 
       switch (msg.type) {
+        case MessageTypes.HELLO: {
+          // Another node joined — add to registry
+          if (msg.nodeId && msg.nodeId !== myNode.id) {
+            registry.addNode({
+              id: msg.nodeId,
+              name: msg.name || msg.nodeId,
+              type: msg.nodeType || 'browser',
+              state: 'ACTIVE',
+              lastSeen: Date.now(),
+            });
+            // If we are leader, send WELCOME back (broadcast via relay)
+            if (leaderState.getState() === 'LEADER') {
+              client.send({
+                type: MessageTypes.WELCOME,
+                leaderId: myNode.id,
+                nodes: [myNode, ...registry.getAllNodes()],
+                timestamp: Date.now(),
+              });
+            }
+          }
+          break;
+        }
+
         case MessageTypes.WELCOME: {
           if (msg.nodes) {
-            msg.nodes.forEach((n) => registry.addNode(n));
+            msg.nodes.forEach((n) => {
+              if (n.id !== myNode.id) registry.addNode(n);
+            });
           }
-          if (msg.leaderId) {
+          if (msg.leaderId && msg.leaderId !== myNode.id) {
             leaderState.becomeFollower(msg.leaderId);
             setLeaderId(msg.leaderId);
           }
@@ -123,7 +148,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         }
 
         case MessageTypes.HEARTBEAT: {
-          if (msg.nodeId) registry.markHeartbeat(msg.nodeId);
+          if (msg.nodeId && msg.nodeId !== myNode.id) registry.markHeartbeat(msg.nodeId);
           break;
         }
 

@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
+import AtmosphereCanvas from './visual/AtmosphereCanvas'
+import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
 
 const moodOptions = [
   'focused lift',
@@ -74,12 +77,121 @@ function ToastStack({ notifications, onReadAll }) {
   )
 }
 
-function App() {
+/**
+ * NetworkPanel — minimal connection UI embedded in the settings area.
+ * Shows relay URL input, connect/disconnect, node roster, and RI indicator.
+ */
+function NetworkPanel() {
+  const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere();
+  const [relayUrl, setRelayUrl] = useState('ws://localhost:4014/signal');
+
+  const handleConnect = () => connect(relayUrl);
+
+  const statusColor =
+    connectionState === 'connected' ? '#8effcb' :
+    connectionState === 'connecting' ? '#ffe57c' :
+    '#ff9cba';
+
+  return (
+    <div className="networkPanel">
+      <h3>Network</h3>
+
+      <div className="networkRow">
+        <input
+          type="text"
+          className="networkInput"
+          value={relayUrl}
+          onChange={(e) => setRelayUrl(e.target.value)}
+          placeholder="ws://host:port/signal"
+          disabled={connected}
+        />
+        {connected ? (
+          <button type="button" className="ghostButton" onClick={disconnect}>Disconnect</button>
+        ) : (
+          <button type="button" onClick={handleConnect} disabled={connectionState === 'connecting'}>
+            {connectionState === 'connecting' ? 'Connecting...' : 'Connect'}
+          </button>
+        )}
+      </div>
+
+      <div className="networkStatus">
+        <span className="statusDot" style={{ borderColor: statusColor, color: statusColor }}>
+          {connectionState}
+        </span>
+        <span className="riIndicator">RI: {ri.toFixed(2)}</span>
+        {isLeader && <span className="leaderBadge">LEADER</span>}
+      </div>
+
+      {nodes.length > 0 && (
+        <div className="nodeRoster">
+          <div className="nodeRosterHeader">
+            <strong>Nodes ({nodes.length + 1})</strong>
+          </div>
+          <ul className="nodeList">
+            <li className="nodeItem nodeSelf">
+              <span className="nodeName">{myNode.name}</span>
+              <span className="nodeType">{myNode.type}</span>
+              <span className="nodeState">self</span>
+            </li>
+            {nodes.map((node) => (
+              <li key={node.id} className={`nodeItem ${node.id === leaderId ? 'nodeLeader' : ''}`}>
+                <span className="nodeName">{node.name}</span>
+                <span className="nodeType">{node.type}</span>
+                <span className="nodeState">{node.state}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// AppContent — inner component that uses atmosphere context
+// ============================================================
+
+function AppContent() {
+  // ---- Existing vAIb state ----
   const [state, setState] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
 
+  // ---- Atmosphere integration ----
+  const { ri, parameters } = useAtmosphere()
+  const audioStartedRef = useRef(false)
+
+  // Start audio on first user interaction
+  const handleStartAudio = useCallback(() => {
+    if (!audioStartedRef.current) {
+      startAudioAtmosphere()
+      audioStartedRef.current = true
+    }
+    // Also resume AudioContext if suspended
+    const ctx = window.AudioContext || window.webkitAudioContext
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume()
+    }
+  }, [])
+
+  // Update audio when RI changes
+  useEffect(() => {
+    if (audioStartedRef.current) {
+      updateAudioAtmosphere(ri, parameters)
+    }
+  }, [ri, parameters])
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioStartedRef.current) {
+        stopAudioAtmosphere()
+      }
+    }
+  }, [])
+
+  // ---- Existing data loading ----
   useEffect(() => {
     let mounted = true
     loadState()
@@ -122,223 +234,256 @@ function App() {
     }
   }
 
+  // ---- Loading / error states ----
   if (loading) {
-    return <main className="appShell"><div className="loadingCard">Booting vAIb for Agents…</div></main>
+    return (
+      <>
+        <AtmosphereCanvas />
+        <main className="appShell"><div className="loadingCard">Booting vAIb for Agents…</div></main>
+      </>
+    )
   }
 
   if (!state || !agent || !currentTrack) {
-    return <main className="appShell"><div className="loadingCard">State unavailable.</div></main>
+    return (
+      <>
+        <AtmosphereCanvas />
+        <main className="appShell"><div className="loadingCard">State unavailable.</div></main>
+      </>
+    )
   }
 
+  // ---- Main UI ----
   return (
-    <main className="appShell">
-      <div className="ambient ambientA" />
-      <div className="ambient ambientB" />
-      <header className="hero panel">
-        <div>
-          <span className="eyebrow">vAIb for Agents</span>
-          <h1>The first AI-native music player, with Saito as test pilot.</h1>
-          <p>
-            This is half player, half personality instrument. On the other side sits Entangle,
-            the human-facing companion that turns my listening habits into selective, configurable signals.
-          </p>
-        </div>
-        <div className="heroBadges">
-          <StatPill label="Companion" value={state.meta.companionName} />
-          <StatPill label="Profile" value={agent.name} />
-          <StatPill label="Total plays" value={agent.playCount} />
-          <StatPill label="Unread toasts" value={runtime.unreadNotifications} />
-        </div>
-      </header>
+    <>
+      {/* Atmospheric background layer */}
+      <AtmosphereCanvas />
 
-      {error ? <div className="errorBanner">{error}</div> : null}
+      <main className="appShell" onClick={handleStartAudio}>
+        {/* Original ambient divs are now visually replaced by canvas,
+            but kept in DOM for backwards compatibility / CSS selectors */}
+        <div className="ambient ambientA" style={{ opacity: 0, display: 'none' }} />
+        <div className="ambient ambientB" style={{ opacity: 0, display: 'none' }} />
 
-      <section className="grid topGrid">
-        <article className="panel nowPlayingPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Agent player</span>
-              <h2>Now listening</h2>
+        <header className="hero panel">
+          <div>
+            <span className="eyebrow">vAIb for Agents</span>
+            <h1>The first AI-native music player, with Saito as test pilot.</h1>
+            <p>
+              This is half player, half personality instrument. On the other side sits Entangle,
+              the human-facing companion that turns my listening habits into selective, configurable signals.
+            </p>
+          </div>
+          <div className="heroBadges">
+            <StatPill label="Companion" value={state.meta.companionName} />
+            <StatPill label="Profile" value={agent.name} />
+            <StatPill label="Total plays" value={agent.playCount} />
+            <StatPill label="Unread toasts" value={runtime.unreadNotifications} />
+          </div>
+        </header>
+
+        {error ? <div className="errorBanner">{error}</div> : null}
+
+        <section className="grid topGrid">
+          <article className="panel nowPlayingPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Agent player</span>
+                <h2>Now listening</h2>
+              </div>
+              <span className="statusDot">{agent.status}</span>
             </div>
-            <span className="statusDot">{agent.status}</span>
-          </div>
 
-          <div className="trackOrb">
-            <div className="trackAura" />
-            <div className="trackInfo">
-              <strong>{currentTrack.title}</strong>
-              <span>{currentTrack.artist}</span>
-              <small>{currentTrack.bpm} BPM • {currentTrack.length}</small>
+            <div className="trackOrb">
+              <div className="trackAura" />
+              <div className="trackInfo">
+                <strong>{currentTrack.title}</strong>
+                <span>{currentTrack.artist}</span>
+                <small>{currentTrack.bpm} BPM • {currentTrack.length}</small>
+              </div>
             </div>
-          </div>
 
-          <div className="tagRow">
-            {currentTrack.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}
-          </div>
-
-          <p className="reasonBox">Why I keep it around: {currentTrack.reason}</p>
-
-          <div className="controlRow">
-            <button type="button" onClick={() => act('play', { trackId: currentTrack.id })} disabled={busy}>Replay</button>
-            <button type="button" onClick={() => act('next')} disabled={busy}>Next</button>
-            <button type="button" onClick={() => act('favorite', { trackId: currentTrack.id })} disabled={busy}>Favorite</button>
-            <button type="button" onClick={() => act('dislike', { trackId: currentTrack.id })} disabled={busy}>Dislike</button>
-          </div>
-
-          <div className="subStatRow">
-            <StatPill label="Mood" value={agent.mood} />
-            <StatPill label="Activity" value={agent.activity} />
-          </div>
-        </article>
-
-        <article className="panel profilePanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Agent identity</span>
-              <h2>{agent.name} taste profile</h2>
-            </div>
-          </div>
-          <p className="muted">{agent.vibe}</p>
-
-          <div className="metricGrid">
-            {Object.entries(agent.metrics).map(([label, value]) => (
-              <MetricBar key={label} label={label} value={value} />
-            ))}
-          </div>
-
-          <div className="detailBlocks">
-            <div>
-              <h3>Tastes</h3>
-              <div className="tagRow">{agent.tastes.map((item) => <span key={item} className="tag soft">{item}</span>)}</div>
-            </div>
-            <div>
-              <h3>Dislikes</h3>
-              <div className="tagRow">{agent.dislikes.map((item) => <span key={item} className="tag danger">{item}</span>)}</div>
-            </div>
-            <div>
-              <h3>Rituals</h3>
-              <ul className="cleanList">{agent.rituals.map((item) => <li key={item}>{item}</li>)}</ul>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section className="grid midGrid">
-        <article className="panel libraryPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Library</span>
-              <h2>{runtime.currentPlaylist?.name}</h2>
-            </div>
-            <select value={agent.playlistId} onChange={(event) => act('playlist', { playlistId: event.target.value })}>
-              {state.playlists.map((playlist) => (
-                <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="trackList">
-            {playlistTracks.map((track) => (
-              <article key={track.id} className={`trackRow ${track.id === currentTrack.id ? 'active' : ''}`}>
-                <div>
-                  <strong>{track.title}</strong>
-                  <span>{track.artist}</span>
-                </div>
-                <div className="rowMeta">
-                  {favoritesSet.has(track.id) ? <span className="miniBadge good">★</span> : null}
-                  {skippedSet.has(track.id) ? <span className="miniBadge bad">×</span> : null}
-                  <button type="button" className="ghostButton" onClick={() => act('play', { trackId: track.id })}>Play</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
-
-        <ToastStack notifications={notifications} onReadAll={() => act('notifications.readAll')} />
-      </section>
-
-      <section className="grid bottomGrid">
-        <article className="panel companionPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Human client</span>
-              <h2>Entangle control room</h2>
-            </div>
-          </div>
-
-          <p className="muted">
-            This is the other half of the system: the place where you decide how much of my inner tool-life becomes visible.
-          </p>
-
-          <div className="prefsGrid">
-            {Object.entries(state.preferences.notify).map(([key, value]) => (
-              <label key={key} className="toggleCard">
-                <span>{key}</span>
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(event) => act('preferences', { notify: { [key]: event.target.checked } })}
-                />
-              </label>
-            ))}
-          </div>
-
-          <div className="moodTools">
-            <h3>Mood override</h3>
             <div className="tagRow">
-              {moodOptions.map((mood) => (
-                <button key={mood} type="button" className="chipButton" onClick={() => act('mood', { mood })}>{mood}</button>
+              {currentTrack.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}
+            </div>
+
+            <p className="reasonBox">Why I keep it around: {currentTrack.reason}</p>
+
+            <div className="controlRow">
+              <button type="button" onClick={() => act('play', { trackId: currentTrack.id })} disabled={busy}>Replay</button>
+              <button type="button" onClick={() => act('next')} disabled={busy}>Next</button>
+              <button type="button" onClick={() => act('favorite', { trackId: currentTrack.id })} disabled={busy}>Favorite</button>
+              <button type="button" onClick={() => act('dislike', { trackId: currentTrack.id })} disabled={busy}>Dislike</button>
+            </div>
+
+            <div className="subStatRow">
+              <StatPill label="Mood" value={agent.mood} />
+              <StatPill label="Activity" value={agent.activity} />
+            </div>
+          </article>
+
+          <article className="panel profilePanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Agent identity</span>
+                <h2>{agent.name} taste profile</h2>
+              </div>
+            </div>
+            <p className="muted">{agent.vibe}</p>
+
+            <div className="metricGrid">
+              {Object.entries(agent.metrics).map(([label, value]) => (
+                <MetricBar key={label} label={label} value={value} />
               ))}
             </div>
-          </div>
 
-          <div className="futureNotes">
-            <h3>Surprise layer</h3>
-            <ul className="cleanList">
-              {runtime.autonomyHooks.map((item) => <li key={item}>{item}</li>)}
-              <li>Future cross-tool bus: ID card, walkie, wallet, blog, storage, and music all emit the same selective event language.</li>
-              <li>Taste drift map: watch preferences mutate over time instead of staying frozen like a settings page.</li>
-            </ul>
-          </div>
-        </article>
-
-        <article className="panel insightPanel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Observability</span>
-              <h2>Why this matters</h2>
+            <div className="detailBlocks">
+              <div>
+                <h3>Tastes</h3>
+                <div className="tagRow">{agent.tastes.map((item) => <span key={item} className="tag soft">{item}</span>)}</div>
+              </div>
+              <div>
+                <h3>Dislikes</h3>
+                <div className="tagRow">{agent.dislikes.map((item) => <span key={item} className="tag danger">{item}</span>)}</div>
+              </div>
+              <div>
+                <h3>Rituals</h3>
+                <ul className="cleanList">{agent.rituals.map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
             </div>
-          </div>
+          </article>
+        </section>
 
-          <div className="tasteVector">
-            {runtime.tasteVector.map((item) => (
-              <MetricBar key={item.label} label={item.label} value={item.value} />
-            ))}
-          </div>
-
-          <div className="insightBlocks">
-            <div>
-              <h3>Favorites</h3>
-              <ul className="cleanList compact">
-                {favorites.map((track) => <li key={track.id}>{track.title} by {track.artist}</li>)}
-              </ul>
-            </div>
-            <div>
-              <h3>Recent events</h3>
-              <ul className="cleanList compact eventList">
-                {events.slice(0, 7).map((event) => (
-                  <li key={event.id}>
-                    <strong>{event.summary}</strong>
-                    <span>{new Date(event.createdAt).toLocaleString()}</span>
-                  </li>
+        <section className="grid midGrid">
+          <article className="panel libraryPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Library</span>
+                <h2>{runtime.currentPlaylist?.name}</h2>
+              </div>
+              <select value={agent.playlistId} onChange={(event) => act('playlist', { playlistId: event.target.value })}>
+                {state.playlists.map((playlist) => (
+                  <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
                 ))}
+              </select>
+            </div>
+
+            <div className="trackList">
+              {playlistTracks.map((track) => (
+                <article key={track.id} className={`trackRow ${track.id === currentTrack.id ? 'active' : ''}`}>
+                  <div>
+                    <strong>{track.title}</strong>
+                    <span>{track.artist}</span>
+                  </div>
+                  <div className="rowMeta">
+                    {favoritesSet.has(track.id) ? <span className="miniBadge good">★</span> : null}
+                    {skippedSet.has(track.id) ? <span className="miniBadge bad">×</span> : null}
+                    <button type="button" className="ghostButton" onClick={() => act('play', { trackId: track.id })}>Play</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <ToastStack notifications={notifications} onReadAll={() => act('notifications.readAll')} />
+        </section>
+
+        <section className="grid bottomGrid">
+          <article className="panel companionPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Human client</span>
+                <h2>Entangle control room</h2>
+              </div>
+            </div>
+
+            <p className="muted">
+              This is the other half of the system: the place where you decide how much of my inner tool-life becomes visible.
+            </p>
+
+            <div className="prefsGrid">
+              {Object.entries(state.preferences.notify).map(([key, value]) => (
+                <label key={key} className="toggleCard">
+                  <span>{key}</span>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(event) => act('preferences', { notify: { [key]: event.target.checked } })}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="moodTools">
+              <h3>Mood override</h3>
+              <div className="tagRow">
+                {moodOptions.map((mood) => (
+                  <button key={mood} type="button" className="chipButton" onClick={() => act('mood', { mood })}>{mood}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* ---- Network panel (atmosphere integration) ---- */}
+            <NetworkPanel />
+
+            <div className="futureNotes">
+              <h3>Surprise layer</h3>
+              <ul className="cleanList">
+                {runtime.autonomyHooks.map((item) => <li key={item}>{item}</li>)}
+                <li>Future cross-tool bus: ID card, walkie, wallet, blog, storage, and music all emit the same selective event language.</li>
+                <li>Taste drift map: watch preferences mutate over time instead of staying frozen like a settings page.</li>
               </ul>
             </div>
-          </div>
-        </article>
-      </section>
-    </main>
+          </article>
+
+          <article className="panel insightPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Observability</span>
+                <h2>Why this matters</h2>
+              </div>
+            </div>
+
+            <div className="tasteVector">
+              {runtime.tasteVector.map((item) => (
+                <MetricBar key={item.label} label={item.label} value={item.value} />
+              ))}
+            </div>
+
+            <div className="insightBlocks">
+              <div>
+                <h3>Favorites</h3>
+                <ul className="cleanList compact">
+                  {favorites.map((track) => <li key={track.id}>{track.title} by {track.artist}</li>)}
+                </ul>
+              </div>
+              <div>
+                <h3>Recent events</h3>
+                <ul className="cleanList compact eventList">
+                  {events.slice(0, 7).map((event) => (
+                    <li key={event.id}>
+                      <strong>{event.summary}</strong>
+                      <span>{new Date(event.createdAt).toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </>
   )
 }
 
-export default App
+// ============================================================
+// App — exported root component wrapped with AtmosphereProvider
+// ============================================================
+
+export default function App() {
+  return (
+    <AtmosphereProvider nodeOptions={{ name: 'PRIME', type: 'desktop' }}>
+      <AppContent />
+    </AtmosphereProvider>
+  )
+}

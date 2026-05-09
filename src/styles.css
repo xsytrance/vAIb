@@ -1,8 +1,19 @@
+/* ============================================================
+   vAIb Sacred Prototype — Styles
+   ============================================================ */
+
+/* ---- Atmosphere CSS custom properties ---- */
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #07111f;
   color: #edf5ff;
+
+  --atmosphere-saturation: 100%;
+  --atmosphere-luminance: 100%;
+  --atmosphere-bloom: 1.0;
+  --atmosphere-speed: 1.0;
+  --atmosphere-ri: 0.7;
 }
 
 * {
@@ -12,6 +23,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* Original background preserved — canvas sits on top via z-index */
   background:
     radial-gradient(circle at top left, rgba(128, 84, 255, 0.24), transparent 32%),
     radial-gradient(circle at top right, rgba(0, 229, 255, 0.16), transparent 26%),
@@ -51,8 +63,10 @@ select {
   width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 64px;
+  z-index: 1;
 }
 
+/* Original ambient divs — hidden; canvas replaces them visually */
 .ambient {
   position: fixed;
   inset: auto;
@@ -60,20 +74,9 @@ select {
   height: 32rem;
   border-radius: 999px;
   filter: blur(80px);
-  opacity: 0.3;
+  opacity: 0;
   pointer-events: none;
-}
-
-.ambientA {
-  top: -8rem;
-  left: -8rem;
-  background: #8c52ff;
-}
-
-.ambientB {
-  bottom: -8rem;
-  right: -6rem;
-  background: #10d6ff;
+  display: none;
 }
 
 .panel,
@@ -378,6 +381,157 @@ select {
   color: #ffd0df;
 }
 
+/* ============================================================
+   Atmosphere Network Panel Styles
+   ============================================================ */
+
+.networkPanel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(124, 160, 255, 0.12);
+}
+
+.networkPanel h3 {
+  font-size: 0.85rem;
+  color: #7fcbff;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+
+.networkRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.networkInput {
+  flex: 1;
+  min-width: 0;
+  border-radius: 999px;
+  background: rgba(14, 25, 42, 0.9);
+  color: #edf5ff;
+  border: 1px solid rgba(134, 176, 255, 0.18);
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.networkInput:focus {
+  border-color: rgba(134, 176, 255, 0.4);
+}
+
+.networkInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.networkRow button {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.networkStatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.riIndicator {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.7rem;
+  color: #7fcbff;
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+}
+
+.leaderBadge {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 229, 124, 0.12);
+  color: #ffe57c;
+  border: 1px solid rgba(255, 229, 124, 0.25);
+}
+
+.nodeRoster {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(142, 178, 255, 0.08);
+}
+
+.nodeRosterHeader {
+  font-size: 0.75rem;
+  color: #9ab0d6;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.nodeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.nodeItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(142, 178, 255, 0.08);
+  font-size: 0.8rem;
+}
+
+.nodeSelf {
+  border-color: rgba(76, 221, 255, 0.25);
+}
+
+.nodeLeader {
+  background: rgba(255, 229, 124, 0.06);
+  border-color: rgba(255, 229, 124, 0.2);
+}
+
+.nodeName {
+  font-weight: 600;
+  color: #edf5ff;
+  min-width: 60px;
+}
+
+.nodeType {
+  font-size: 0.7rem;
+  color: #9ab0d6;
+  text-transform: lowercase;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.nodeState {
+  font-size: 0.7rem;
+  color: #8effcb;
+  margin-left: auto;
+  text-transform: lowercase;
+  opacity: 0.8;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
 @media (max-width: 1080px) {
   .hero,
   .grid.topGrid,
@@ -413,5 +567,13 @@ select {
   .heroBadges,
   .subStatRow {
     grid-template-columns: 1fr;
+  }
+
+  .networkRow {
+    flex-direction: column;
+  }
+
+  .networkRow button {
+    width: 100%;
   }
 }

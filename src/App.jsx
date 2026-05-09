@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
+import { AgentProvider, useAgent } from './agent/AgentProvider'
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
 import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
 
@@ -160,10 +161,24 @@ function NetworkPanel() {
 }
 
 // ============================================================
-// AppContent — inner component that uses atmosphere context
+// AppContent — inner component that uses atmosphere + agent context
 // ============================================================
 
 function AppContent() {
+  // ---- Agent integration ----
+  const {
+    currentSignal,
+    agentMood,
+    isPlaying,
+    toast,
+    tuneIn,
+    mute,
+    shiftSignal,
+    holdSignal,
+    markResonant,
+    markStatic,
+  } = useAgent()
+
   // ---- Existing vAIb state ----
   const [state, setState] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -280,7 +295,7 @@ function AppContent() {
         <header className="hero panel">
           <div>
             <span className="eyebrow">vAIb for Agents</span>
-            <h1>The first AI-native music player, with Saito as test pilot.</h1>
+            <h1>The first AI-native signal station, with Saito as test pilot.</h1>
             <p>
               This is half player, half personality instrument. On the other side sits Entangle,
               the human-facing companion that turns my listening habits into selective, configurable signals.
@@ -301,7 +316,7 @@ function AppContent() {
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent player</span>
-                <h2>Now listening</h2>
+                <h2>SAITO IS LISTENING</h2>
               </div>
               <span className="statusDot">{agent.status}</span>
             </div>
@@ -322,15 +337,19 @@ function AppContent() {
             <p className="reasonBox">Why I keep it around: {currentTrack.reason}</p>
 
             <div className="controlRow">
-              <button type="button" onClick={() => act('play', { trackId: currentTrack.id })} disabled={busy}>Replay</button>
-              <button type="button" onClick={() => act('next')} disabled={busy}>Next</button>
-              <button type="button" onClick={() => act('favorite', { trackId: currentTrack.id })} disabled={busy}>Favorite</button>
-              <button type="button" onClick={() => act('dislike', { trackId: currentTrack.id })} disabled={busy}>Dislike</button>
+              <button type="button" onClick={holdSignal} disabled={busy}>Hold Signal</button>
+              <button type="button" onClick={shiftSignal} disabled={busy}>Shift Signal</button>
+              <button type="button" onClick={markResonant} disabled={busy}>Mark Resonant</button>
+              <button type="button" onClick={markStatic} disabled={busy}>Mark Static</button>
             </div>
 
             <div className="subStatRow">
               <StatPill label="Mood" value={agent.mood} />
               <StatPill label="Activity" value={agent.activity} />
+            </div>
+
+            <div style={{ opacity: 0.5, fontSize: '0.75rem', letterSpacing: '0.1em', marginTop: '6px' }}>
+              Saito feels {agentMood}
             </div>
           </article>
 
@@ -370,7 +389,7 @@ function AppContent() {
           <article className="panel libraryPanel">
             <div className="panelHeader">
               <div>
-                <span className="eyebrow">Library</span>
+                <span className="eyebrow">Agent Rotation</span>
                 <h2>{runtime.currentPlaylist?.name}</h2>
               </div>
               <select value={agent.playlistId} onChange={(event) => act('playlist', { playlistId: event.target.value })}>
@@ -484,6 +503,19 @@ function AppContent() {
           </article>
         </section>
       </main>
+
+      {/* ---- Agent toast display ---- */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(255,255,255,0.9)', color: '#111',
+          padding: '12px 24px', borderRadius: '9999px', fontSize: '13px',
+          fontWeight: 500, zIndex: 100, animation: 'fadeInUp 0.4s ease',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        }}>
+          {toast}
+        </div>
+      )}
     </>
   )
 }
@@ -510,7 +542,9 @@ function getSessionNodeName() {
 export default function App() {
   return (
     <AtmosphereProvider nodeOptions={{ name: getSessionNodeName(), type: 'desktop' }}>
-      <AppContent />
+      <AgentProvider>
+        <AppContent />
+      </AgentProvider>
     </AtmosphereProvider>
   )
 }

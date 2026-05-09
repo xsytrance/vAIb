@@ -2,6 +2,17 @@
    vAIb Sacred Prototype — Styles
    ============================================================ */
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 /* ---- Atmosphere CSS custom properties ---- */
 :root {
   color-scheme: dark;

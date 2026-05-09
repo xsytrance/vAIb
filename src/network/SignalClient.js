@@ -38,9 +38,12 @@ export function createSignalClient() {
   /** @type {Set<(msg: any) => void>} */
   const msgListeners = new Set();
   /** @type {Set<() => void>} */
+  const connectListeners = new Set();
+  /** @type {Set<() => void>} */
   const disconnectListeners = new Set();
 
   const notifyMessage = (msg) => msgListeners.forEach((cb) => cb(msg));
+  const notifyConnect = () => connectListeners.forEach((cb) => cb());
   const notifyDisconnect = () => disconnectListeners.forEach((cb) => cb());
 
   const clearTimers = () => {
@@ -92,6 +95,7 @@ export function createSignalClient() {
     ws.onopen = () => {
       state = 'connected';
       reconnectAttempt = 0;
+      console.log('[TEMP] WS onopen — sending HELLO, nodeId=' + nodeId);
       ws.send(JSON.stringify({
         type: MessageTypes.HELLO,
         nodeId,
@@ -99,6 +103,7 @@ export function createSignalClient() {
       }));
       startHeartbeat();
       resetHeartbeatTimeout();
+      notifyConnect();
     };
 
     ws.onmessage = (event) => {
@@ -110,6 +115,7 @@ export function createSignalClient() {
         console.warn('[SignalClient] failed to parse message:', event.data);
         return;
       }
+      console.log('[TEMP] WS inbound — type=' + (msg.type || '?') + ', src=' + (msg.nodeId || msg.leaderId || msg.source || '?'));
       notifyMessage(msg);
     };
 
@@ -174,6 +180,11 @@ export function createSignalClient() {
       return () => msgListeners.delete(callback);
     },
 
+    onConnect: (callback) => {
+      connectListeners.add(callback);
+      return () => connectListeners.delete(callback);
+    },
+
     onDisconnect: (callback) => {
       disconnectListeners.add(callback);
       return () => disconnectListeners.delete(callback);
@@ -191,6 +202,7 @@ export function createSignalClient() {
  * @property {() => void} disconnect
  * @property {(message: any) => void} send
  * @property {(callback: (msg: any) => void) => (() => void)} onMessage
+ * @property {(callback: () => void) => (() => void)} onConnect
  * @property {(callback: () => void) => (() => void)} onDisconnect
  * @property {() => boolean} isConnected
  * @property {() => 'disconnected' | 'connecting' | 'connected'} getConnectionState

@@ -105,13 +105,24 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
     // Avoid double-connecting
     if (client.isConnected() || client.getConnectionState() === 'connecting') return;
 
+    console.log('[TEMP] AtmosphereProvider.connect() — url=' + url);
+
+    // --- WebSocket opened (transport connected) ---
+    client.onConnect(() => {
+      console.log('[TEMP] onConnect — WS open, setting connected=true');
+      setConnected(true);
+      setConnectionState('connected');
+    });
+
     client.onMessage((msg) => {
       if (!msg || !msg.type) return;
+      console.log('[TEMP] onMessage — type=' + msg.type + ', nodeId=' + (msg.nodeId || '-'));
 
       switch (msg.type) {
         case MessageTypes.HELLO: {
           // Another node joined — add to registry
           if (msg.nodeId && msg.nodeId !== myNode.id) {
+            console.log('[TEMP] HELLO from ' + msg.nodeId + ' — my state=' + leaderState.getState());
             registry.addNode({
               id: msg.nodeId,
               name: msg.name || msg.nodeId,
@@ -119,20 +130,29 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
               state: 'ACTIVE',
               lastSeen: Date.now(),
             });
-            // If we are leader, send WELCOME back (broadcast via relay)
+            // If solo → promote to LEADER when first peer arrives
+            if (leaderState.getState() === 'SOLO') {
+              console.log('[TEMP] Promoting SOLO → LEADER (first peer arrived)');
+              leaderState.becomeLeader();
+              setIsLeader(true);
+            }
+            // If leader, send WELCOME back (broadcast via relay)
             if (leaderState.getState() === 'LEADER') {
-              client.send({
+              const welcomeMsg = {
                 type: MessageTypes.WELCOME,
                 leaderId: myNode.id,
-                nodes: [myNode, ...registry.getAllNodes()],
+                nodes: [{ id: myNode.id, name: myNode.name, type: myNode.type, state: 'ACTIVE', lastSeen: Date.now() }, ...registry.getAllNodes()],
                 timestamp: Date.now(),
-              });
+              };
+              console.log('[TEMP] Sending WELCOME — nodes=' + welcomeMsg.nodes.length);
+              client.send(welcomeMsg);
             }
           }
           break;
         }
 
         case MessageTypes.WELCOME: {
+          console.log('[TEMP] WELCOME — leaderId=' + msg.leaderId + ', nodes=' + (msg.nodes ? msg.nodes.length : 0));
           if (msg.nodes) {
             msg.nodes.forEach((n) => {
               if (n.id !== myNode.id) registry.addNode(n);
@@ -153,11 +173,13 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         }
 
         case MessageTypes.HEARTBEAT_TIMEOUT: {
+          console.log('[TEMP] HEARTBEAT_TIMEOUT — starting election');
           election.startElection();
           break;
         }
 
         case MessageTypes.ATMOSPHERE_SYNC: {
+          console.log('[TEMP] ATMOSPHERE_SYNC — ri=' + msg.ri);
           if (msg.ri !== undefined) {
             engine.forceRI(msg.ri);
           }
@@ -170,6 +192,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         }
 
         case MessageTypes.LEADER_CONFIRM: {
+          console.log('[TEMP] LEADER_CONFIRM — leaderId=' + msg.leaderId + ', myId=' + myNode.id + ', iAmLeader=' + (msg.leaderId === myNode.id));
           if (msg.leaderId === myNode.id) {
             leaderState.becomeLeader();
             setIsLeader(true);
@@ -193,21 +216,27 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         }
 
         case MessageTypes.GOODBYE: {
+          console.log('[TEMP] GOODBYE — nodeId=' + msg.nodeId);
           if (msg.nodeId) registry.removeNode(msg.nodeId);
           break;
         }
 
         default:
+          console.log('[TEMP] unhandled — type=' + msg.type);
           break;
       }
 
       // Keep node list and RI in sync
-      setNodes(registry.getAllNodes());
+      const allNodes = registry.getAllNodes();
       const activeCount = registry.getActiveNodeCount() + 1; // +1 for self
+      const currentRI = engine.getSmoothedRI();
+      setNodes(allNodes);
       engine.computeRI(activeCount);
+      console.log('[TEMP] sync — nodes=' + allNodes.length + ', active=' + activeCount + ', RI=' + currentRI.toFixed(2));
     });
 
     client.onDisconnect(() => {
+      console.log('[TEMP] onDisconnect — going solo');
       setConnected(false);
       setConnectionState('disconnected');
       leaderState.becomeSolo();

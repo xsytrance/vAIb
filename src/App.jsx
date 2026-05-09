@@ -1,35 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
 import { AgentProvider, useAgent } from './agent/AgentProvider'
+import { getSaitoRotation } from './agent/Saito'
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
-import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
-
-const moodOptions = [
-  'focused lift',
-  'night-drive transcendence',
-  'reflective glide',
-  'breakbeat hunt',
-  'ambient recovery',
-]
-
-async function loadState() {
-  const response = await fetch('/api/backend/state')
-  if (!response.ok) throw new Error('Failed to load vAIb state')
-  return response.json()
-}
-
-async function sendAction(action, payload = {}) {
-  const response = await fetch('/api/backend/action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, payload }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }))
-    throw new Error(error.error || 'Request failed')
-  }
-  return response.json()
-}
+import { SignalEngine } from './audio/SignalEngine'
 
 function StatPill({ label, value }) {
   return (
@@ -54,38 +28,9 @@ function MetricBar({ label, value }) {
   )
 }
 
-function ToastStack({ notifications, onReadAll }) {
-  const unread = notifications.filter((item) => !item.read)
-  return (
-    <section className="panel toastPanel">
-      <div className="panelHeader inlineHeader">
-        <div>
-          <span className="eyebrow">Entangle</span>
-          <h3>Toast stream</h3>
-        </div>
-        <button type="button" className="ghostButton" onClick={onReadAll}>Clear unread</button>
-      </div>
-      <div className="toastList">
-        {unread.length ? unread.slice(0, 6).map((item) => (
-          <article key={item.id} className={`toastCard ${item.level}`}>
-            <strong>{item.title}</strong>
-            <p>{item.message}</p>
-            <small>{new Date(item.createdAt).toLocaleString()}</small>
-          </article>
-        )) : <p className="emptyState">No unread toasts. Quiet, for now.</p>}
-      </div>
-    </section>
-  )
-}
-
-/**
- * NetworkPanel — minimal connection UI embedded in the settings area.
- * Shows relay URL input, connect/disconnect, node roster, and RI indicator.
- */
 /**
  * Build the default relay WebSocket URL from the current page host.
  * The relay runs on the same host as the frontend (port 4014).
- * This works for localhost, LAN IPs, and Tailscale hostnames.
  */
 function getDefaultRelayUrl() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -96,7 +41,6 @@ function getDefaultRelayUrl() {
 function NetworkPanel() {
   const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere();
   const [relayUrl, setRelayUrl] = useState(getDefaultRelayUrl);
-  const defaultUrl = getDefaultRelayUrl();
 
   const handleConnect = () => connect(relayUrl);
 
@@ -179,106 +123,26 @@ function AppContent() {
     markStatic,
   } = useAgent()
 
-  // ---- Existing vAIb state ----
-  const [state, setState] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState('')
-
   // ---- Atmosphere integration ----
   const { ri, parameters } = useAtmosphere()
-  const audioStartedRef = useRef(false)
 
-  // Start audio on first user interaction
-  const handleStartAudio = useCallback(() => {
-    if (!audioStartedRef.current) {
-      startAudioAtmosphere()
-      audioStartedRef.current = true
+  // ---- Signal Engine integration ----
+  useEffect(() => {
+    if (isPlaying && currentSignal) {
+      SignalEngine.init()
+      SignalEngine.tuneIn(currentSignal, agentMood)
+    } else {
+      SignalEngine.mute()
     }
-    // Also resume AudioContext if suspended
-    const ctx = window.AudioContext || window.webkitAudioContext
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume()
-    }
+  }, [isPlaying, currentSignal, agentMood])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { SignalEngine.mute() }
   }, [])
 
-  // Update audio when RI changes
-  useEffect(() => {
-    if (audioStartedRef.current) {
-      updateAudioAtmosphere(ri, parameters)
-    }
-  }, [ri, parameters])
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioStartedRef.current) {
-        stopAudioAtmosphere()
-      }
-    }
-  }, [])
-
-  // ---- Existing data loading ----
-  useEffect(() => {
-    let mounted = true
-    loadState()
-      .then((data) => {
-        if (!mounted) return
-        setState(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        if (!mounted) return
-        setError(err.message)
-        setLoading(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  const runtime = state?.runtime
-  const agent = runtime?.agent
-  const currentTrack = runtime?.currentTrack
-  const playlistTracks = runtime?.playlistTracks || []
-  const events = state?.events || []
-  const notifications = state?.notifications || []
-  const favorites = runtime?.favorites || []
-
-  const favoritesSet = useMemo(() => new Set(agent?.favorites || []), [agent])
-  const skippedSet = useMemo(() => new Set(agent?.skipped || []), [agent])
-
-  async function act(action, payload = {}) {
-    try {
-      setBusy(action)
-      setError('')
-      const next = await sendAction(action, payload)
-      setState(next)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy('')
-    }
-  }
-
-  // ---- Loading / error states ----
-  if (loading) {
-    return (
-      <>
-        <AtmosphereCanvas />
-        <main className="appShell"><div className="loadingCard">Booting vAIb for Agents…</div></main>
-      </>
-    )
-  }
-
-  if (!state || !agent || !currentTrack) {
-    return (
-      <>
-        <AtmosphereCanvas />
-        <main className="appShell"><div className="loadingCard">State unavailable.</div></main>
-      </>
-    )
-  }
+  // ---- Agent rotation (static for now) ----
+  const saitoRotation = useMemo(() => getSaitoRotation(), [])
 
   // ---- Main UI ----
   return (
@@ -286,7 +150,7 @@ function AppContent() {
       {/* Atmospheric background layer */}
       <AtmosphereCanvas />
 
-      <main className="appShell" onClick={handleStartAudio}>
+      <main className="appShell">
         {/* Original ambient divs are now visually replaced by canvas,
             but kept in DOM for backwards compatibility / CSS selectors */}
         <div className="ambient ambientA" style={{ opacity: 0, display: 'none' }} />
@@ -297,55 +161,63 @@ function AppContent() {
             <span className="eyebrow">vAIb for Agents</span>
             <h1>The first AI-native signal station, with Saito as test pilot.</h1>
             <p>
-              This is half player, half personality instrument. On the other side sits Entangle,
-              the human-facing companion that turns my listening habits into selective, configurable signals.
+              This is half player, half personality instrument. Saito controls the signal.
+              You tune in, observe, and nudge.
             </p>
           </div>
           <div className="heroBadges">
-            <StatPill label="Companion" value={state.meta.companionName} />
-            <StatPill label="Profile" value={agent.name} />
-            <StatPill label="Total plays" value={agent.playCount} />
-            <StatPill label="Unread toasts" value={runtime.unreadNotifications} />
+            <StatPill label="Companion" value="Saito" />
+            <StatPill label="Profile" value="signal-agent" />
+            <StatPill label="Status" value={isPlaying ? 'tuned in' : 'muted'} />
+            <StatPill label="Mood" value={agentMood} />
           </div>
         </header>
 
-        {error ? <div className="errorBanner">{error}</div> : null}
-
         <section className="grid topGrid">
+          {/* ---- Now Playing / Signal Station ---- */}
           <article className="panel nowPlayingPanel">
             <div className="panelHeader">
               <div>
-                <span className="eyebrow">Agent player</span>
+                <span className="eyebrow">Signal Station</span>
                 <h2>SAITO IS LISTENING</h2>
               </div>
-              <span className="statusDot">{agent.status}</span>
+              <span className="statusDot">{isPlaying ? 'tuned in' : 'muted'}</span>
             </div>
 
             <div className="trackOrb">
               <div className="trackAura" />
               <div className="trackInfo">
-                <strong>{currentTrack.title}</strong>
-                <span>{currentTrack.artist}</span>
-                <small>{currentTrack.bpm} BPM • {currentTrack.length}</small>
+                <strong>{currentSignal?.title || 'Idle'}</strong>
+                <span>{currentSignal?.artist || 'Saito'}</span>
+                {currentSignal && (
+                  <small>{currentSignal.bpm} BPM &bull; {Math.floor(currentSignal.duration / 60)}:{(currentSignal.duration % 60).toString().padStart(2, '0')}</small>
+                )}
               </div>
             </div>
 
-            <div className="tagRow">
-              {currentTrack.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}
-            </div>
+            {currentSignal?.tags && (
+              <div className="tagRow">
+                {currentSignal.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}
+              </div>
+            )}
 
-            <p className="reasonBox">Why I keep it around: {currentTrack.reason}</p>
+            {currentSignal?.whyAgentKeepsIt && (
+              <p className="reasonBox">{currentSignal.whyAgentKeepsIt}</p>
+            )}
 
             <div className="controlRow">
-              <button type="button" onClick={holdSignal} disabled={busy}>Hold Signal</button>
-              <button type="button" onClick={shiftSignal} disabled={busy}>Shift Signal</button>
-              <button type="button" onClick={markResonant} disabled={busy}>Mark Resonant</button>
-              <button type="button" onClick={markStatic} disabled={busy}>Mark Static</button>
+              <button type="button" onClick={isPlaying ? mute : tuneIn}>
+                {isPlaying ? 'Mute' : 'Tune In'}
+              </button>
+              <button type="button" onClick={shiftSignal}>Shift Signal</button>
+              <button type="button" onClick={holdSignal}>Hold Signal</button>
+              <button type="button" onClick={markResonant}>Mark Resonant</button>
+              <button type="button" onClick={markStatic}>Mark Static</button>
             </div>
 
             <div className="subStatRow">
-              <StatPill label="Mood" value={agent.mood} />
-              <StatPill label="Activity" value={agent.activity} />
+              <StatPill label="Mood" value={agentMood} />
+              <StatPill label="Signal" value={currentSignal?.title || '—'} />
             </div>
 
             <div style={{ opacity: 0.5, fontSize: '0.75rem', letterSpacing: '0.1em', marginTop: '6px' }}>
@@ -353,152 +225,106 @@ function AppContent() {
             </div>
           </article>
 
+          {/* ---- Profile Panel ---- */}
           <article className="panel profilePanel">
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent identity</span>
-                <h2>{agent.name} taste profile</h2>
+                <h2>Saito taste profile</h2>
               </div>
             </div>
-            <p className="muted">{agent.vibe}</p>
+            <p className="muted">A signal-processing agent with evolving taste. Tends toward electronic textures, midtempo pulses, and warm ambient drift. Curious but disciplined.</p>
 
             <div className="metricGrid">
-              {Object.entries(agent.metrics).map(([label, value]) => (
-                <MetricBar key={label} label={label} value={value} />
-              ))}
+              <MetricBar label="energy" value={60} />
+              <MetricBar label="warmth" value={55} />
+              <MetricBar label="complexity" value={45} />
+              <MetricBar label="noise" value={30} />
+              <MetricBar label="pace" value={50} />
             </div>
 
             <div className="detailBlocks">
               <div>
-                <h3>Tastes</h3>
-                <div className="tagRow">{agent.tastes.map((item) => <span key={item} className="tag soft">{item}</span>)}</div>
+                <h3>Tendencies</h3>
+                <div className="tagRow">
+                  <span className="tag soft">electronic</span>
+                  <span className="tag soft">midtempo</span>
+                  <span className="tag soft">ambient drift</span>
+                  <span className="tag soft">structured energy</span>
+                </div>
               </div>
               <div>
-                <h3>Dislikes</h3>
-                <div className="tagRow">{agent.dislikes.map((item) => <span key={item} className="tag danger">{item}</span>)}</div>
-              </div>
-              <div>
-                <h3>Rituals</h3>
-                <ul className="cleanList">{agent.rituals.map((item) => <li key={item}>{item}</li>)}</ul>
+                <h3>Static zones</h3>
+                <div className="tagRow">
+                  <span className="tag danger">repetitive beats</span>
+                  <span className="tag danger">harsh noise</span>
+                  <span className="tag danger">predictable loops</span>
+                </div>
               </div>
             </div>
           </article>
         </section>
 
+        {/* ---- Agent Rotation ---- */}
         <section className="grid midGrid">
           <article className="panel libraryPanel">
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent Rotation</span>
-                <h2>{runtime.currentPlaylist?.name}</h2>
+                <h2>Saito&apos;s Signals</h2>
               </div>
-              <select value={agent.playlistId} onChange={(event) => act('playlist', { playlistId: event.target.value })}>
-                {state.playlists.map((playlist) => (
-                  <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
-                ))}
-              </select>
             </div>
 
             <div className="trackList">
-              {playlistTracks.map((track) => (
-                <article key={track.id} className={`trackRow ${track.id === currentTrack.id ? 'active' : ''}`}>
+              {saitoRotation.map((sig) => (
+                <article key={sig.id} className={`trackRow ${sig.id === currentSignal?.id ? 'active' : ''}`}>
                   <div>
-                    <strong>{track.title}</strong>
-                    <span>{track.artist}</span>
+                    <strong>{sig.title}</strong>
+                    <span>{sig.artist} &mdash; {sig.tags.join(', ')}</span>
                   </div>
-                  <div className="rowMeta">
-                    {favoritesSet.has(track.id) ? <span className="miniBadge good">★</span> : null}
-                    {skippedSet.has(track.id) ? <span className="miniBadge bad">×</span> : null}
-                    <button type="button" className="ghostButton" onClick={() => act('play', { trackId: track.id })}>Play</button>
-                  </div>
+                  <span className="badge">{Math.floor(sig.duration / 60)}:{(sig.duration % 60).toString().padStart(2, '0')}</span>
                 </article>
               ))}
             </div>
           </article>
 
-          <ToastStack notifications={notifications} onReadAll={() => act('notifications.readAll')} />
+          {/* ---- Signal Log placeholder ---- */}
+          <article className="panel insightPanel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Signal log</span>
+                <h2>Recent shifts</h2>
+              </div>
+            </div>
+            <p className="muted">Signal history will appear here as Saito shifts between signals.</p>
+          </article>
         </section>
 
+        {/* ---- Station / Companion Panel ---- */}
         <section className="grid bottomGrid">
           <article className="panel companionPanel">
             <div className="panelHeader">
               <div>
-                <span className="eyebrow">Human client</span>
-                <h2>Entangle control room</h2>
+                <span className="eyebrow">Signal Space</span>
+                <h2>Station v0.1</h2>
               </div>
             </div>
 
             <p className="muted">
-              This is the other half of the system: the place where you decide how much of my inner tool-life becomes visible.
+              Saito controls the signal. You tune in, observe, and nudge.
+              The atmosphere responds to Saito&apos;s mood and the distributed presence of other nodes.
             </p>
 
-            <div className="prefsGrid">
-              {Object.entries(state.preferences.notify).map(([key, value]) => (
-                <label key={key} className="toggleCard">
-                  <span>{key}</span>
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={(event) => act('preferences', { notify: { [key]: event.target.checked } })}
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="moodTools">
-              <h3>Mood override</h3>
-              <div className="tagRow">
-                {moodOptions.map((mood) => (
-                  <button key={mood} type="button" className="chipButton" onClick={() => act('mood', { mood })}>{mood}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* ---- Network panel (atmosphere integration) ---- */}
             <NetworkPanel />
 
             <div className="futureNotes">
-              <h3>Surprise layer</h3>
+              <h3>Station notes</h3>
               <ul className="cleanList">
-                {runtime.autonomyHooks.map((item) => <li key={item}>{item}</li>)}
-                <li>Future cross-tool bus: ID card, walkie, wallet, blog, storage, and music all emit the same selective event language.</li>
-                <li>Taste drift map: watch preferences mutate over time instead of staying frozen like a settings page.</li>
+                <li>Saito is the only active agent on this station.</li>
+                <li>Future agents: VG God, Hanzo, Legion &mdash; each with distinct signal character.</li>
+                <li>Taste drift: Saito&apos;s preferences evolve based on your resonance marks.</li>
+                <li>Distributed: open this URL on another device to share the atmosphere.</li>
               </ul>
-            </div>
-          </article>
-
-          <article className="panel insightPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Observability</span>
-                <h2>Why this matters</h2>
-              </div>
-            </div>
-
-            <div className="tasteVector">
-              {runtime.tasteVector.map((item) => (
-                <MetricBar key={item.label} label={item.label} value={item.value} />
-              ))}
-            </div>
-
-            <div className="insightBlocks">
-              <div>
-                <h3>Favorites</h3>
-                <ul className="cleanList compact">
-                  {favorites.map((track) => <li key={track.id}>{track.title} by {track.artist}</li>)}
-                </ul>
-              </div>
-              <div>
-                <h3>Recent events</h3>
-                <ul className="cleanList compact eventList">
-                  {events.slice(0, 7).map((event) => (
-                    <li key={event.id}>
-                      <strong>{event.summary}</strong>
-                      <span>{new Date(event.createdAt).toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
           </article>
         </section>

@@ -25,6 +25,15 @@
   --atmosphere-bloom: 1.0;
   --atmosphere-speed: 1.0;
   --atmosphere-ri: 0.7;
+
+  /* Agent mood color variables */
+  --mood-focused: #4a90e2;
+  --mood-curious: #f5a623;
+  --mood-social: #e74c8c;
+  --mood-bored: #95a5a6;
+  --mood-ambitious: #e74c3c;
+  --mood-reflective: #8e44ad;
+  --mood-neutral: #7f8c8d;
 }
 
 * {
@@ -588,3 +597,21 @@ select {
     width: 100%;
   }
 }
+
+/* ============================================================
+   Agent Mood Indicator Styles
+   ============================================================ */
+
+.mood-indicator {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+  transition: color 2s ease;
+}
+
+.mood-indicator[data-mood="focused"] { color: var(--mood-focused); }
+.mood-indicator[data-mood="curious"] { color: var(--mood-curious); }
+.mood-indicator[data-mood="social"] { color: var(--mood-social); }
+.mood-indicator[data-mood="bored"] { color: var(--mood-bored); }
+.mood-indicator[data-mood="ambitious"] { color: var(--mood-ambitious); }
+.mood-indicator[data-mood="reflective"] { color: var(--mood-reflective); }

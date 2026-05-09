@@ -112,6 +112,7 @@ function AppContent() {
   // ---- Agent integration ----
   const {
     currentSignal,
+    station,       // real discovered station composition (active + ghost agents)
     agentMood,
     isPlaying,
     toast,
@@ -122,6 +123,12 @@ function AppContent() {
     markResonant,
     markStatic,
   } = useAgent()
+
+  // ---- Station composition from operational truth ----
+  const activeAgents  = station?.active || [];
+  const ghostAgents   = station?.ghost || [];
+  const dominantAgent = station?.dominant;
+  const stationMood   = station?.stationMood || 'neutral';
 
   // ---- Atmosphere integration ----
   const { ri, parameters } = useAtmosphere()
@@ -221,46 +228,72 @@ function AppContent() {
             </div>
 
             <div style={{ opacity: 0.5, fontSize: '0.75rem', letterSpacing: '0.1em', marginTop: '6px' }}>
-              Saito feels {agentMood}
+              {dominantAgent
+                ? `${activeAgents.find(a => a.id === dominantAgent)?.name || 'Station'} feels ${stationMood}${activeAgents.length > 1 ? ` — ${activeAgents.length} agents present` : ''}`
+                : `Station mood: ${stationMood}`}
             </div>
           </article>
 
-          {/* ---- Profile Panel ---- */}
+          {/* ---- Profile Panel — shows the real dominant agent ---- */}
           <article className="panel profilePanel">
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent identity</span>
-                <h2>Saito taste profile</h2>
+                <h2>{dominantAgent ? `${activeAgents.find(a => a.id === dominantAgent)?.name || dominantAgent} — active` : 'Station quiet'}</h2>
               </div>
             </div>
-            <p className="muted">A signal-processing agent with evolving taste. Tends toward electronic textures, midtempo pulses, and warm ambient drift. Curious but disciplined.</p>
+            <p className="muted">
+              {dominantAgent
+                ? (activeAgents.find(a => a.id === dominantAgent)?.personality || 'Operational agent on this station.')
+                : 'No agents currently active on this station. The station is quiet.'}
+            </p>
 
-            <div className="metricGrid">
-              <MetricBar label="energy" value={60} />
-              <MetricBar label="warmth" value={55} />
-              <MetricBar label="complexity" value={45} />
-              <MetricBar label="noise" value={30} />
-              <MetricBar label="pace" value={50} />
-            </div>
+            {dominantAgent && (
+              <div className="metricGrid">
+                {(() => {
+                  const d = activeAgents.find(a => a.id === dominantAgent);
+                  if (!d?.derivedSignal) return null;
+                  const ds = d.derivedSignal;
+                  return (
+                    <>
+                      <MetricBar label="energy" value={Math.round(ds.energy * 100)} />
+                      <MetricBar label="warmth" value={Math.round(ds.warmth * 100)} />
+                      <MetricBar label="complexity" value={Math.round(ds.complexity * 100)} />
+                      <MetricBar label="noise" value={Math.round(ds.noise * 100)} />
+                      <MetricBar label="pace" value={Math.round(ds.pace * 100)} />
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             <div className="detailBlocks">
               <div>
-                <h3>Tendencies</h3>
-                <div className="tagRow">
-                  <span className="tag soft">electronic</span>
-                  <span className="tag soft">midtempo</span>
-                  <span className="tag soft">ambient drift</span>
-                  <span className="tag soft">structured energy</span>
-                </div>
+                <h3>{dominantAgent ? 'Active agents' : 'Station status'}</h3>
+                {activeAgents.length > 0 ? (
+                  <div className="tagRow">
+                    {activeAgents.map(a => (
+                      <span key={a.id} className="tag soft" title={`${a.name}: ${a.personality}`}>
+                        {a.name} ({Math.round((a.presenceScore || 0) * 100)}%)
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted">No active agents. The station is waiting.</p>
+                )}
               </div>
-              <div>
-                <h3>Static zones</h3>
-                <div className="tagRow">
-                  <span className="tag danger">repetitive beats</span>
-                  <span className="tag danger">harsh noise</span>
-                  <span className="tag danger">predictable loops</span>
+              {ghostAgents.length > 0 && (
+                <div>
+                  <h3>Ghost / dormant</h3>
+                  <div className="tagRow">
+                    {ghostAgents.map(a => (
+                      <span key={a.id} style={{ opacity: 0.4 }} className="tag soft">
+                        {a.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </article>
         </section>
@@ -271,12 +304,57 @@ function AppContent() {
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent Rotation</span>
-                <h2>Saito&apos;s Signals</h2>
+                <h2>{activeAgents.length > 0 ? `${activeAgents.length} active` : 'Station quiet'}</h2>
               </div>
             </div>
 
             <div className="trackList">
-              {saitoRotation.map((sig) => (
+              {/* Active agents — present, operational */}
+              {activeAgents.length > 0 ? (
+                activeAgents.map((agent) => (
+                  <article
+                    key={agent.id}
+                    className={`trackRow ${agent.id === dominantAgent ? 'active' : ''}`}
+                    style={{ opacity: (agent.presenceScore || 0.5) * 1.2 }}
+                    title={`${agent.name}: ${agent.personality}`}
+                  >
+                    <div>
+                      <strong>{agent.name}</strong>
+                      <span>{agent.personality || agent.type}</span>
+                    </div>
+                    <span className="badge">{Math.round((agent.presenceScore || 0) * 100)}%</span>
+                  </article>
+                ))
+              ) : (
+                <div className="trackRow">
+                  <div>
+                    <strong>Station quiet</strong>
+                    <span>No operational agents discovered</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Ghost / dormant agents — low opacity, atmospheric residue */}
+              {ghostAgents.length > 0 && (
+                <>
+                  {ghostAgents.map((agent) => (
+                    <article
+                      key={agent.id}
+                      className="trackRow"
+                      style={{ opacity: 0.25 }}
+                      title={`${agent.name} — dormant echo`}
+                    >
+                      <div>
+                        <strong style={{ fontWeight: 400 }}>{agent.name}</strong>
+                        <span>echo — {Math.round((agent.presenceScore || 0) * 100)}% residue</span>
+                      </div>
+                    </article>
+                  ))}
+                </>
+              )}
+
+              {/* Fallback: static Saito rotation when no real agents */}
+              {activeAgents.length === 0 && ghostAgents.length === 0 && saitoRotation.map((sig) => (
                 <article key={sig.id} className={`trackRow ${sig.id === currentSignal?.id ? 'active' : ''}`}>
                   <div>
                     <strong>{sig.title}</strong>
@@ -311,8 +389,9 @@ function AppContent() {
             </div>
 
             <p className="muted">
-              Saito controls the signal. You tune in, observe, and nudge.
-              The atmosphere responds to Saito&apos;s mood and the distributed presence of other nodes.
+              {dominantAgent
+                ? `${activeAgents.find(a => a.id === dominantAgent)?.name || 'The active agent'} controls the signal. You tune in, observe, and nudge. The atmosphere responds to operational truth — real agent presence, not fiction.`
+                : 'No agents currently active. The station is quiet. When agents become operational, they will appear here and the atmosphere will emerge from their activity.'}
             </p>
 
             <NetworkPanel />

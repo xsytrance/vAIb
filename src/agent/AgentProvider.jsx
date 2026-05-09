@@ -13,6 +13,7 @@ import { createSaito, getSaitoRotation, evolveSaitoMood } from './Saito';
 import { selectNextSignal, interpretShiftRequest, applyFeedback, updateAttachment, getAttachment, getSessionPhase } from './AgentState';
 import { toastMessages, pickToast } from './ToastLanguage';
 import { SignalEngine } from '../audio/SignalEngine';
+import { discoverStations, composeStation, deriveSignalFromAgent } from './StationDiscovery';
 
 const AgentContext = createContext(null);
 
@@ -32,23 +33,67 @@ export function AgentProvider({ children }) {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  // ---- Initialize Saito once ----
-  useEffect(() => {
-    const saito = createSaito();
-    saito.rotation = getSaitoRotation();
+  // ---- Discover real agent ecosystem ----
+  const [station, setStation] = useState(null);
 
-    const firstSignal = selectNextSignal(saito);
-    saito.currentSignal = firstSignal;
-    saito.lastSignalChangeAt = Date.now();
-    saito.signalsPlayed = 1;
-    if (firstSignal?.id) {
-      saito.signalHistory.push(firstSignal.id);
+  useEffect(() => {
+    // 1. Discover real agents from the operational environment
+    const discovery = discoverStations();
+    const composed = composeStation(discovery.agents);
+    setStation(composed);
+
+    let primaryAgent;
+
+    if (composed.dominant && composed.active.length > 0) {
+      // Real agents found — use dominant as primary
+      const domAgent = composed.active.find(a => a.id === composed.dominant) || composed.active[0];
+
+      primaryAgent = createSaito();
+      primaryAgent.id = domAgent.id;
+      primaryAgent.name = domAgent.name;
+      primaryAgent.type = domAgent.type;
+      primaryAgent.presenceScore = domAgent.presenceScore || 0.8;
+
+      // Derive signal characteristics from real behavior (NOT hardcoded)
+      const derived = deriveSignalFromAgent(domAgent);
+      primaryAgent.taste = {
+        energy: derived.energy,
+        noise: derived.noise,
+        warmth: derived.warmth,
+        complexity: derived.complexity,
+        pace: derived.pace,
+      };
+
+      // Ghost Saito if it's present but not dominant
+      const saitoEntry = discovery.agents.find(a => a.id === 'saito');
+      if (saitoEntry && saitoEntry.presenceScore < 0.3) {
+        primaryAgent.ghostAgents = [...composed.ghost];
+      }
+
+    } else {
+      // No real agents discovered — use Saito as sole fallback
+      primaryAgent = createSaito();
+      primaryAgent.rotation = getSaitoRotation();
+      primaryAgent.presenceScore = 0.5;
     }
 
-    saitoRef.current = saito;
+    // Build rotation from discovered signals (or fallback)
+    if (!primaryAgent.rotation || primaryAgent.rotation.length === 0) {
+      primaryAgent.rotation = getSaitoRotation();
+    }
+
+    const firstSignal = selectNextSignal(primaryAgent);
+    primaryAgent.currentSignal = firstSignal;
+    primaryAgent.lastSignalChangeAt = Date.now();
+    primaryAgent.signalsPlayed = 1;
+    if (firstSignal?.id) {
+      primaryAgent.signalHistory.push(firstSignal.id);
+    }
+
+    saitoRef.current = primaryAgent;
     setCurrentSignal(firstSignal);
-    setAgentMood(saito.currentMood);
-    showToast(pickToast(toastMessages.signalSelected, saito, firstSignal));
+    setAgentMood(primaryAgent.currentMood);
+    showToast(pickToast(toastMessages.signalSelected, primaryAgent, firstSignal));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -152,6 +197,7 @@ export function AgentProvider({ children }) {
     <AgentContext.Provider
       value={{
         agent:          saitoRef.current,
+        station,        // real discovered station composition
         currentSignal,
         agentMood,
         isPlaying,

@@ -17,7 +17,7 @@ import { createLeaderState } from '../leader/LeaderState.js';
 import { createLeaderElection } from '../leader/LeaderElection.js';
 import { createResonanceEngine } from './ResonanceEngine.js';
 import { mapRIToParameters } from './AtmosphereParameters.js';
-import { getAgentAtmosphereModifiers } from '../agent/AgentState.js';
+import { getAgentAtmosphereModifiers, getFatigueMultipliers, updateSignalExhaustion, updateStimulation, createAgentState } from '../agent/AgentState.js';
 import { MessageTypes } from '../network/MessageTypes.js';
 
 const AtmosphereContext = createContext(null);
@@ -45,12 +45,16 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
   const [connected, setConnected] = useState(false);
   const [connectionState, setConnectionState] = useState('disconnected');
   const [agentMood, setAgentMood] = useState('neutral');
+  const [fatigue, setFatigue] = useState({ speed: 1.0, sparkle: 1.0, warmth: 1.0, pulse: 1.0, saturation: 1.0 });
 
   // Ref for latest mood (avoids stale closure in engine callback)
   const agentMoodRef = useRef(agentMood);
   useEffect(() => {
     agentMoodRef.current = agentMood;
   }, [agentMood]);
+
+  // Saito agent state for fatigue tracking
+  const saitoRef = useRef(null);
 
   // --- Mutable system references (do not trigger re-renders) ---
   const systemsRef = useRef({});
@@ -79,6 +83,9 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
       election,
     };
 
+    // Initialize Saito agent for fatigue tracking
+    saitoRef.current = createAgentState({ id: 'saito', name: 'Saito' });
+
     // Update RI + parameters whenever the engine reports a change
     engine.onChange((newRI) => {
       setRi(newRI);
@@ -94,6 +101,23 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
       params.particleCount = Math.floor(params.particleCount * moodMods.sparkle);
       params.colorTemperature = adjustColorTemp(params.colorTemperature, moodMods.warmth);
       params.stereoWidth *= moodMods.pulse;
+
+      // NEW: Apply fatigue multipliers
+      const saito = saitoRef.current;
+      if (saito) {
+        updateSignalExhaustion(saito);
+        updateStimulation(saito);
+        const fatigueMults = getFatigueMultipliers(saito);
+
+        params.saturation *= fatigueMults.saturation;
+        params.motionSpeed *= fatigueMults.speed;
+        params.bloomIntensity *= fatigueMults.sparkle;
+        params.particleCount = Math.floor(params.particleCount * fatigueMults.sparkle);
+        params.colorTemperature = adjustColorTemp(params.colorTemperature, fatigueMults.warmth);
+        params.stereoWidth *= fatigueMults.pulse;
+
+        setFatigue(fatigueMults);
+      }
 
       // Clamp all values
       params.saturation = Math.min(100, Math.max(20, params.saturation));
@@ -293,6 +317,16 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
 
   // --- Recompute parameters when agent mood changes ---
   useEffect(() => {
+    // Sync saito's mood for fatigue tracking
+    if (saitoRef.current) {
+      saitoRef.current.currentMood = agentMood;
+      // Create a synthetic signal representing the current mood
+      saitoRef.current.currentSignal = {
+        id: `mood-${agentMood}`,
+        energy: { focused: 0.6, curious: 0.7, social: 0.8, bored: 0.2, ambitious: 0.9, reflective: 0.2, neutral: 0.5 }[agentMood] || 0.5,
+      };
+      saitoRef.current.lastSignalChangeAt = Date.now();
+    }
     const { engine, registry } = systemsRef.current || {};
     if (!engine) return;
     const activeCount = registry ? registry.getActiveNodeCount() : 0;
@@ -334,6 +368,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         disconnect,
         agentMood,
         setMood,
+        fatigue,
       }}
     >
       {children}
@@ -355,4 +390,5 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
  * @property {() => void} disconnect           Disconnect from signal server
  * @property {string} agentMood                Current agent mood ('neutral', 'focused', etc.)
  * @property {(mood: string) => void} setMood  Set the agent mood
+ * @property {Object} fatigue  Current fatigue multipliers { speed, sparkle, warmth, pulse, saturation }
  */

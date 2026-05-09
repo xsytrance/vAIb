@@ -28,6 +28,19 @@ const MOOD_MODS = {
 
 let audioCtx = null;
 let masterGain = null;
+
+// ---- tune-in ritual state ----
+let tuneInPhase = 'idle'; // 'idle' | 'stabilizing' | 'opening' | 'lock' | 'full'
+let tuneInStartTime = 0;
+let tuneInTimers = [];
+
+const PHASE_DURATIONS = {
+  stabilizing: 15000,  // 0-15s: drone only, 0-20% gain
+  opening:     15000,  // 15-30s: texture fades in, 20-50% gain
+  lock:        30000,  // 30-60s: all layers, 50-100% gain
+  full:        0,      // 60s+: full signal
+};
+
 let currentGraph = null;
 let currentSignal = null;
 let currentMood = 'neutral';
@@ -72,7 +85,7 @@ function signalToAudioParams(signal, mood) {
 // SIGNAL GRAPH — 5 sub-layers per signal
 // ============================================================
 
-function buildGraph(signal, mood) {
+function buildGraph(signal, mood, sinkNode = masterGain) {
   const p = signalToAudioParams(signal, mood);
   const t = now();
   const nodes = [];
@@ -82,7 +95,7 @@ function buildGraph(signal, mood) {
   const sigGain = track(audioCtx.createGain());
   sigGain.gain.value = 0; // start silent, faded in by caller
   const panner = track(audioCtx.createStereoPanner());
-  sigGain.connect(panner).connect(masterGain);
+  sigGain.connect(panner).connect(sinkNode || masterGain);
 
   // a) Drone: sine + triangle, slow LFO pitch drift
   const osc1 = track(audioCtx.createOscillator());
@@ -123,11 +136,16 @@ function buildGraph(signal, mood) {
   ampDepth.gain.value = 0.3;
   ampLFO.connect(ampDepth);
 
-  const nGain = track(audioCtx.createGain());
-  nGain.gain.value = dbToGain(-35 + (signal.noise || 0.5) * 8);
-  ampDepth.connect(nGain.gain); // AM modulate noise gain
+  const textureGain = track(audioCtx.createGain());
+  textureGain.gain.value = dbToGain(-35 + (signal.noise || 0.5) * 8);
+  ampDepth.connect(textureGain.gain); // AM modulate texture gain
 
-  noiseSrc.connect(nFilter).connect(nGain).connect(sigGain);
+  noiseSrc.connect(nFilter).connect(textureGain).connect(sigGain);
+
+  // f) Sparkle gain — controls all sparkle output level
+  const sparkleGain = track(audioCtx.createGain());
+  sparkleGain.gain.value = 1.0;
+  sparkleGain.connect(sigGain);
 
   // d) Pulse: LFO modulates drone gain for rhythmic pulse
   const pulseOsc = track(audioCtx.createOscillator());
@@ -149,12 +167,16 @@ function buildGraph(signal, mood) {
   noiseSrc.start(t); ampLFO.start(t);
   pulseOsc.start(t); panLFO.start(t);
 
-  return { signal, mood, params: p, nodes, sigGain, droneGain, nFilter, nGain, pulseOsc, panner, panDepth, sparkleTimer: null };
+  return { signal, mood, params: p, nodes, sigGain, droneGain, textureGain, nFilter, sparkleGain, pulseOsc, panner, panDepth, sparkleTimer: null };
 }
 
 function destroyGraph(g) {
   if (!g) return;
   if (g.sparkleTimer) { clearTimeout(g.sparkleTimer); g.sparkleTimer = null; }
+  if (g.ritualGain) {
+    try { g.ritualGain.disconnect(); } catch (e) { /* noop */ }
+    g.ritualGain = null;
+  }
   g.nodes.forEach((n) => {
     try { if (typeof n.stop === 'function') n.stop(); } catch (e) { /* noop */ }
     try { if (typeof n.disconnect === 'function') n.disconnect(); } catch (e) { /* noop */ }
@@ -186,7 +208,11 @@ function scheduleSparkles(g) {
     env.gain.linearRampToValueAtTime(dbToGain(-30), t + 0.01);
     env.gain.exponentialRampToValueAtTime(0.001, t + dur);
 
-    osc.connect(env).connect(g.sigGain);
+    if (g.sparkleGain) {
+      osc.connect(env).connect(g.sparkleGain);
+    } else {
+      osc.connect(env).connect(g.sigGain);
+    }
     osc.start(t); osc.stop(t + dur + 0.01);
     setTimeout(() => { try { osc.disconnect(); env.disconnect(); } catch (e) {} }, (dur + 0.05) * 1000);
 
@@ -218,14 +244,85 @@ export const SignalEngine = {
     }
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
+    // Clear any existing tune-in ritual
+    tuneInTimers.forEach(timer => clearTimeout(timer));
+    tuneInTimers = [];
+    tuneInPhase = 'idle';
     if (currentGraph) { destroyGraph(currentGraph); currentGraph = null; }
 
     currentSignal = signal;
     currentMood = mood;
-    currentGraph = buildGraph(signal, mood);
+
+    // ---- Tune-In Ritual ----
+    // Phase 1 (0-15s): "Signal stabilizing"
+    //   - Only drone plays, no texture, no sparkle
+    //   - Gain: 0% → 20%
+    //   - Pulse: minimal
+    //
+    // Phase 2 (15-30s): "Channel opening"
+    //   - Texture layer fades in
+    //   - Sparkle: very sparse (1 per 10s)
+    //   - Gain: 20% → 50%
+    //
+    // Phase 3 (30-60s): "Signal lock"
+    //   - All layers active
+    //   - Full sparkle rate
+    //   - Gain: 50% → 100%
+    //
+    // Phase 4 (60s+): Full signal
+
+    tuneInPhase = 'stabilizing';
+    tuneInStartTime = audioCtx.currentTime;
+
+    // Create ritual gain — all signal flows through here
+    const ritualGain = audioCtx.createGain();
+    ritualGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    ritualGain.connect(masterGain);
+
+    // Build graph with ritualGain as the sink
+    currentGraph = buildGraph(signal, mood, ritualGain);
+    currentGraph.ritualGain = ritualGain;
     isTunedIn = true;
 
+    // Phase 1: start with texture and sparkle muted — drone only
+    if (currentGraph.textureGain) {
+      currentGraph.textureGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    }
+    if (currentGraph.sparkleGain) {
+      currentGraph.sparkleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    }
+
+    // Fade in sigGain quickly so internal signal establishes
     setGain(currentGraph.sigGain, -20, 3.0); // fade in 3s
+
+    const graphRef = currentGraph; // capture for closures
+
+    // Phase 2 at t=15s: fade in texture
+    tuneInTimers.push(setTimeout(() => {
+      tuneInPhase = 'opening';
+      if (graphRef.textureGain) {
+        graphRef.textureGain.gain.setTargetAtTime(dbToGain(-35), audioCtx.currentTime, 5);
+      }
+    }, PHASE_DURATIONS.stabilizing));
+
+    // Phase 3 at t=30s: all layers
+    tuneInTimers.push(setTimeout(() => {
+      tuneInPhase = 'lock';
+      if (graphRef.sparkleGain) {
+        graphRef.sparkleGain.gain.setTargetAtTime(dbToGain(-30), audioCtx.currentTime, 5);
+      }
+    }, PHASE_DURATIONS.stabilizing + PHASE_DURATIONS.opening));
+
+    // Phase 4 at t=60s: full
+    tuneInTimers.push(setTimeout(() => {
+      tuneInPhase = 'full';
+    }, PHASE_DURATIONS.stabilizing + PHASE_DURATIONS.opening + PHASE_DURATIONS.lock));
+
+    // Master ritual gain: 0 → 20% (15s) → 50% (30s) → 100% (60s)
+    ritualGain.gain.setTargetAtTime(0.20, audioCtx.currentTime, 8);       // ~15s to 20%
+    ritualGain.gain.setTargetAtTime(0.50, audioCtx.currentTime + 15, 8);  // ~30s to 50%
+    ritualGain.gain.setTargetAtTime(1.00, audioCtx.currentTime + 30, 12); // ~60s to 100%
+
     scheduleSparkles(currentGraph);
     return true;
   },
@@ -234,6 +331,9 @@ export const SignalEngine = {
   mute() {
     if (!isTunedIn || !currentGraph) return false;
     isTunedIn = false;
+    tuneInPhase = 'idle';
+    tuneInTimers.forEach(timer => clearTimeout(timer));
+    tuneInTimers = [];
 
     setGain(currentGraph.sigGain, -60, 2.0); // fade to silence
     if (currentGraph.sparkleTimer) { clearTimeout(currentGraph.sparkleTimer); currentGraph.sparkleTimer = null; }
@@ -257,6 +357,9 @@ export const SignalEngine = {
     currentMood = mood;
     currentGraph = buildGraph(signal, mood);
     isTunedIn = true;
+    tuneInPhase = 'full'; // shift skips the ritual — go straight to full
+    tuneInTimers.forEach(timer => clearTimeout(timer));
+    tuneInTimers = [];
 
     if (old) {
       const t = now();
@@ -303,4 +406,7 @@ export const SignalEngine = {
     if (!currentGraph?.sigGain) return 0;
     try { return currentGraph.sigGain.gain.value; } catch (e) { return 0; }
   },
+
+  /** Get current tune-in phase. */
+  getTuneInPhase() { return tuneInPhase; },
 };

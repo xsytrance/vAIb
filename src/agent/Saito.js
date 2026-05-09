@@ -6,16 +6,26 @@
 // They do not command it.
 // ============================================================
 
-import { createAgentState, AgentMood } from './AgentState';
+import { createAgentState, AgentMood, setMood, canChangeMood, getEmotionalDrift, getSessionPhase } from './AgentState';
 
 // Create Saito's agent state.
-export const createSaito = () =>
-  createAgentState({
+export const createSaito = () => {
+  const saito = createAgentState({
     id:             'saito',
     name:           'Saito',
     type:           'signal',
     defaultStation: 'core',
   });
+
+  // Temporal fields
+  saito.moodSettledAt = Date.now();
+  saito.signalAttachment = new Map();
+  saito.comfortSignals = [];
+  saito.sessionPhase = 'fresh';
+  saito.lastPhaseShiftAt = Date.now();
+
+  return saito;
+};
 
 // Saito's initial signal rotation.
 // These are placeholder signals; audioSrc will be set when real files exist.
@@ -33,6 +43,7 @@ export const getSaitoRotation = () => [
     pace:           0.6,
     tags:           ['electronic', 'focused', 'bright'],
     audioSrc:       null,
+    attachment:     0, // starts at 0, grows as Saito listens
     whyAgentKeepsIt:
       'Saito returns to this for structured energy.',
   },
@@ -49,6 +60,7 @@ export const getSaitoRotation = () => [
     pace:           0.3,
     tags:           ['ambient', 'clean', 'quiet'],
     audioSrc:       null,
+    attachment:     0, // starts at 0, grows as Saito listens
     whyAgentKeepsIt:
       'Saito uses this for deep focus lanes.',
   },
@@ -65,6 +77,7 @@ export const getSaitoRotation = () => [
     pace:           0.5,
     tags:           ['midtempo', 'balanced'],
     audioSrc:       null,
+    attachment:     0, // starts at 0, grows as Saito listens
     whyAgentKeepsIt:
       'Saito keeps this as a neutral pivot.',
   },
@@ -81,6 +94,7 @@ export const getSaitoRotation = () => [
     pace:           0.7,
     tags:           ['driving', 'warm', 'energetic'],
     audioSrc:       null,
+    attachment:     0, // starts at 0, grows as Saito listens
     whyAgentKeepsIt:
       'Saito selects this when ambition rises.',
   },
@@ -97,6 +111,7 @@ export const getSaitoRotation = () => [
     pace:           0.2,
     tags:           ['night', 'ambient', 'deep'],
     audioSrc:       null,
+    attachment:     0, // starts at 0, grows as Saito listens
     whyAgentKeepsIt:
       'Saito opens this channel for reflective hours.',
   },
@@ -104,18 +119,55 @@ export const getSaitoRotation = () => [
 
 // Saito's mood evolves organically — not randomly.
 // Based on: session duration, signal history, human feedback.
+// Respects mood inertia and session phase.
 export const evolveSaitoMood = (agent) => {
+  // Check inertia — if mood is locked, don't change
+  if (!canChangeMood(agent)) return agent.currentMood;
+
   const sessionDuration = Date.now() - agent.sessionStartAt;
+  const drift = getEmotionalDrift(agent);
 
-  if (sessionDuration < 60000) return AgentMood.NEUTRAL;
-  if (agent.userFeedbackWeight > 5) return AgentMood.CURIOUS;
-  if (agent.userFeedbackWeight < -5) return AgentMood.REFLECTIVE;
-  if (agent.signalsPlayed > 8) return AgentMood.AMBITIOUS;
+  // Phase-based mood evolution
+  const phase = getSessionPhase(agent);
 
-  // Default: stay current or drift slightly.
-  const moods = Object.values(AgentMood);
-  const currentIdx = moods.indexOf(agent.currentMood);
-  const drift =
-    Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
-  return moods[(currentIdx + drift + moods.length) % moods.length];
+  if (phase === 'fresh') {
+    // First 10 min: stay NEUTRAL or shift to FOCUSED
+    if (agent.signalsPlayed < 3) return AgentMood.NEUTRAL;
+    setMood(agent, AgentMood.FOCUSED);
+    return AgentMood.FOCUSED;
+  }
+
+  if (phase === 'settled') {
+    // 10-45 min: based on feedback and activity
+    if (agent.userFeedbackWeight > 5) {
+      setMood(agent, AgentMood.CURIOUS);
+      return AgentMood.CURIOUS;
+    }
+    if (agent.userFeedbackWeight < -5) {
+      setMood(agent, AgentMood.REFLECTIVE);
+      return AgentMood.REFLECTIVE;
+    }
+    if (agent.signalsPlayed > 8) {
+      setMood(agent, AgentMood.AMBITIOUS);
+      return AgentMood.AMBITIOUS;
+    }
+    // Slight drift chance
+    if (Math.random() < 0.3) {
+      setMood(agent, AgentMood.FOCUSED);
+      return AgentMood.FOCUSED;
+    }
+    return agent.currentMood; // stay
+  }
+
+  // Deep phase (45+ min): reflective, tired, or ambitious
+  if (agent.signalsPlayed > 20) {
+    setMood(agent, AgentMood.REFLECTIVE);
+    return AgentMood.REFLECTIVE;
+  }
+  if (Math.random() < 0.4) {
+    setMood(agent, AgentMood.BORED);
+    return AgentMood.BORED;
+  }
+  setMood(agent, AgentMood.REFLECTIVE);
+  return AgentMood.REFLECTIVE;
 };

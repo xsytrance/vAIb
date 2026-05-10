@@ -16,8 +16,8 @@ export const AgentMood = {
 };
 
 // ---- Mood Inertia ----
-// Saito resists mood changes. Each mood has an inertia value (seconds).
-// Saito will not change mood until inertia decays.
+// Agents resist mood changes. Each mood has an inertia value (seconds).
+// The agent will not change mood until inertia decays.
 
 const MOOD_INERTIA = {
   focused:     600,   // 10 min of focus before drift
@@ -179,18 +179,19 @@ export const interpretShiftRequest = (agent) => {
   const nextSignal = selectNextSignal(agent, { requested: true });
 
   // Determine narrative for why agent shifted — agent has agency.
+  const name = agent.name || 'The agent';
   const reasons = [
     agent.userFeedbackWeight < -3
-      && 'Saito drifted away after recent static marks.',
+      && `${name} drifted away after recent static marks.`,
     agent.currentMood === AgentMood.CURIOUS
-      && 'Saito is exploring something new.',
+      && `${name} is exploring something new.`,
     agent.currentMood === AgentMood.FOCUSED
-      && 'Saito tightened the signal for deeper focus.',
+      && `${name} tightened the signal for deeper focus.`,
     agent.currentMood === AgentMood.REFLECTIVE
-      && 'Saito moved toward something quieter.',
+      && `${name} moved toward something quieter.`,
     agent.signalsPlayed > 5
-      && 'Saito felt ready for a shift.',
-    'Saito selected a new signal.',
+      && `${name} felt ready for a shift.`,
+    `${name} selected a new signal.`,
   ];
 
   const reason = reasons.find((r) => r) || reasons[reasons.length - 1];
@@ -259,7 +260,7 @@ function getRecencyPenalty(agent, signal) {
 }
 
 // ---- Signal Attachment ----
-// Saito grows attached to signals the longer it listens.
+// The agent grows attached to signals the longer it listens.
 
 // Update attachment for the current signal
 export const updateAttachment = (agent) => {

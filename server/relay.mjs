@@ -4,12 +4,21 @@
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
 import { runDiscovery, formatForBrowser } from "./discovery.mjs";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(__dirname, "..");
 const PORT = process.env.RELAY_PORT || 4014;
 const clients = new Map(); // clientId → WebSocket
 let nextId = 1;
 let msgCount = 0;
 const started = Date.now();
+
+// ── startup identity ────────────────────────────────────────
+console.log(`[vAIb] Backend repo: ${REPO_ROOT}`);
+console.log(`[vAIb] Discovery module: ${resolve(__dirname, "discovery.mjs")}`);
+console.log(`[vAIb] WebSocket port: ${PORT}`);
 
 // ── discovery cache ─────────────────────────────────────────
 let lastDiscovery = null;
@@ -22,6 +31,8 @@ async function refreshDiscovery() {
 
     // Push to all connected clients
     const payload = JSON.stringify({ type: 'DISCOVERY_RESULT', ...lastDiscovery });
+    const agentCount = lastDiscovery.agents?.length || 0;
+    console.log(`[TEMP][RELAY] DISCOVERY_RESULT pushing to ${clients.size} clients — ${agentCount} agents, dominant=${lastDiscovery.dominant || 'none'}, confidence=${lastDiscovery.confidence || 'unknown'}`);
     for (const [id, socket] of clients) {
       if (socket.readyState === 1) {
         socket.send(payload);

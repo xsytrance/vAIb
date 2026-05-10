@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
 import { AgentProvider, useAgent } from './agent/AgentProvider'
-import { getSaitoRotation } from './agent/Saito'
+// NOTE: No Saito imports. All display is driven by backend discovery only.
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
 import { SignalEngine } from './audio/SignalEngine'
 
@@ -228,8 +228,8 @@ function AppContent() {
     return () => { SignalEngine.mute() }
   }, [])
 
-  // ---- Agent rotation (static for now) ----
-  const saitoRotation = useMemo(() => getSaitoRotation(), [])
+  // ---- Signal rotation comes from backend discovery only ----
+  // No static fallback. If no agents discovered, rotation is empty.
 
   // ---- Main UI ----
   return (
@@ -253,8 +253,8 @@ function AppContent() {
             </p>
           </div>
           <div className="heroBadges">
-            <StatPill label="Companion" value="Saito" />
-            <StatPill label="Profile" value="signal-agent" />
+            <StatPill label="Station" value={dominantAgent ? (activeAgents.find(a => a.id === dominantAgent)?.name || 'Active') : 'Quiet'} />
+            <StatPill label="Agents" value={String(activeAgents.length)} />
             <StatPill label="Status" value={isPlaying ? 'tuned in' : 'muted'} />
             <StatPill label="Mood" value={agentMood} />
           </div>
@@ -266,7 +266,7 @@ function AppContent() {
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Signal Station</span>
-                <h2>SAITO IS LISTENING</h2>
+                <h2>{dominantAgent ? `${activeAgents.find(a => a.id === dominantAgent)?.name || 'Station'} is active` : 'Station quiet'}</h2>
               </div>
               <span className="statusDot">{isPlaying ? 'tuned in' : 'muted'}</span>
             </div>
@@ -275,7 +275,7 @@ function AppContent() {
               <div className="trackAura" />
               <div className="trackInfo">
                 <strong>{currentSignal?.title || 'Idle'}</strong>
-                <span>{currentSignal?.artist || 'Saito'}</span>
+                <span>{currentSignal?.artist || (dominantAgent ? activeAgents.find(a => a.id === dominantAgent)?.name : 'Signal')}</span>
                 {currentSignal && (
                   <small>{currentSignal.bpm} BPM &bull; {Math.floor(currentSignal.duration / 60)}:{(currentSignal.duration % 60).toString().padStart(2, '0')}</small>
                 )}
@@ -555,16 +555,7 @@ function AppContent() {
                 </div>
               )}
 
-              {/* Fallback: static Saito rotation when no real agents */}
-              {activeAgents.length === 0 && dormantAgents.length === 0 && ghostAgents.length === 0 && archivalAgents.length === 0 && saitoRotation.map((sig) => (
-                <article key={sig.id} className={`trackRow ${sig.id === currentSignal?.id ? 'active' : ''}`}>
-                  <div>
-                    <strong>{sig.title}</strong>
-                    <span>{sig.artist} &mdash; {sig.tags.join(', ')}</span>
-                  </div>
-                  <span className="badge">{Math.floor(sig.duration / 60)}:{(sig.duration % 60).toString().padStart(2, '0')}</span>
-                </article>
-              ))}
+              {/* No fallback rotation. If no agents, station is quiet. */}
             </div>
           </article>
 
@@ -576,7 +567,7 @@ function AppContent() {
                 <h2>Recent shifts</h2>
               </div>
             </div>
-            <p className="muted">Signal history will appear here as Saito shifts between signals.</p>
+            <p className="muted">{dominantAgent ? 'Signal history will appear here as the active agent shifts.' : 'No signal history. Station is quiet.'}</p>
           </article>
         </section>
 
@@ -616,7 +607,7 @@ function AppContent() {
                 {confidence === 'waiting' && (
                   <li>Waiting for discovery scan to complete...</li>
                 )}
-                <li>Taste drift: Saito&apos;s preferences evolve based on your resonance marks.</li>
+                {dominantAgent && <li>Taste drift: agent preferences evolve based on resonance marks.</li>}
                 <li>Distributed: open this URL on another device to share the atmosphere.</li>
               </ul>
             </div>

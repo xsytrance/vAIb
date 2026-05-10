@@ -94,8 +94,8 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
       election,
     };
 
-    // Initialize Saito agent for fatigue tracking
-    saitoRef.current = createAgentState({ id: 'saito', name: 'Saito' });
+    // Initialize generic agent model for fatigue tracking
+    saitoRef.current = createAgentState({ id: 'controller', name: 'Station' });
 
     // Update RI + parameters whenever the engine reports a change
     engine.onChange((newRI) => {

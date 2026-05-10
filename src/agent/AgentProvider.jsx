@@ -16,7 +16,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAtmosphere } from '../atmosphere/AtmosphereProvider';
-import { createSaito, getSaitoRotation, evolveSaitoMood } from './Saito';
+import { evolveSaitoMood } from './Saito';
 import { selectNextSignal, interpretShiftRequest, applyFeedback, updateAttachment, getAttachment } from './AgentState';
 import { deriveSignalFromAgent, getGhostMode } from './StationDiscovery';
 import { toastMessages, pickToast } from './ToastLanguage';
@@ -25,6 +25,44 @@ import { SignalEngine } from '../audio/SignalEngine';
 const AgentContext = createContext(null);
 
 export const useAgent = () => useContext(AgentContext);
+
+// ---- Generic signal rotation — NO Saito branding ----
+// These are procedural substrate signals, not authored agent content.
+// They only appear when a real discovered agent is curating signals.
+function buildGenericRotation(agentName) {
+  return [
+    {
+      id: 'sig_01', title: 'Phase Bloom', artist: agentName,
+      duration: 240, bpm: 90, energy: 0.7, warmth: 0.6, noise: 0.3, complexity: 0.5,
+      tags: ['structured', 'energetic'],
+      whyAgentKeepsIt: 'Structured energy for operational lift.',
+    },
+    {
+      id: 'sig_02', title: 'Drift Carrier', artist: agentName,
+      duration: 300, bpm: 75, energy: 0.4, warmth: 0.3, noise: 0.5, complexity: 0.6,
+      tags: ['ambient', 'focus'],
+      whyAgentKeepsIt: 'Deep focus lanes for extended sessions.',
+    },
+    {
+      id: 'sig_03', title: 'Neutral Pivot', artist: agentName,
+      duration: 180, bpm: 80, energy: 0.5, warmth: 0.5, noise: 0.4, complexity: 0.4,
+      tags: ['neutral', 'steady'],
+      whyAgentKeepsIt: 'A steady pivot between modes.',
+    },
+    {
+      id: 'sig_04', title: 'Pulse Thread', artist: agentName,
+      duration: 270, bpm: 100, energy: 0.8, warmth: 0.4, noise: 0.4, complexity: 0.7,
+      tags: ['driving', 'ambition'],
+      whyAgentKeepsIt: 'For moments when ambition rises.',
+    },
+    {
+      id: 'sig_05', title: 'Quiet Channel', artist: agentName,
+      duration: 360, bpm: 60, energy: 0.2, warmth: 0.7, noise: 0.2, complexity: 0.3,
+      tags: ['reflective', 'quiet'],
+      whyAgentKeepsIt: 'For reflective hours and recovery.',
+    },
+  ];
+}
 
 export function AgentProvider({ children }) {
   // ---- Backend discovery data (sole authority) ----
@@ -111,42 +149,78 @@ export function AgentProvider({ children }) {
     }
   }, [discovery]);
 
-  // ---- Initialize Saito (signal agent) once station is known ----
+  // ---- Initialize signal controller once station is known ----
   useEffect(() => {
     // Only initialize once
     if (saitoRef.current) return;
 
-    const saito = createSaito();
+    // Create the signal controller agent.
+    // If discovery found a dominant agent, the controller takes its identity.
+    // Otherwise it uses a generic identity — NEVER "Saito" as default.
+    const domAgent = station.source === 'relay'
+      ? (station.active.find(a => a.id === station.dominant) || null)
+      : null;
 
-    // If we have discovery data with a dominant agent, reflect its character
-    if (station.source === 'relay' && station.dominant) {
-      const domAgent = station.active.find(a => a.id === station.dominant);
-      if (domAgent) {
-        console.log('[TEMP][AgentProvider] Configuring Saito from dominant agent: ' + domAgent.name);
-        saito.id = domAgent.id;
-        saito.name = domAgent.name;
-        saito.type = domAgent.type;
-        saito.presenceScore = domAgent.presenceScore || 0.8;
-
-        // Derive taste from real agent behavior
-        const derived = deriveSignalFromAgent(domAgent);
-        saito.taste = {
-          energy: derived.energy,
-          noise: derived.noise,
-          warmth: derived.warmth,
-          complexity: derived.complexity,
-          pace: derived.pace,
+    const saito = domAgent
+      ? {
+          // Inherit from discovered dominant agent
+          id: domAgent.id,
+          name: domAgent.name,
+          type: domAgent.type,
+          presenceScore: domAgent.presenceScore || 0.8,
+          currentMood: 'neutral',
+          currentSignal: null,
+          lastSignalChangeAt: 0,
+          signalsPlayed: 0,
+          signalHistory: [],
+          feedback: {},
+          attachment: {},
+          taste: { energy: 0.5, noise: 0.3, warmth: 0.5, complexity: 0.4, pace: 0.5 },
+          moodInertia: { focused: 600, curious: 300, social: 180, bored: 120, ambitious: 240, reflective: 900, neutral: 60 },
+          lastMoodChange: 0,
+          signalExhaustion: {},
+          lastSessionStart: Date.now(),
+          sessionPhase: 'fresh',
+          comfortSignals: [],
+        }
+      : {
+          // Generic controller — no named identity until discovery proves one
+          id: 'controller',
+          name: 'Station',
+          type: 'signal',
+          presenceScore: 0,
+          currentMood: 'neutral',
+          currentSignal: null,
+          lastSignalChangeAt: 0,
+          signalsPlayed: 0,
+          signalHistory: [],
+          feedback: {},
+          attachment: {},
+          taste: { energy: 0.5, noise: 0.3, warmth: 0.5, complexity: 0.4, pace: 0.5 },
+          moodInertia: { focused: 600, curious: 300, social: 180, bored: 120, ambitious: 240, reflective: 900, neutral: 60 },
+          lastMoodChange: 0,
+          signalExhaustion: {},
+          lastSessionStart: Date.now(),
+          sessionPhase: 'fresh',
+          comfortSignals: [],
         };
-      }
+
+    if (domAgent) {
+      console.log('[TEMP][AgentProvider] Signal controller configured from: ' + domAgent.name);
+      const derived = deriveSignalFromAgent(domAgent);
+      saito.taste = {
+        energy: derived.energy,
+        noise: derived.noise,
+        warmth: derived.warmth,
+        complexity: derived.complexity,
+        pace: derived.pace,
+      };
     } else {
-      // No discovery data yet — Saito uses defaults
-      // NO synthetic agent fabrication. Saito is the signal controller,
-      // not a fake discovered agent. The station simply shows "quiet".
-      console.log('[TEMP][AgentProvider] No discovery data — Saito using default configuration');
+      console.log('[TEMP][AgentProvider] No dominant agent — generic controller, station quiet');
     }
 
-    // Build rotation
-    saito.rotation = getSaitoRotation();
+    // Build rotation — generic procedural signals, no Saito branding
+    saito.rotation = buildGenericRotation(saito.name);
 
     const firstSignal = selectNextSignal(saito);
     saito.currentSignal = firstSignal;

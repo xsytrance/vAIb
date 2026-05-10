@@ -155,9 +155,85 @@ const Icons = {
 }
 
 // ============================================================
+// Top EQ strip — persistent, full-width, bars only
+// ============================================================
+function TopEqualizer({ analyser }) {
+  const canvasRef = useRef(null)
+  const animRef = useRef(null)
+  const peaksRef = useRef(new Float32Array(64))
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const dpr = Math.min(window.devicePixelRatio, 2)
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * dpr
+      canvas.height = canvas.offsetHeight * dpr
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    const freqData = analyser ? new Uint8Array(analyser.frequencyBinCount) : null
+
+    const draw = () => {
+      animRef.current = requestAnimationFrame(draw)
+      const ctx = canvas.getContext('2d')
+      const w = canvas.width / dpr
+      const h = canvas.height / dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+
+      const count = 64
+      const gap = 1.5
+      const barW = (w - gap * (count - 1)) / count
+      const peaks = peaksRef.current
+
+      if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData)
+      }
+
+      for (let i = 0; i < count; i++) {
+        const dataI = Math.floor((i / count) * (freqData ? freqData.length * 0.75 : 1))
+        const val = freqData ? freqData[dataI] / 255 : 0
+        const barH = Math.max(1.5, val * h * 0.92)
+
+        if (barH > peaks[i]) peaks[i] = barH
+        else peaks[i] *= 0.92
+
+        const x = i * (barW + gap)
+
+        // Amplitude-based color: tall=cyan, short=purple
+        const r = Math.round(180 - val * 180)
+        const g = Math.round(80 + val * 175)
+        const b = Math.round(255 - val * 35)
+
+        const grad = ctx.createLinearGradient(x, h - barH, x, h)
+        grad.addColorStop(0, `rgba(${r},${g},${b},1)`)
+        grad.addColorStop(1, `rgba(${r},${g},${b},0.2)`)
+        ctx.fillStyle = grad
+        ctx.fillRect(x, h - barH, barW, barH)
+
+        // Peak dot
+        if (peaks[i] > 2) {
+          ctx.fillStyle = `rgba(${r},${g},${b},0.85)`
+          ctx.fillRect(x, h - peaks[i] - 1, barW, 1.5)
+        }
+      }
+    }
+
+    animRef.current = requestAnimationFrame(draw)
+    return () => { cancelAnimationFrame(animRef.current); ro.disconnect() }
+  }, [analyser])
+
+  return <canvas ref={canvasRef} className="topEQ" />
+}
+
+// ============================================================
 // Tab: Cockpit
 // ============================================================
-function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, analyser, onReadAll }) {
+function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onReadAll }) {
   const unreadNotifications = notifications.filter(n => !n.read)
   return (
     <div className="tabScreen">
@@ -195,12 +271,6 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, anal
           )}
         </div>
       )}
-
-      {/* Visualizer */}
-      <div className="card vizCard">
-        <span className="cardLabel">Visualizer</span>
-        <Visualizer analyser={analyser} compact />
-      </div>
 
       {/* Status */}
       <div className="card statusCard">
@@ -583,7 +653,6 @@ function AppContent() {
   function tuneAndPlay(agent) {
     autoPlayRef.current = true
     setTunedAgent(agent)
-    setTab('cockpit')
   }
 
   function togglePlay() {
@@ -671,6 +740,9 @@ function AppContent() {
           </div>
         </header>
 
+        {/* Top EQ strip — always visible */}
+        <TopEqualizer analyser={analyser} />
+
         {/* Tab content */}
         <div className="tabContent">
           {tab === 'cockpit' && (
@@ -680,7 +752,6 @@ function AppContent() {
               events={events}
               notifications={notifications}
               apiHealthy={apiHealthy}
-              analyser={analyser}
               onReadAll={() => act('notifications.readAll')}
             />
           )}

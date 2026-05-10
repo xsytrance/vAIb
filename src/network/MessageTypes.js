@@ -15,4 +15,6 @@ export const MessageTypes = {
   LEADER_ELECT: 'LEADER_ELECT',
   LEADER_CONFIRM: 'LEADER_CONFIRM',
   GOODBYE: 'GOODBYE',
+  // Relay-pushed discovery data — backend is sole authority
+  DISCOVERY_RESULT: 'DISCOVERY_RESULT',
 };

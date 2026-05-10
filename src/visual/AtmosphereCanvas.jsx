@@ -61,14 +61,15 @@ function createParticle(width, height, ri) {
 }
 
 // Update particle position and state
-function updateParticle(p, dt, { speedMultiplier, w, h, bloom, ri }) {
+function updateParticle(p, dt, { speedMultiplier, w, h, bloom, ri, jitterMult }) {
   // Apply velocity with speed multiplier
   const speed = speedMultiplier || 1;
   p.x += p.vx * speed;
   p.y += p.vy * speed;
 
-  // Add drift noise (jitter) based on RI
-  const jitter = p.jitterBase || (0.5 + (ri || 0.5) * 1.5);
+  // Add drift noise (jitter) based on RI, reduced by fatigue
+  const baseJitter = p.jitterBase || (0.5 + (ri || 0.5) * 1.5);
+  const jitter = baseJitter * (jitterMult !== undefined ? jitterMult : 1.0);
   p.x += (Math.random() - 0.5) * jitter * dt * 60;
   p.y += (Math.random() - 0.5) * jitter * dt * 60;
 
@@ -129,21 +130,25 @@ function drawParticle(ctx, p, { bloom, saturation }) {
 // ============================================================
 export default function AtmosphereCanvas() {
   const canvasRef = useRef(null);
-  const { ri, parameters } = useAtmosphere();
+  const { ri, parameters, fatigue } = useAtmosphere();
   const particlesRef = useRef([]);
   const animFrameRef = useRef(null);
   const lastTimeRef = useRef(0);
   // Keep latest values in a ref so the rAF loop always sees them
   const paramsRef = useRef(parameters);
   const riRef = useRef(ri);
+  const fatigueRef = useRef(fatigue);
 
-  // Sync refs whenever parameters/ri change
+  // Sync refs whenever parameters/ri/fatigue change
   useEffect(() => {
     paramsRef.current = parameters;
   }, [parameters]);
   useEffect(() => {
     riRef.current = ri;
   }, [ri]);
+  useEffect(() => {
+    fatigueRef.current = fatigue;
+  }, [fatigue]);
 
   // Resize canvas to window
   useEffect(() => {
@@ -208,9 +213,16 @@ export default function AtmosphereCanvas() {
       const speedMultiplier = params.motionSpeed || (0.3 + currentRI * 0.7);
       const bloom = params.bloomIntensity || 0.3;
 
+      // Visual fatigue: reduce jitter when exhausted, mute when overstimulated
+      const currentFatigue = fatigueRef.current || { speed: 1.0, sparkle: 1.0, saturation: 1.0 };
+      const exhaustionFactor = 1.0 - (currentFatigue.sparkle < 0.95 ? 0.1 : 0); // exhausted if sparkle reduced
+      const saturationWithFatigue = saturation * currentFatigue.saturation;
+
       particlesRef.current.forEach((p) => {
-        updateParticle(p, dt, { speedMultiplier, w, h, bloom, ri: currentRI });
-        drawParticle(ctx, p, { bloom, saturation });
+        // Apply exhaustion jitter reduction
+        const jitterMult = exhaustionFactor;
+        updateParticle(p, dt, { speedMultiplier, w, h, bloom, ri: currentRI, jitterMult });
+        drawParticle(ctx, p, { bloom, saturation: saturationWithFatigue });
       });
 
       // 4. Subtle bloom overlay

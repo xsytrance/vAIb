@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
+import { AgentProvider, useAgent } from './agent/AgentProvider'
+// NOTE: No Saito imports. All display is driven by backend discovery only.
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
 import Visualizer from './visual/Visualizer'
 import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
@@ -583,7 +585,6 @@ function AppContent() {
 
   // ---- Atmosphere ----
   const { ri, parameters } = useAtmosphere()
-  const audioStartedRef = useRef(false)
 
   // Computed per-agent track list
   const agentTracks = useMemo(

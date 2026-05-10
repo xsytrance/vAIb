@@ -907,3 +907,47 @@ input { font: inherit; }
   display: block;
   background: transparent;
 }
+
+/* ============================================================
+   Agent Mood Indicator Styles
+   ============================================================ */
+
+.mood-indicator {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+  transition: color 2s ease;
+}
+
+.mood-indicator[data-mood="focused"] { color: var(--mood-focused); }
+.mood-indicator[data-mood="curious"] { color: var(--mood-curious); }
+.mood-indicator[data-mood="social"] { color: var(--mood-social); }
+.mood-indicator[data-mood="bored"] { color: var(--mood-bored); }
+.mood-indicator[data-mood="ambitious"] { color: var(--mood-ambitious); }
+.mood-indicator[data-mood="reflective"] { color: var(--mood-reflective); }
+
+/* ============================================================
+   Tune-In Ritual: UI Awakening
+   ============================================================ */
+
+@keyframes uiAwaken {
+  0%   { opacity: 0.3; filter: saturate(0.3); }
+  25%  { opacity: 0.5; filter: saturate(0.5); }
+  50%  { opacity: 0.7; filter: saturate(0.7); }
+  75%  { opacity: 0.9; filter: saturate(0.9); }
+  100% { opacity: 1.0; filter: saturate(1.0); }
+}
+
+.tune-in-awakening .panel {
+  animation: uiAwaken 60s ease forwards;
+}
+
+/* When tuned in, the orb pulses gently */
+@keyframes orbPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.02); opacity: 1; }
+}
+
+.tune-in-awakening .trackAura {
+  animation: orbPulse 8s ease-in-out infinite;
+}

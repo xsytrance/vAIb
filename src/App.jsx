@@ -12,27 +12,20 @@ const moodOptions = [
   'ambient recovery',
 ]
 
+// In dev: empty string → Vite proxy handles /api/backend/*
+// In production/Android: VITE_API_BASE=http://100.110.224.126:4014
+const API = (typeof __API_BASE__ !== 'undefined' && __API_BASE__)
+  ? __API_BASE__
+  : '/api/backend'
+
 async function loadState() {
-  const response = await fetch('/api/backend/state')
+  const response = await fetch(`${API}/state`)
   if (!response.ok) throw new Error('Failed to load vAIb state')
   return response.json()
 }
 
-async function loadTracks() {
-  const response = await fetch('/api/backend/music/tracks')
-  if (!response.ok) return null
-  const data = await response.json()
-  return data.tracks || []
-}
-
-async function loadAgents() {
-  const response = await fetch('/api/backend/agents')
-  if (!response.ok) return { agents: [], defaultId: null }
-  return response.json()
-}
-
 async function sendAction(action, payload = {}) {
-  const response = await fetch('/api/backend/action', {
+  const response = await fetch(`${API}/action`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, payload }),
@@ -43,6 +36,20 @@ async function sendAction(action, payload = {}) {
   }
   return response.json()
 }
+
+async function loadTracks() {
+  const response = await fetch(`${API}/music/tracks`)
+  if (!response.ok) return null
+  const data = await response.json()
+  return data.tracks || []
+}
+
+async function loadAgents() {
+  const response = await fetch(`${API}/agents`)
+  if (!response.ok) return { agents: [], defaultId: null }
+  return response.json()
+}
+
 
 // Deterministic shuffle seeded by a string — same agent always gets same track order
 function StationPlayer({ agent, tracks, onAnalyser }) {

@@ -6,11 +6,17 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 4013",
     "build": "vite build",
+    "build:android": "VITE_API_BASE=http://100.110.224.126:4014 vite build && npx cap sync android",
     "preview": "vite preview --host 0.0.0.0 --port 4013",
     "api:library": "node server/api.mjs",
-    "relay": "node server/relay.mjs"
+    "relay": "node server/relay.mjs",
+    "android:sync": "npx cap sync android",
+    "android:open": "ANDROID_HOME=$HOME/Android/Sdk npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.3",
+    "@capacitor/cli": "^8.3.3",
+    "@capacitor/core": "^8.3.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "ws": "^8.20.0"

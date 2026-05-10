@@ -1,0 +1,13 @@
+{
+  "appId": "com.vaib.app",
+  "appName": "vAIb",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#07111f"
+  },
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  }
+}

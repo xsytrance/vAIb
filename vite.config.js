@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // In production/Android builds, VITE_API_BASE points directly to the API server.
+  // In dev, the Vite proxy handles /api/backend/* → localhost:4014.
+  define: {
+    __API_BASE__: JSON.stringify(process.env.VITE_API_BASE || ''),
+  },
   server: {
     host: '0.0.0.0',
     port: 4013,

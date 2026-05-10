@@ -12,7 +12,7 @@
 //   1. Attempt real discovery (injected data, localStorage, signals)
 //   2. Score each agent's presence from actual activity
 //   3. Derive station atmosphere from operational truth
-//   4. Fall back to static data ONLY when no real data exists
+//   4. Fall back to static empty state (no fake data)
 //
 // Injection API (for native contexts):
 //   window.vaibInjectDiscovery = { agents: [...], dominant: 'vg_god' }

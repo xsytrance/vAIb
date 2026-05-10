@@ -3,12 +3,39 @@
 
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
+import { runDiscovery, formatForBrowser } from "./discovery.mjs";
 
 const PORT = process.env.RELAY_PORT || 4014;
 const clients = new Map(); // clientId → WebSocket
 let nextId = 1;
 let msgCount = 0;
 const started = Date.now();
+
+// ── discovery cache ─────────────────────────────────────────
+let lastDiscovery = null;
+const DISCOVERY_INTERVAL = 60000; // re-scan every 60s
+
+async function refreshDiscovery() {
+  try {
+    const result = await runDiscovery();
+    lastDiscovery = formatForBrowser(result);
+
+    // Push to all connected clients
+    const payload = JSON.stringify({ type: 'DISCOVERY_RESULT', ...lastDiscovery });
+    for (const [id, socket] of clients) {
+      if (socket.readyState === 1) {
+        socket.send(payload);
+      }
+    }
+  } catch (err) {
+    log("DISCOVERY_ERR", err.message);
+  }
+}
+
+// Initial discovery on startup
+refreshDiscovery();
+// Periodic refresh
+setInterval(refreshDiscovery, DISCOVERY_INTERVAL);
 
 // ── logging helper ──────────────────────────────────────────
 const log = (event, detail = "") => {

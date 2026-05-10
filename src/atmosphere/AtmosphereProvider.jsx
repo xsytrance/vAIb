@@ -47,6 +47,14 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
   const [agentMood, setAgentMood] = useState('neutral');
   const [fatigue, setFatigue] = useState({ speed: 1.0, sparkle: 1.0, warmth: 1.0, pulse: 1.0, saturation: 1.0 });
 
+  // ---- Discovery state (from backend relay — sole authority) ----
+  const [discovery, setDiscovery] = useState({
+    agents: [],
+    dominant: null,
+    scannedAt: null,
+    source: 'waiting', // 'waiting' | 'relay' | 'quiet'
+  });
+
   // Ref for latest mood (avoids stale closure in engine callback)
   const agentMoodRef = useRef(agentMood);
   useEffect(() => {
@@ -269,6 +277,19 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
           break;
         }
 
+        case MessageTypes.DISCOVERY_RESULT: {
+          console.log('[TEMP] DISCOVERY_RESULT — agents=' + (msg.agents ? msg.agents.length : 0) + ', dominant=' + (msg.dominant || 'none'));
+          if (msg.agents) {
+            setDiscovery({
+              agents: msg.agents,
+              dominant: msg.dominant || null,
+              scannedAt: msg.scannedAt || Date.now(),
+              source: 'relay',
+            });
+          }
+          break;
+        }
+
         default:
           console.log('[TEMP] unhandled — type=' + msg.type);
           break;
@@ -369,6 +390,8 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         agentMood,
         setMood,
         fatigue,
+        // Backend-discovery data — sole authority for operational truth
+        discovery,
       }}
     >
       {children}
@@ -391,4 +414,5 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
  * @property {string} agentMood                Current agent mood ('neutral', 'focused', etc.)
  * @property {(mood: string) => void} setMood  Set the agent mood
  * @property {Object} fatigue  Current fatigue multipliers { speed, sparkle, warmth, pulse, saturation }
+ * @property {Object} discovery  Backend discovery data { agents, dominant, scannedAt, source }
  */

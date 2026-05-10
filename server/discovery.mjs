@@ -239,6 +239,61 @@ async function scanFilesystem(signature) {
 }
 
 // ---- 2. PROCESS SCAN ----
+//
+// CRITICAL: Uses command-basename matching, NOT naive substring.
+// Prevents false positives like "snake" matching "ssl-cert-snakeoil.key"
+// in the Xvnc command line.
+
+function basenameFromPath(p) {
+  if (!p) return '';
+  // Handle paths like /usr/bin/node, or commands like node
+  const lastSlash = p.lastIndexOf('/');
+  return lastSlash >= 0 ? p.slice(lastSlash + 1) : p;
+}
+
+function commandTokens(cmdline) {
+  // Split command line into tokens, extract basenames
+  return cmdline
+    .split(/\s+/)
+    .map(t => t.replace(/[,:;"'!@#$%^&*()\[\]{}]/g, ''))
+    .filter(Boolean);
+}
+
+function processMatchesAgent(line, pattern) {
+  const parts = line.trim().split(/\s+/);
+  if (parts.length < 11) return false;
+
+  const pid = parts[1];
+  const cmdStart = parts.slice(10).join(' ');
+
+  // System exclusions: never match these processes
+  const exclusions = ['grep', 'vscode', 'discovery', 'ps aux', 'sleep', 'bash', 'sh ', 'ssh', 'systemd'];
+  for (const ex of exclusions) {
+    if (cmdStart.toLowerCase().includes(ex)) return false;
+  }
+
+  const patLower = pattern.toLowerCase();
+
+  // Match 1: command basename equals pattern
+  const firstToken = parts[10] || '';
+  const cmdBase = basenameFromPath(firstToken).toLowerCase();
+  if (cmdBase === patLower) return true;
+
+  // Match 2: any token (as basename) equals pattern
+  const tokens = commandTokens(cmdStart);
+  for (const tok of tokens) {
+    if (basenameFromPath(tok).toLowerCase() === patLower) return true;
+  }
+
+  // Match 3: pattern with hyphen/underscore variants
+  const variant = patLower.replace(/-/g, '_');
+  if (cmdBase === variant) return true;
+  for (const tok of tokens) {
+    if (basenameFromPath(tok).toLowerCase() === variant) return true;
+  }
+
+  return false;
+}
 
 function scanProcesses(signature) {
   const found = {
@@ -253,12 +308,13 @@ function scanProcesses(signature) {
     const output = execSync('ps aux', { encoding: 'utf-8', timeout: 5000 });
     const lines = output.split('\n');
 
-    for (const line of lines) {
+    // Skip header line
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+
       for (const pattern of signature.processPatterns) {
-        if (line.toLowerCase().includes(pattern.toLowerCase()) &&
-            !line.includes('grep') &&
-            !line.includes('vscode') &&
-            !line.includes('discovery')) {
+        if (processMatchesAgent(line, pattern)) {
           const parts = line.trim().split(/\s+/);
           const pid = parts[1];
           const cmd = parts.slice(10).join(' ');

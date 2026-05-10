@@ -22,8 +22,8 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
-  /* Original background preserved — canvas sits on top via z-index */
+  height: 100vh;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(128, 84, 255, 0.24), transparent 32%),
     radial-gradient(circle at top right, rgba(0, 229, 255, 0.16), transparent 26%),
@@ -59,11 +59,14 @@ select {
 }
 
 .appShell {
-  position: relative;
-  width: min(1440px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 32px 0 64px;
+  position: fixed;
+  inset: 0;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 12px;
+  gap: 10px;
+  overflow: hidden;
 }
 
 /* Original ambient divs — hidden; canvas replaces them visually */
@@ -576,4 +579,731 @@ select {
   .networkRow button {
     width: 100%;
   }
+}
+
+/* ---- Agent Roster ---- */
+.agentRoster {
+  margin-bottom: 0;
+}
+
+.agentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.agentRow {
+  flex: 1 1 220px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.agentRow:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.agentSelected {
+  border-color: rgba(142,255,203,0.4);
+  background: rgba(142,255,203,0.06);
+}
+
+.agentDormant {
+  opacity: 0.5;
+}
+
+.agentRowMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.agentPresenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #8effcb;
+  box-shadow: 0 0 6px #8effcb88;
+}
+
+.agentDormant .agentPresenceDot {
+  background: #666;
+  box-shadow: none;
+}
+
+.agentRowName {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.agentRowSource {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.35);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agentRowRole {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Reaction buttons (replacing control buttons) ---- */
+.reactionRow {
+  align-items: center;
+}
+
+.reactionLabel {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.reactionBtn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.reactionBtn.resonant {
+  border-color: rgba(142,255,203,0.5);
+  color: #8effcb;
+}
+
+.reactionBtn.resonant:hover {
+  background: rgba(142,255,203,0.12);
+}
+
+.reactionBtn.misaligned {
+  border-color: rgba(255,100,130,0.4);
+  color: #ff9cba;
+}
+
+.reactionBtn.misaligned:hover {
+  background: rgba(255,100,130,0.1);
+}
+
+/* ---- Fleet section ---- */
+.fleetSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fleetHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fleetHeader h2 {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+}
+
+.fleetStats {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.fleetStat {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.45);
+}
+
+.fleetStat strong {
+  color: rgba(255,255,255,0.8);
+  margin-right: 3px;
+}
+
+.fleetStat.online strong { color: #8effcb; }
+.fleetStat.offline strong { color: rgba(255,255,255,0.35); }
+
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* ---- Agent card ---- */
+.agentCard {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.15s;
+}
+
+.agentCard:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.agentCardDormant {
+  opacity: 0.45;
+}
+
+.agentCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agentCardName {
+  font-weight: 600;
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.agentCardSource {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agentCardStatus {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.statusOnline {
+  background: rgba(142,255,203,0.12);
+  color: #8effcb;
+}
+
+.statusOffline {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.3);
+}
+
+.agentCardRole {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.agentCardVibe {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.3);
+  margin: 0;
+  font-style: italic;
+}
+
+/* ---- Expanded agent card ---- */
+.agentCardExpanded {
+  border-color: rgba(142,255,203,0.25);
+  background: rgba(142,255,203,0.05);
+}
+
+/* ---- Agent player ---- */
+.agentPlayer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.playerTrackInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playerTitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerArtist {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.45);
+}
+
+.playerProgress {
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.playerBar {
+  height: 100%;
+  background: #8effcb;
+  border-radius: 2px;
+  transition: width 0.5s linear;
+}
+
+.playerControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playerTime {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.playerBtn {
+  background: rgba(142,255,203,0.12);
+  border: 1px solid rgba(142,255,203,0.3);
+  color: #8effcb;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.playerBtn:hover {
+  background: rgba(142,255,203,0.22);
+}
+
+.playerBtn.ghost {
+  background: transparent;
+  border-color: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+}
+
+.playerBtn.ghost:hover {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.8);
+}
+
+/* ---- Station bar ---- */
+.stationBar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 24px;
+  background: rgba(142,255,203,0.06);
+  border: 1px solid rgba(142,255,203,0.2);
+  border-radius: 18px;
+  flex-wrap: wrap;
+}
+
+.stationMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  flex: 1;
+}
+
+.stationLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(142,255,203,0.6);
+}
+
+.stationAgent {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #8effcb;
+}
+
+.stationTrack {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.stationProgress {
+  flex: 2;
+  min-width: 120px;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.stationBar__fill {
+  height: 100%;
+  background: #8effcb;
+  border-radius: 2px;
+  transition: width 0.5s linear;
+}
+
+.stationControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ---- Tuned card highlight ---- */
+.agentCardTuned {
+  border-color: rgba(142,255,203,0.4);
+  background: rgba(142,255,203,0.07);
+}
+
+.tunedBadge {
+  font-size: 0.68rem;
+  color: #8effcb;
+  letter-spacing: 0.04em;
+  margin-left: auto;
+}
+
+/* ---- Visualizer ---- */
+.stationBar {
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px 16px;
+}
+
+.stationBarInner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.visualizerWrap {
+  position: relative;
+  width: 100%;
+}
+
+.visualizerCanvas {
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  display: block;
+  background: rgba(5,12,22,0.9);
+}
+
+.visualizerModes {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.vizModeBtn {
+  font-size: 0.68rem;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,255,220,0.2);
+  background: transparent;
+  color: rgba(0,255,220,0.5);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+}
+
+.vizModeBtn:hover {
+  border-color: rgba(0,255,220,0.5);
+  color: rgba(0,255,220,0.9);
+}
+
+.vizModeBtn.active {
+  background: rgba(0,255,220,0.12);
+  border-color: rgba(0,255,220,0.6);
+  color: #00ffdc;
+}
+
+/* ---- Pulsing presence dots ---- */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px #8effcb88; opacity: 1; }
+  50% { box-shadow: 0 0 10px #8effcbcc, 0 0 20px #8effcb44; opacity: 0.8; }
+}
+
+.agentCardActive .agentPresenceDot {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* ---- Station agent name shimmer ---- */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.stationAgent {
+  background: linear-gradient(90deg, #8effcb, #00cfff, #8effcb, #00cfff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ---- Tuned card pulse border ---- */
+@keyframes tuned-border {
+  0%, 100% { border-color: rgba(142,255,203,0.4); }
+  50% { border-color: rgba(142,255,203,0.9); }
+}
+
+.agentCardTuned {
+  animation: tuned-border 2s ease-in-out infinite;
+}
+
+/* ---- Card hover lift ---- */
+.agentCard {
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.agentCardActive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 12px rgba(142,255,203,0.08);
+}
+
+/* ---- Station bar glow ---- */
+@keyframes station-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(142,255,203,0); }
+  50% { box-shadow: 0 0 30px rgba(142,255,203,0.07); }
+}
+
+.stationBar {
+  animation: station-glow 4s ease-in-out infinite;
+}
+
+/* ---- App shell scan line ---- */
+.appShell::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================================
+   Single-screen layout overrides
+   ============================================================ */
+
+/* ---- Top header bar ---- */
+.vaibHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 0;
+  flex-shrink: 0;
+}
+
+.vaibWordmark {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  background: linear-gradient(90deg, #8effcb, #00cfff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-transform: uppercase;
+}
+
+.vaibHeaderStats {
+  display: flex;
+  gap: 16px;
+}
+
+.fleetStat.signal strong { color: #ffe57c; }
+
+/* ---- Visualizer section ---- */
+.vizSection {
+  flex-shrink: 0;
+  height: 28vh;
+  min-height: 140px;
+  max-height: 220px;
+}
+
+.vizSection .visualizerWrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.vizSection .visualizerCanvas {
+  flex: 1;
+  height: 0;
+  border-radius: 14px;
+}
+
+.vizSection .visualizerModes {
+  margin-top: 6px;
+}
+
+/* ---- Station bar — compact single row ---- */
+.stationBar {
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  padding: 10px 18px !important;
+  gap: 14px !important;
+  flex-shrink: 0;
+  animation: station-glow 4s ease-in-out infinite;
+}
+
+.stationBar .stationProgress {
+  flex: 2;
+  min-width: 80px;
+}
+
+.stationMeta {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.stationAgent {
+  font-size: 0.95rem !important;
+}
+
+.stationTrack {
+  max-width: 200px !important;
+}
+
+/* ---- Fleet section — fills remaining space ---- */
+.fleetSection {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.fleetHeader {
+  flex-shrink: 0;
+}
+
+.fleetHeader h2 {
+  font-size: 0.85rem !important;
+  margin: 2px 0 0 !important;
+}
+
+.agentGrid {
+  flex: 1;
+  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(142,255,203,0.2) transparent;
+}
+
+/* Compact agent cards */
+.agentCard {
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+}
+
+.agentCardRole {
+  font-size: 0.72rem !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agentCardVibe {
+  display: none;
+}
+
+/* ---- Station bar — slim strip ---- */
+.stationBar {
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  padding: 7px 16px !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+  border-radius: 12px !important;
+  background: rgba(8,16,28,0.7) !important;
+  border: 1px solid rgba(142,255,203,0.12) !important;
+}
+
+.stationLabel {
+  font-size: 0.6rem !important;
+}
+
+.stationAgent {
+  font-size: 0.82rem !important;
+  font-weight: 600;
+}
+
+.stationTrack {
+  font-size: 0.72rem !important;
+  max-width: 180px !important;
+}
+
+.stationMeta {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0;
+}
+
+.stationProgress {
+  flex: 1 !important;
+  height: 3px !important;
+  min-width: 60px;
+}
+
+.stationControls {
+  gap: 6px !important;
+  flex-shrink: 0;
+}
+
+.playerBtn {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 0.75rem !important;
+}
+
+.playerTime {
+  font-size: 0.65rem !important;
 }

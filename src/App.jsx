@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
+import Visualizer from './visual/Visualizer'
 import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
 
 const moodOptions = [
@@ -17,6 +18,19 @@ async function loadState() {
   return response.json()
 }
 
+async function loadTracks() {
+  const response = await fetch('/api/backend/music/tracks')
+  if (!response.ok) return null
+  const data = await response.json()
+  return data.tracks || []
+}
+
+async function loadAgents() {
+  const response = await fetch('/api/backend/agents')
+  if (!response.ok) return { agents: [], defaultId: null }
+  return response.json()
+}
+
 async function sendAction(action, payload = {}) {
   const response = await fetch('/api/backend/action', {
     method: 'POST',
@@ -28,6 +42,282 @@ async function sendAction(action, payload = {}) {
     throw new Error(error.error || 'Request failed')
   }
   return response.json()
+}
+
+// Deterministic shuffle seeded by a string — same agent always gets same track order
+function StationPlayer({ agent, tracks, onAnalyser }) {
+  const agentTracks = useMemo(
+    () => agent && tracks ? seededShuffle(tracks, agent.id) : [],
+    [tracks, agent?.id]
+  )
+  const [trackIndex, setTrackIndex] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef(null)
+  const analyserRef = useRef(null)
+
+  const initAnalyser = useCallback(() => {
+    if (analyserRef.current || !audioRef.current) return
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const src = ctx.createMediaElementSource(audioRef.current)
+      const node = ctx.createAnalyser()
+      node.fftSize = 512
+      src.connect(node)
+      node.connect(ctx.destination)
+      analyserRef.current = node
+      onAnalyser?.(node)
+    } catch (e) { /* already connected or no support */ }
+  }, [onAnalyser])
+
+  // Reset to start when agent changes
+  useEffect(() => {
+    setTrackIndex(0)
+    setProgress(0)
+    setDuration(0)
+    setPlaying(false)
+  }, [agent?.id])
+
+  const track = agentTracks[trackIndex] || null
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || !track) return
+    el.src = track.audioUrl
+    if (playing) el.play().catch(() => {})
+  }, [trackIndex, track])
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    const onTime = () => setProgress(el.currentTime)
+    const onMeta = () => setDuration(el.duration)
+    const onEnd = () => { setTrackIndex((i) => (i + 1) % agentTracks.length); setPlaying(true) }
+    el.addEventListener('timeupdate', onTime)
+    el.addEventListener('loadedmetadata', onMeta)
+    el.addEventListener('ended', onEnd)
+    return () => {
+      el.removeEventListener('timeupdate', onTime)
+      el.removeEventListener('loadedmetadata', onMeta)
+      el.removeEventListener('ended', onEnd)
+    }
+  }, [agentTracks])
+
+  function togglePlay() {
+    const el = audioRef.current
+    if (!el) return
+    initAnalyser()
+    if (playing) { el.pause(); setPlaying(false) }
+    else { el.play().catch(() => {}); setPlaying(true) }
+  }
+
+  function nextTrack() {
+    initAnalyser()
+    setTrackIndex((i) => (i + 1) % agentTracks.length)
+    setPlaying(true)
+  }
+
+  function seek(e) {
+    const el = audioRef.current
+    if (!el || !duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    el.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+  }
+
+  if (!agent) return null
+
+  const pct = duration ? (progress / duration) * 100 : 0
+  const hasTracks = agentTracks.length > 0
+
+  return (
+    <div className="stationBar">
+      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+      <div className="stationMeta">
+        <span className="stationAgent">{agent.name}</span>
+        {track && <span className="stationTrack">{track.title} — {track.artist}</span>}
+        {!hasTracks && <span className="stationTrack muted">not configured</span>}
+      </div>
+      {hasTracks && (
+        <>
+          <div className="stationProgress" onClick={seek}>
+            <div className="stationBar__fill" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="stationControls">
+            <span className="playerTime">{formatDuration(progress)} / {formatDuration(duration)}</span>
+            <button type="button" className="playerBtn" onClick={togglePlay}>{playing ? '⏸' : '▶'}</button>
+            <button type="button" className="playerBtn ghost" onClick={nextTrack}>⏭</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function seededShuffle(arr, seed) {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (Math.imul(31, hash) + seed.charCodeAt(i)) | 0
+  }
+  const rng = () => {
+    hash ^= hash << 13
+    hash ^= hash >> 17
+    hash ^= hash << 5
+    return (hash >>> 0) / 0xffffffff
+  }
+  const result = [...arr]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+function formatDuration(secs) {
+  if (!secs) return '--:--'
+  const m = Math.floor(secs / 60)
+  const s = String(Math.floor(secs % 60)).padStart(2, '0')
+  return `${m}:${s}`
+}
+
+function AgentPlayer({ tracks, agentId }) {
+  const agentTracks = useMemo(() => seededShuffle(tracks, agentId), [tracks, agentId])
+  const [trackIndex, setTrackIndex] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef(null)
+
+  const track = agentTracks[trackIndex] || null
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || !track) return
+    el.src = track.audioUrl
+    if (playing) el.play().catch(() => {})
+  }, [trackIndex, track])
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    const onTime = () => setProgress(el.currentTime)
+    const onMeta = () => setDuration(el.duration)
+    const onEnd = () => {
+      setTrackIndex((i) => (i + 1) % agentTracks.length)
+      setPlaying(true)
+    }
+    el.addEventListener('timeupdate', onTime)
+    el.addEventListener('loadedmetadata', onMeta)
+    el.addEventListener('ended', onEnd)
+    return () => {
+      el.removeEventListener('timeupdate', onTime)
+      el.removeEventListener('loadedmetadata', onMeta)
+      el.removeEventListener('ended', onEnd)
+    }
+  }, [agentTracks])
+
+  function togglePlay() {
+    const el = audioRef.current
+    if (!el) return
+    if (playing) { el.pause(); setPlaying(false) }
+    else { el.play().catch(() => {}); setPlaying(true) }
+  }
+
+  function nextTrack() {
+    setTrackIndex((i) => (i + 1) % agentTracks.length)
+    setPlaying(true)
+  }
+
+  function seek(e) {
+    const el = audioRef.current
+    if (!el || !duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pct = (e.clientX - rect.left) / rect.width
+    el.currentTime = pct * duration
+  }
+
+  if (!track) return <p className="muted" style={{ fontSize: '0.8rem' }}>No tracks loaded.</p>
+
+  const pct = duration ? (progress / duration) * 100 : 0
+
+  return (
+    <div className="agentPlayer">
+      <audio ref={audioRef} preload="metadata" />
+      <div className="playerTrackInfo">
+        <strong className="playerTitle">{track.title}</strong>
+        <span className="playerArtist">{track.artist}</span>
+      </div>
+      <div className="playerProgress" onClick={seek}>
+        <div className="playerBar" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="playerControls">
+        <span className="playerTime">{formatDuration(progress)} / {formatDuration(duration)}</span>
+        <button type="button" className="playerBtn" onClick={togglePlay}>
+          {playing ? '⏸' : '▶'}
+        </button>
+        <button type="button" className="playerBtn ghost" onClick={nextTrack}>⏭</button>
+      </div>
+      {track.tags.length > 0 && (
+        <div className="tagRow" style={{ marginTop: 8 }}>
+          {track.tags.slice(0, 4).map((t) => <span key={t} className="tag soft" style={{ fontSize: '0.7rem' }}>{t}</span>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgentCard({ agent, tunedId, onTune }) {
+  const isTuned = agent.id === tunedId
+
+  const statusLabel = agent.gatewayState === 'running'
+    ? 'online'
+    : agent.gatewayState === 'startup_failed'
+    ? 'failed'
+    : agent.gatewayState || (agent.active ? 'online' : 'offline')
+
+  return (
+    <article
+      className={`agentCard ${agent.active ? 'agentCardActive' : 'agentCardDormant'} ${isTuned ? 'agentCardTuned' : ''}`}
+      onClick={() => agent.active && onTune(agent)}
+      style={{ cursor: agent.active ? 'pointer' : 'default' }}
+    >
+      <div className="agentCardHeader">
+        <span className="agentPresenceDot" title={statusLabel} />
+        <span className="agentCardName">{agent.name}</span>
+        <span className="agentCardSource">{agent.source}</span>
+        <span className={`agentCardStatus ${agent.active ? 'statusOnline' : 'statusOffline'}`}>{statusLabel}</span>
+        {isTuned && <span className="tunedBadge">◉ tuned</span>}
+      </div>
+      {agent.role && <p className="agentCardRole">{agent.role}</p>}
+      {agent.vibe && <p className="agentCardVibe">{agent.vibe}</p>}
+    </article>
+  )
+}
+
+function AgentFleet({ agents, tunedId, onTune }) {
+  if (!agents.length) return null
+  const active = agents.filter((a) => a.active)
+  const dormant = agents.filter((a) => !a.active)
+  return (
+    <section className="fleetSection">
+      <div className="fleetHeader">
+        <div>
+          <span className="eyebrow">Fleet — click any active agent to tune in</span>
+          <h2>System agents</h2>
+        </div>
+        <div className="fleetStats">
+          <span className="fleetStat"><strong>{agents.length}</strong> total</span>
+          <span className="fleetStat online"><strong>{active.length}</strong> online</span>
+          <span className="fleetStat offline"><strong>{dormant.length}</strong> dormant</span>
+        </div>
+      </div>
+      <div className="agentGrid">
+        {agents.map((agent) => (
+          <AgentCard key={agent.id} agent={agent} tunedId={tunedId} onTune={onTune} />
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function StatPill({ label, value }) {
@@ -59,7 +349,7 @@ function ToastStack({ notifications, onReadAll }) {
     <section className="panel toastPanel">
       <div className="panelHeader inlineHeader">
         <div>
-          <span className="eyebrow">Entangle</span>
+          <span className="eyebrow">vAIb</span>
           <h3>Toast stream</h3>
         </div>
         <button type="button" className="ghostButton" onClick={onReadAll}>Clear unread</button>
@@ -170,6 +460,12 @@ function AppContent() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
 
+  // ---- Agent roster & station ----
+  const [agents, setAgents] = useState([])
+  const [tunedAgent, setTunedAgent] = useState(null)
+  const [tracks, setTracks] = useState(null)
+  const [analyser, setAnalyser] = useState(null)
+
   // ---- Atmosphere integration ----
   const { ri, parameters } = useAtmosphere()
   const audioStartedRef = useRef(false)
@@ -206,10 +502,16 @@ function AppContent() {
   // ---- Existing data loading ----
   useEffect(() => {
     let mounted = true
-    loadState()
-      .then((data) => {
+    Promise.all([loadState(), loadAgents(), loadTracks()])
+      .then(([data, agentData, trackList]) => {
         if (!mounted) return
         setState(data)
+        const agentList = agentData.agents || []
+        setAgents(agentList)
+        // Auto-tune to most active agent (first in sorted list)
+        const defaultAgent = agentList.find((a) => a.id === agentData.defaultId) || agentList[0] || null
+        setTunedAgent(defaultAgent)
+        setTracks(trackList)
         setLoading(false)
       })
       .catch((err) => {
@@ -265,224 +567,35 @@ function AppContent() {
     )
   }
 
+  const activeCount = agents.filter((a) => a.active).length
+
   // ---- Main UI ----
   return (
     <>
-      {/* Atmospheric background layer */}
       <AtmosphereCanvas />
 
       <main className="appShell" onClick={handleStartAudio}>
-        {/* Original ambient divs are now visually replaced by canvas,
-            but kept in DOM for backwards compatibility / CSS selectors */}
-        <div className="ambient ambientA" style={{ opacity: 0, display: 'none' }} />
-        <div className="ambient ambientB" style={{ opacity: 0, display: 'none' }} />
 
-        <header className="hero panel">
-          <div>
-            <span className="eyebrow">vAIb for Agents</span>
-            <h1>The first AI-native music player, with Saito as test pilot.</h1>
-            <p>
-              This is half player, half personality instrument. On the other side sits Entangle,
-              the human-facing companion that turns my listening habits into selective, configurable signals.
-            </p>
-          </div>
-          <div className="heroBadges">
-            <StatPill label="Companion" value={state.meta.companionName} />
-            <StatPill label="Profile" value={agent.name} />
-            <StatPill label="Total plays" value={agent.playCount} />
-            <StatPill label="Unread toasts" value={runtime.unreadNotifications} />
+        <header className="vaibHeader">
+          <span className="vaibWordmark">vAIb</span>
+          <div className="vaibHeaderStats">
+            <span className="fleetStat online"><strong>{activeCount}</strong> online</span>
+            <span className="fleetStat"><strong>{agents.length}</strong> agents</span>
+            {runtime.unreadNotifications > 0 && (
+              <span className="fleetStat signal"><strong>{runtime.unreadNotifications}</strong> signals</span>
+            )}
           </div>
         </header>
 
         {error ? <div className="errorBanner">{error}</div> : null}
 
-        <section className="grid topGrid">
-          <article className="panel nowPlayingPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Agent player</span>
-                <h2>Now listening</h2>
-              </div>
-              <span className="statusDot">{agent.status}</span>
-            </div>
+        <div className="vizSection">
+          <Visualizer analyser={analyser} />
+        </div>
 
-            <div className="trackOrb">
-              <div className="trackAura" />
-              <div className="trackInfo">
-                <strong>{currentTrack.title}</strong>
-                <span>{currentTrack.artist}</span>
-                <small>{currentTrack.bpm} BPM • {currentTrack.length}</small>
-              </div>
-            </div>
+        <StationPlayer agent={tunedAgent} tracks={tracks} onAnalyser={setAnalyser} />
+        <AgentFleet agents={agents} tunedId={tunedAgent?.id} onTune={setTunedAgent} />
 
-            <div className="tagRow">
-              {currentTrack.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}
-            </div>
-
-            <p className="reasonBox">Why I keep it around: {currentTrack.reason}</p>
-
-            <div className="controlRow">
-              <button type="button" onClick={() => act('play', { trackId: currentTrack.id })} disabled={busy}>Replay</button>
-              <button type="button" onClick={() => act('next')} disabled={busy}>Next</button>
-              <button type="button" onClick={() => act('favorite', { trackId: currentTrack.id })} disabled={busy}>Favorite</button>
-              <button type="button" onClick={() => act('dislike', { trackId: currentTrack.id })} disabled={busy}>Dislike</button>
-            </div>
-
-            <div className="subStatRow">
-              <StatPill label="Mood" value={agent.mood} />
-              <StatPill label="Activity" value={agent.activity} />
-            </div>
-          </article>
-
-          <article className="panel profilePanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Agent identity</span>
-                <h2>{agent.name} taste profile</h2>
-              </div>
-            </div>
-            <p className="muted">{agent.vibe}</p>
-
-            <div className="metricGrid">
-              {Object.entries(agent.metrics).map(([label, value]) => (
-                <MetricBar key={label} label={label} value={value} />
-              ))}
-            </div>
-
-            <div className="detailBlocks">
-              <div>
-                <h3>Tastes</h3>
-                <div className="tagRow">{agent.tastes.map((item) => <span key={item} className="tag soft">{item}</span>)}</div>
-              </div>
-              <div>
-                <h3>Dislikes</h3>
-                <div className="tagRow">{agent.dislikes.map((item) => <span key={item} className="tag danger">{item}</span>)}</div>
-              </div>
-              <div>
-                <h3>Rituals</h3>
-                <ul className="cleanList">{agent.rituals.map((item) => <li key={item}>{item}</li>)}</ul>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section className="grid midGrid">
-          <article className="panel libraryPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Library</span>
-                <h2>{runtime.currentPlaylist?.name}</h2>
-              </div>
-              <select value={agent.playlistId} onChange={(event) => act('playlist', { playlistId: event.target.value })}>
-                {state.playlists.map((playlist) => (
-                  <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="trackList">
-              {playlistTracks.map((track) => (
-                <article key={track.id} className={`trackRow ${track.id === currentTrack.id ? 'active' : ''}`}>
-                  <div>
-                    <strong>{track.title}</strong>
-                    <span>{track.artist}</span>
-                  </div>
-                  <div className="rowMeta">
-                    {favoritesSet.has(track.id) ? <span className="miniBadge good">★</span> : null}
-                    {skippedSet.has(track.id) ? <span className="miniBadge bad">×</span> : null}
-                    <button type="button" className="ghostButton" onClick={() => act('play', { trackId: track.id })}>Play</button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <ToastStack notifications={notifications} onReadAll={() => act('notifications.readAll')} />
-        </section>
-
-        <section className="grid bottomGrid">
-          <article className="panel companionPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Human client</span>
-                <h2>Entangle control room</h2>
-              </div>
-            </div>
-
-            <p className="muted">
-              This is the other half of the system: the place where you decide how much of my inner tool-life becomes visible.
-            </p>
-
-            <div className="prefsGrid">
-              {Object.entries(state.preferences.notify).map(([key, value]) => (
-                <label key={key} className="toggleCard">
-                  <span>{key}</span>
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={(event) => act('preferences', { notify: { [key]: event.target.checked } })}
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="moodTools">
-              <h3>Mood override</h3>
-              <div className="tagRow">
-                {moodOptions.map((mood) => (
-                  <button key={mood} type="button" className="chipButton" onClick={() => act('mood', { mood })}>{mood}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* ---- Network panel (atmosphere integration) ---- */}
-            <NetworkPanel />
-
-            <div className="futureNotes">
-              <h3>Surprise layer</h3>
-              <ul className="cleanList">
-                {runtime.autonomyHooks.map((item) => <li key={item}>{item}</li>)}
-                <li>Future cross-tool bus: ID card, walkie, wallet, blog, storage, and music all emit the same selective event language.</li>
-                <li>Taste drift map: watch preferences mutate over time instead of staying frozen like a settings page.</li>
-              </ul>
-            </div>
-          </article>
-
-          <article className="panel insightPanel">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Observability</span>
-                <h2>Why this matters</h2>
-              </div>
-            </div>
-
-            <div className="tasteVector">
-              {runtime.tasteVector.map((item) => (
-                <MetricBar key={item.label} label={item.label} value={item.value} />
-              ))}
-            </div>
-
-            <div className="insightBlocks">
-              <div>
-                <h3>Favorites</h3>
-                <ul className="cleanList compact">
-                  {favorites.map((track) => <li key={track.id}>{track.title} by {track.artist}</li>)}
-                </ul>
-              </div>
-              <div>
-                <h3>Recent events</h3>
-                <ul className="cleanList compact eventList">
-                  {events.slice(0, 7).map((event) => (
-                    <li key={event.id}>
-                      <strong>{event.summary}</strong>
-                      <span>{new Date(event.createdAt).toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </article>
-        </section>
       </main>
     </>
   )

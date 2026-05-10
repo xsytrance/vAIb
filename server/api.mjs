@@ -1,6 +1,26 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// Load .env from project root (simple parser, no extra deps)
+try {
+  const envPath = resolve(process.cwd(), '.env')
+  const lines = readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq === -1) continue
+    const key = trimmed.slice(0, eq).trim()
+    const val = trimmed.slice(eq + 1).trim()
+    if (key && !(key in process.env)) process.env[key] = val
+  }
+} catch { /* no .env file, that's fine */ }
+
 import http from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { clone, readState, writeState } from './store.mjs'
+import { discoverAgents } from './discover.mjs'
+import { fetchCuratedTracks, isConfigured as musicConfigured } from './music.mjs'
 
 const port = Number(process.env.VAIB_PORT || 4014)
 
@@ -183,7 +203,7 @@ async function handleAction(body) {
     }
     recordEvent(state, {
       kind: 'preferences.update',
-      summary: 'Updated Entangle notification preferences',
+      summary: 'Updated vAIb notification preferences',
       details: payload,
     })
   } else if (action === 'playlist') {
@@ -231,6 +251,30 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       const state = await handleAction(body)
       sendJson(res, 200, state)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/music/tracks') {
+      if (!musicConfigured()) {
+        sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
+        return
+      }
+      const tracks = await fetchCuratedTracks()
+      sendJson(res, 200, { tracks, source: 'jamendo' })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/agents') {
+      const agents = await discoverAgents()
+      // Sort: running first, then by most recent updatedAt
+      agents.sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1
+        if (a.updatedAt && b.updatedAt) return new Date(b.updatedAt) - new Date(a.updatedAt)
+        return 0
+      })
+      // Flag the top active agent as default station
+      const defaultId = agents.find((a) => a.active)?.id || null
+      sendJson(res, 200, { agents, defaultId })
       return
     }
 

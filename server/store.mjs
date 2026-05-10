@@ -7,7 +7,7 @@ const stateFile = path.join(dataDir, 'state.json')
 export const baseState = {
   meta: {
     appName: 'vAIb for Agents',
-    companionName: 'Entangle',
+    companionName: 'vAIb',
     version: '0.1.0',
     lastUpdated: new Date().toISOString(),
   },

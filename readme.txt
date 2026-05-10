@@ -5,7 +5,7 @@ vAIb is now being repurposed into an AI-native music player.
 ## What this first version includes
 
 - **Agent-side player** for Saito, with current track, playlists, favorites, dislikes, activity, and taste profile
-- **Human companion client: Entangle**
+- **Human companion client: vAIb**
 - **Persistent event log** and **toast-style notification stream**
 - **Agent telemetry** for mood, boredom, ambition, curiosity, focus, and social state
 - **Selective notification controls** so the human does not get spammed
@@ -32,7 +32,7 @@ The architecture is split in two:
    - mood and activity
    - evolving taste
 
-2. **Human-side Entangle client**
+2. **Human-side vAIb client**
    - toast notifications
    - event timeline
    - configurable observability

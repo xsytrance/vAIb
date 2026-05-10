@@ -4,156 +4,203 @@ import AtmosphereCanvas from './visual/AtmosphereCanvas'
 import Visualizer from './visual/Visualizer'
 import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
 
-const moodOptions = [
-  'focused lift',
-  'night-drive transcendence',
-  'reflective glide',
-  'breakbeat hunt',
-  'ambient recovery',
-]
-
-// In dev: empty string → Vite proxy handles /api/backend/*
-// In production/Android: VITE_API_BASE=http://100.110.224.126:4014
+// ============================================================
+// API
+// ============================================================
 const API = (typeof __API_BASE__ !== 'undefined' && __API_BASE__)
   ? __API_BASE__
   : '/api/backend'
 
 async function loadState() {
-  const response = await fetch(`${API}/state`)
-  if (!response.ok) throw new Error('Failed to load vAIb state')
-  return response.json()
+  const r = await fetch(`${API}/state`)
+  if (!r.ok) throw new Error('Failed to load state')
+  return r.json()
 }
-
+async function loadAgents() {
+  const r = await fetch(`${API}/agents`)
+  if (!r.ok) return { agents: [], defaultId: null }
+  return r.json()
+}
+async function loadTracks() {
+  const r = await fetch(`${API}/music/tracks`)
+  if (!r.ok) return []
+  const d = await r.json()
+  return d.tracks || []
+}
 async function sendAction(action, payload = {}) {
-  const response = await fetch(`${API}/action`, {
+  const r = await fetch(`${API}/action`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, payload }),
   })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }))
-    throw new Error(error.error || 'Request failed')
-  }
-  return response.json()
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Request failed')
+  return r.json()
+}
+async function checkHealth() {
+  try { const r = await fetch(`${API}/health`); return r.ok } catch { return false }
 }
 
-async function loadTracks() {
-  const response = await fetch(`${API}/music/tracks`)
-  if (!response.ok) return null
-  const data = await response.json()
-  return data.tracks || []
+// ============================================================
+// Utilities
+// ============================================================
+function formatDuration(secs) {
+  if (!secs) return '--:--'
+  return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`
 }
 
-async function loadAgents() {
-  const response = await fetch(`${API}/agents`)
-  if (!response.ok) return { agents: [], defaultId: null }
-  return response.json()
+function seededShuffle(arr, seed) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
+  const rng = () => { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h >>> 0) / 0xffffffff }
+  const r = [...arr]
+  for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1));[r[i], r[j]] = [r[j], r[i]] }
+  return r
 }
 
+// ============================================================
+// Tab bar icons (inline SVG)
+// ============================================================
+const Icons = {
+  cockpit: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  ),
+  stations: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2" />
+      <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+      <path d="M7.76 7.76a6 6 0 0 0 0 8.49" />
+      <path d="M20.07 4.93a10 10 0 0 1 0 14.14" />
+      <path d="M3.93 4.93a10 10 0 0 0 0 14.14" />
+    </svg>
+  ),
+  queue: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  ),
+  agents: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  ),
+  more: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
+    </svg>
+  ),
+}
 
-// Deterministic shuffle seeded by a string — same agent always gets same track order
-function StationPlayer({ agent, tracks, onAnalyser }) {
-  const agentTracks = useMemo(
-    () => agent && tracks ? seededShuffle(tracks, agent.id) : [],
-    [tracks, agent?.id]
-  )
-  const [trackIndex, setTrackIndex] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const audioRef = useRef(null)
-  const analyserRef = useRef(null)
-
-  const initAnalyser = useCallback(() => {
-    if (analyserRef.current || !audioRef.current) return
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
-      const src = ctx.createMediaElementSource(audioRef.current)
-      const node = ctx.createAnalyser()
-      node.fftSize = 512
-      src.connect(node)
-      node.connect(ctx.destination)
-      analyserRef.current = node
-      onAnalyser?.(node)
-    } catch (e) { /* already connected or no support */ }
-  }, [onAnalyser])
-
-  // Reset to start when agent changes
-  useEffect(() => {
-    setTrackIndex(0)
-    setProgress(0)
-    setDuration(0)
-    setPlaying(false)
-  }, [agent?.id])
-
-  const track = agentTracks[trackIndex] || null
-
-  useEffect(() => {
-    const el = audioRef.current
-    if (!el || !track) return
-    el.src = track.audioUrl
-    if (playing) el.play().catch(() => {})
-  }, [trackIndex, track])
-
-  useEffect(() => {
-    const el = audioRef.current
-    if (!el) return
-    const onTime = () => setProgress(el.currentTime)
-    const onMeta = () => setDuration(el.duration)
-    const onEnd = () => { setTrackIndex((i) => (i + 1) % agentTracks.length); setPlaying(true) }
-    el.addEventListener('timeupdate', onTime)
-    el.addEventListener('loadedmetadata', onMeta)
-    el.addEventListener('ended', onEnd)
-    return () => {
-      el.removeEventListener('timeupdate', onTime)
-      el.removeEventListener('loadedmetadata', onMeta)
-      el.removeEventListener('ended', onEnd)
-    }
-  }, [agentTracks])
-
-  function togglePlay() {
-    const el = audioRef.current
-    if (!el) return
-    initAnalyser()
-    if (playing) { el.pause(); setPlaying(false) }
-    else { el.play().catch(() => {}); setPlaying(true) }
-  }
-
-  function nextTrack() {
-    initAnalyser()
-    setTrackIndex((i) => (i + 1) % agentTracks.length)
-    setPlaying(true)
-  }
-
-  function seek(e) {
-    const el = audioRef.current
-    if (!el || !duration) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    el.currentTime = ((e.clientX - rect.left) / rect.width) * duration
-  }
-
-  if (!agent) return null
-
-  const pct = duration ? (progress / duration) * 100 : 0
-  const hasTracks = agentTracks.length > 0
-
+// ============================================================
+// Tab: Cockpit
+// ============================================================
+function CockpitTab({ tunedAgent, track, agentTracks, trackIndex, events, notifications, apiHealthy, analyser, onReadAll }) {
   return (
-    <div className="stationBar">
-      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
-      <div className="stationMeta">
-        <span className="stationAgent">{agent.name}</span>
-        {track && <span className="stationTrack">{track.title} — {track.artist}</span>}
-        {!hasTracks && <span className="stationTrack muted">not configured</span>}
+    <div className="tabScreen">
+      {/* Status card */}
+      <div className="card statusCard">
+        <div className="statusRow">
+          <span className="statusLabel">Backend API</span>
+          <span className={`statusPill ${apiHealthy ? 'online' : 'offline'}`}>
+            {apiHealthy ? 'online' : 'offline'}
+          </span>
+        </div>
+        <div className="statusRow">
+          <span className="statusLabel">Local State</span>
+          <span className="statusPill online">online</span>
+        </div>
       </div>
-      {hasTracks && (
-        <>
-          <div className="stationProgress" onClick={seek}>
-            <div className="stationBar__fill" style={{ width: `${pct}%` }} />
+
+      {/* Now Broadcasting */}
+      {tunedAgent && track && (
+        <div className="card nowBroadcastingCard">
+          <span className="broadcastEyebrow">Now Broadcasting</span>
+          <h2 className="broadcastTitle">{track.title}</h2>
+          <p className="broadcastArtist">{track.artist}</p>
+          <div className="broadcastMeta">
+            <span className="agentBadge">{tunedAgent.name}</span>
+            {track.tags[0] && <span className="broadcastTag">Vibe: {track.tags[0]}</span>}
+            <span className="broadcastDuration">{formatDuration(track.duration)}</span>
           </div>
-          <div className="stationControls">
-            <span className="playerTime">{formatDuration(progress)} / {formatDuration(duration)}</span>
-            <button type="button" className="playerBtn" onClick={togglePlay}>{playing ? '⏸' : '▶'}</button>
-            <button type="button" className="playerBtn ghost" onClick={nextTrack}>⏭</button>
+        </div>
+      )}
+
+      {/* Visualizer */}
+      <div className="card vizCard">
+        <span className="cardLabel">Visualizer</span>
+        <Visualizer analyser={analyser} compact />
+        <div className="visualizerModes" style={{ marginTop: 8 }}>
+          {/* mode switcher injected by Visualizer when not compact */}
+        </div>
+      </div>
+
+      {/* Recent signals */}
+      {notifications.filter(n => !n.read).length > 0 && (
+        <div className="card">
+          <div className="cardHeaderRow">
+            <span className="cardLabel">Signals</span>
+            <button type="button" className="textBtn" onClick={onReadAll}>Clear</button>
+          </div>
+          <ul className="signalList">
+            {notifications.filter(n => !n.read).slice(0, 5).map(n => (
+              <li key={n.id} className="signalItem">
+                <strong>{n.title}</strong>
+                <p>{n.message}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Recent events */}
+      <div className="card">
+        <span className="cardLabel">Recent events</span>
+        <ul className="eventFeed">
+          {events.slice(0, 8).map(e => (
+            <li key={e.id} className="eventItem">
+              <span className="eventSummary">{e.summary}</span>
+              <span className="eventTime">{new Date(e.createdAt).toLocaleTimeString()}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab: Stations
+// ============================================================
+function StationsTab({ agents, tunedId, onTune }) {
+  const active = agents.filter(a => a.active)
+  const dormant = agents.filter(a => !a.active)
+  return (
+    <div className="tabScreen">
+      <div className="tabSectionHeader">
+        <span className="cardLabel">Active — {active.length}</span>
+      </div>
+      <div className="stationGrid">
+        {active.map(agent => (
+          <StationCard key={agent.id} agent={agent} tuned={agent.id === tunedId} onTune={onTune} />
+        ))}
+      </div>
+      {dormant.length > 0 && (
+        <>
+          <div className="tabSectionHeader" style={{ marginTop: 20 }}>
+            <span className="cardLabel">Dormant — {dormant.length}</span>
+          </div>
+          <div className="stationGrid">
+            {dormant.map(agent => (
+              <StationCard key={agent.id} agent={agent} tuned={false} onTune={onTune} />
+            ))}
           </div>
         </>
       )}
@@ -161,58 +208,262 @@ function StationPlayer({ agent, tracks, onAnalyser }) {
   )
 }
 
-function seededShuffle(arr, seed) {
-  let hash = 0
-  for (let i = 0; i < seed.length; i++) {
-    hash = (Math.imul(31, hash) + seed.charCodeAt(i)) | 0
-  }
-  const rng = () => {
-    hash ^= hash << 13
-    hash ^= hash >> 17
-    hash ^= hash << 5
-    return (hash >>> 0) / 0xffffffff
-  }
-  const result = [...arr]
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]]
-  }
-  return result
+function StationCard({ agent, tuned, onTune }) {
+  const statusLabel = agent.gatewayState === 'running' ? 'LIVE'
+    : agent.gatewayState === 'startup_failed' ? 'failed'
+    : agent.gatewayState || 'offline'
+
+  return (
+    <div
+      className={`card stationCard ${agent.active ? 'stationActive' : 'stationDormant'} ${tuned ? 'stationTuned' : ''}`}
+      onClick={() => agent.active && onTune(agent)}
+    >
+      <div className="stationCardTop">
+        <span className="presenceDot" />
+        <span className="stationCardName">{agent.name}</span>
+        {agent.active && <span className="liveBadge">{statusLabel}</span>}
+        {tuned && <span className="tunedBadge">◉</span>}
+      </div>
+      {agent.role && <p className="stationCardRole">{agent.role}</p>}
+      <div className="stationCardMeta">
+        <span className="stationCardSource">{agent.source}</span>
+      </div>
+    </div>
+  )
 }
 
-function formatDuration(secs) {
-  if (!secs) return '--:--'
-  const m = Math.floor(secs / 60)
-  const s = String(Math.floor(secs % 60)).padStart(2, '0')
-  return `${m}:${s}`
+// ============================================================
+// Tab: Queue
+// ============================================================
+function QueueTab({ agentTracks, trackIndex, playing, onPlayTrack }) {
+  if (!agentTracks.length) return (
+    <div className="tabScreen emptyScreen">
+      <p>No tracks loaded. Check Jamendo API config.</p>
+    </div>
+  )
+  return (
+    <div className="tabScreen">
+      <span className="cardLabel" style={{ marginBottom: 12, display: 'block' }}>
+        {agentTracks.length} tracks
+      </span>
+      <ul className="queueList">
+        {agentTracks.map((t, i) => (
+          <li
+            key={t.id}
+            className={`queueItem ${i === trackIndex ? 'queueItemActive' : ''}`}
+            onClick={() => onPlayTrack(i)}
+          >
+            <div className="queueItemInfo">
+              <span className="queueItemTitle">{t.title}</span>
+              <span className="queueItemArtist">{t.artist}</span>
+            </div>
+            <div className="queueItemRight">
+              {i === trackIndex && playing && <span className="playingDot">▶</span>}
+              <span className="queueItemDuration">{formatDuration(t.duration)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
-function AgentPlayer({ tracks, agentId }) {
-  const agentTracks = useMemo(() => seededShuffle(tracks, agentId), [tracks, agentId])
+// ============================================================
+// Tab: Agents
+// ============================================================
+function AgentsTab({ agents }) {
+  return (
+    <div className="tabScreen">
+      <ul className="agentDetailList">
+        {agents.map(agent => (
+          <li key={agent.id} className={`card agentDetailCard ${agent.active ? '' : 'agentDormant'}`}>
+            <div className="agentDetailTop">
+              <span className="presenceDot" style={agent.active ? {} : { background: '#444', boxShadow: 'none' }} />
+              <span className="agentDetailName">{agent.name}</span>
+              <span className="agentDetailSource">{agent.source}</span>
+            </div>
+            {agent.role && <p className="agentDetailRole">{agent.role}</p>}
+            {agent.vibe && <p className="agentDetailVibe">{agent.vibe}</p>}
+            <span className={`statusPill ${agent.active ? 'online' : 'offline'}`} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+              {agent.gatewayState || 'offline'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab: More
+// ============================================================
+function MoreTab({ state, act, networkPanel }) {
+  if (!state) return null
+  return (
+    <div className="tabScreen">
+      <div className="card">
+        <span className="cardLabel">Signal preferences</span>
+        <p className="cardMuted">Choose which agent signals reach you.</p>
+        <div className="prefsList">
+          {Object.entries(state.preferences.notify).map(([key, val]) => (
+            <label key={key} className="prefItem">
+              <span>{key}</span>
+              <input type="checkbox" checked={val}
+                onChange={e => act('preferences', { notify: { [key]: e.target.checked } })} />
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 12 }}>
+        {networkPanel}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Mini Player (docked above tab bar)
+// ============================================================
+function MiniPlayer({ tunedAgent, track, playing, progress, duration, onToggle, onNext, onSeek }) {
+  if (!tunedAgent) return null
+  const pct = duration ? (progress / duration) * 100 : 0
+
+  return (
+    <div className="miniPlayer">
+      <div className="miniPlayerProgress" onClick={onSeek}>
+        <div className="miniPlayerBar" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="miniPlayerInner">
+        <div className="miniPlayerInfo">
+          <span className="miniPlayerAgent">{tunedAgent.name}</span>
+          {track && <span className="miniPlayerTrack">{track.title}</span>}
+        </div>
+        <div className="miniPlayerControls">
+          <span className="miniPlayerTime">{formatDuration(progress)}</span>
+          <button type="button" className="miniBtn" onClick={onToggle}>{playing ? '⏸' : '▶'}</button>
+          <button type="button" className="miniBtn ghost" onClick={onNext}>⏭</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab Bar
+// ============================================================
+const TABS = [
+  { id: 'cockpit',  label: 'Cockpit',  icon: 'cockpit' },
+  { id: 'stations', label: 'Stations', icon: 'stations' },
+  { id: 'queue',    label: 'Queue',    icon: 'queue' },
+  { id: 'agents',   label: 'Agents',   icon: 'agents' },
+  { id: 'more',     label: 'More',     icon: 'more' },
+]
+
+function TabBar({ active, onChange }) {
+  return (
+    <nav className="tabBar">
+      {TABS.map(t => (
+        <button key={t.id} type="button"
+          className={`tabBtn ${active === t.id ? 'tabBtnActive' : ''}`}
+          onClick={() => onChange(t.id)}>
+          <span className="tabIcon">{Icons[t.icon]}</span>
+          <span className="tabLabel">{t.label}</span>
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+// ============================================================
+// Network Panel (from atmosphere system)
+// ============================================================
+function NetworkPanel() {
+  const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere()
+  const [relayUrl, setRelayUrl] = useState(() => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.hostname}:4014/signal`
+  })
+  const statusColor = connectionState === 'connected' ? '#8effcb' : connectionState === 'connecting' ? '#ffe57c' : '#ff9cba'
+
+  return (
+    <div>
+      <span className="cardLabel">Network</span>
+      <div className="networkRow" style={{ marginTop: 10 }}>
+        <input className="networkInput" value={relayUrl} disabled={connected}
+          onChange={e => setRelayUrl(e.target.value)} placeholder="ws://host:port/signal" />
+        {connected
+          ? <button type="button" className="ghostButton" onClick={disconnect}>Disconnect</button>
+          : <button type="button" onClick={() => connect(relayUrl)} disabled={connectionState === 'connecting'}>
+              {connectionState === 'connecting' ? '...' : 'Connect'}
+            </button>
+        }
+      </div>
+      <div className="networkStatus" style={{ marginTop: 8 }}>
+        <span style={{ color: statusColor, fontSize: '0.75rem' }}>● {connectionState}</span>
+        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginLeft: 10 }}>RI: {ri.toFixed(2)}</span>
+        {isLeader && <span style={{ fontSize: '0.68rem', color: '#ffe57c', marginLeft: 8 }}>LEADER</span>}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// AppContent
+// ============================================================
+function AppContent() {
+  // ---- Tab ----
+  const [tab, setTab] = useState('cockpit')
+
+  // ---- Data ----
+  const [state, setState] = useState(null)
+  const [agents, setAgents] = useState([])
+  const [tunedAgent, setTunedAgent] = useState(null)
+  const [tracks, setTracks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState('')
+  const [apiHealthy, setApiHealthy] = useState(false)
+
+  // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef(null)
+  const analyserRef = useRef(null)
+  const [analyser, setAnalyser] = useState(null)
 
-  const track = agentTracks[trackIndex] || null
+  // ---- Atmosphere ----
+  const { ri, parameters } = useAtmosphere()
+  const audioStartedRef = useRef(false)
+
+  // Computed per-agent track list
+  const agentTracks = useMemo(
+    () => tunedAgent && tracks.length ? seededShuffle(tracks, tunedAgent.id) : [],
+    [tracks, tunedAgent?.id]
+  )
+
+  // Reset player when agent changes
+  useEffect(() => {
+    setTrackIndex(0); setProgress(0); setDuration(0); setPlaying(false)
+  }, [tunedAgent?.id])
+
+  // Audio element wiring
+  const currentTrack = agentTracks[trackIndex] || null
 
   useEffect(() => {
     const el = audioRef.current
-    if (!el || !track) return
-    el.src = track.audioUrl
+    if (!el || !currentTrack) return
+    el.src = currentTrack.audioUrl
     if (playing) el.play().catch(() => {})
-  }, [trackIndex, track])
+  }, [trackIndex, currentTrack])
 
   useEffect(() => {
     const el = audioRef.current
     if (!el) return
     const onTime = () => setProgress(el.currentTime)
     const onMeta = () => setDuration(el.duration)
-    const onEnd = () => {
-      setTrackIndex((i) => (i + 1) % agentTracks.length)
-      setPlaying(true)
-    }
+    const onEnd = () => { setTrackIndex(i => (i + 1) % agentTracks.length); setPlaying(true) }
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('loadedmetadata', onMeta)
     el.addEventListener('ended', onEnd)
@@ -223,413 +474,171 @@ function AgentPlayer({ tracks, agentId }) {
     }
   }, [agentTracks])
 
+  // Analyser init (once, on first play)
+  const initAnalyser = useCallback(() => {
+    if (analyserRef.current || !audioRef.current) return
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const src = ctx.createMediaElementSource(audioRef.current)
+      const node = ctx.createAnalyser()
+      node.fftSize = 1024
+      src.connect(node); node.connect(ctx.destination)
+      analyserRef.current = node; setAnalyser(node)
+    } catch (e) {}
+  }, [])
+
+  // Ambient atmosphere audio
+  const handleGesture = useCallback(() => {
+    if (!audioStartedRef.current) { startAudioAtmosphere(); audioStartedRef.current = true }
+  }, [])
+
+  useEffect(() => {
+    if (audioStartedRef.current) updateAudioAtmosphere(ri, parameters)
+  }, [ri, parameters])
+
+  useEffect(() => () => { if (audioStartedRef.current) stopAudioAtmosphere() }, [])
+
+  // Player controls
   function togglePlay() {
-    const el = audioRef.current
-    if (!el) return
+    const el = audioRef.current; if (!el) return
+    initAnalyser()
     if (playing) { el.pause(); setPlaying(false) }
     else { el.play().catch(() => {}); setPlaying(true) }
   }
-
   function nextTrack() {
-    setTrackIndex((i) => (i + 1) % agentTracks.length)
+    initAnalyser()
+    setTrackIndex(i => (i + 1) % agentTracks.length)
     setPlaying(true)
   }
-
-  function seek(e) {
-    const el = audioRef.current
-    if (!el || !duration) return
+  function seekFromEvent(e) {
+    const el = audioRef.current; if (!el || !duration) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const pct = (e.clientX - rect.left) / rect.width
-    el.currentTime = pct * duration
+    el.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+  }
+  function playTrack(i) {
+    initAnalyser(); setTrackIndex(i); setPlaying(true)
   }
 
-  if (!track) return <p className="muted" style={{ fontSize: '0.8rem' }}>No tracks loaded.</p>
+  // Actions
+  async function act(action, payload = {}) {
+    try { setBusy(action); const next = await sendAction(action, payload); setState(next) }
+    catch (err) { setError(err.message) }
+    finally { setBusy('') }
+  }
 
-  const pct = duration ? (progress / duration) * 100 : 0
-
-  return (
-    <div className="agentPlayer">
-      <audio ref={audioRef} preload="metadata" />
-      <div className="playerTrackInfo">
-        <strong className="playerTitle">{track.title}</strong>
-        <span className="playerArtist">{track.artist}</span>
-      </div>
-      <div className="playerProgress" onClick={seek}>
-        <div className="playerBar" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="playerControls">
-        <span className="playerTime">{formatDuration(progress)} / {formatDuration(duration)}</span>
-        <button type="button" className="playerBtn" onClick={togglePlay}>
-          {playing ? '⏸' : '▶'}
-        </button>
-        <button type="button" className="playerBtn ghost" onClick={nextTrack}>⏭</button>
-      </div>
-      {track.tags.length > 0 && (
-        <div className="tagRow" style={{ marginTop: 8 }}>
-          {track.tags.slice(0, 4).map((t) => <span key={t} className="tag soft" style={{ fontSize: '0.7rem' }}>{t}</span>)}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AgentCard({ agent, tunedId, onTune }) {
-  const isTuned = agent.id === tunedId
-
-  const statusLabel = agent.gatewayState === 'running'
-    ? 'online'
-    : agent.gatewayState === 'startup_failed'
-    ? 'failed'
-    : agent.gatewayState || (agent.active ? 'online' : 'offline')
-
-  return (
-    <article
-      className={`agentCard ${agent.active ? 'agentCardActive' : 'agentCardDormant'} ${isTuned ? 'agentCardTuned' : ''}`}
-      onClick={() => agent.active && onTune(agent)}
-      style={{ cursor: agent.active ? 'pointer' : 'default' }}
-    >
-      <div className="agentCardHeader">
-        <span className="agentPresenceDot" title={statusLabel} />
-        <span className="agentCardName">{agent.name}</span>
-        <span className="agentCardSource">{agent.source}</span>
-        <span className={`agentCardStatus ${agent.active ? 'statusOnline' : 'statusOffline'}`}>{statusLabel}</span>
-        {isTuned && <span className="tunedBadge">◉ tuned</span>}
-      </div>
-      {agent.role && <p className="agentCardRole">{agent.role}</p>}
-      {agent.vibe && <p className="agentCardVibe">{agent.vibe}</p>}
-    </article>
-  )
-}
-
-function AgentFleet({ agents, tunedId, onTune }) {
-  if (!agents.length) return null
-  const active = agents.filter((a) => a.active)
-  const dormant = agents.filter((a) => !a.active)
-  return (
-    <section className="fleetSection">
-      <div className="fleetHeader">
-        <div>
-          <span className="eyebrow">Fleet — click any active agent to tune in</span>
-          <h2>System agents</h2>
-        </div>
-        <div className="fleetStats">
-          <span className="fleetStat"><strong>{agents.length}</strong> total</span>
-          <span className="fleetStat online"><strong>{active.length}</strong> online</span>
-          <span className="fleetStat offline"><strong>{dormant.length}</strong> dormant</span>
-        </div>
-      </div>
-      <div className="agentGrid">
-        {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} tunedId={tunedId} onTune={onTune} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function StatPill({ label, value }) {
-  return (
-    <div className="statPill">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function MetricBar({ label, value }) {
-  return (
-    <div className="metricBar">
-      <div className="metricBarTop">
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-      <div className="metricTrack">
-        <span style={{ width: `${value}%` }} />
-      </div>
-    </div>
-  )
-}
-
-function ToastStack({ notifications, onReadAll }) {
-  const unread = notifications.filter((item) => !item.read)
-  return (
-    <section className="panel toastPanel">
-      <div className="panelHeader inlineHeader">
-        <div>
-          <span className="eyebrow">vAIb</span>
-          <h3>Toast stream</h3>
-        </div>
-        <button type="button" className="ghostButton" onClick={onReadAll}>Clear unread</button>
-      </div>
-      <div className="toastList">
-        {unread.length ? unread.slice(0, 6).map((item) => (
-          <article key={item.id} className={`toastCard ${item.level}`}>
-            <strong>{item.title}</strong>
-            <p>{item.message}</p>
-            <small>{new Date(item.createdAt).toLocaleString()}</small>
-          </article>
-        )) : <p className="emptyState">No unread toasts. Quiet, for now.</p>}
-      </div>
-    </section>
-  )
-}
-
-/**
- * NetworkPanel — minimal connection UI embedded in the settings area.
- * Shows relay URL input, connect/disconnect, node roster, and RI indicator.
- */
-/**
- * Build the default relay WebSocket URL from the current page host.
- * The relay runs on the same host as the frontend (port 4014).
- * This works for localhost, LAN IPs, and Tailscale hostnames.
- */
-function getDefaultRelayUrl() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname;
-  return `${protocol}//${host}:4014/signal`;
-}
-
-function NetworkPanel() {
-  const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere();
-  const [relayUrl, setRelayUrl] = useState(getDefaultRelayUrl);
-  const defaultUrl = getDefaultRelayUrl();
-
-  const handleConnect = () => connect(relayUrl);
-
-  const statusColor =
-    connectionState === 'connected' ? '#8effcb' :
-    connectionState === 'connecting' ? '#ffe57c' :
-    '#ff9cba';
-
-  return (
-    <div className="networkPanel">
-      <h3>Network</h3>
-
-      <div className="networkRow">
-        <input
-          type="text"
-          className="networkInput"
-          value={relayUrl}
-          onChange={(e) => setRelayUrl(e.target.value)}
-          placeholder="ws://host:port/signal"
-          disabled={connected}
-        />
-        {connected ? (
-          <button type="button" className="ghostButton" onClick={disconnect}>Disconnect</button>
-        ) : (
-          <button type="button" onClick={handleConnect} disabled={connectionState === 'connecting'}>
-            {connectionState === 'connecting' ? 'Connecting...' : 'Connect'}
-          </button>
-        )}
-      </div>
-
-      <div className="networkStatus">
-        <span className="statusDot" style={{ borderColor: statusColor, color: statusColor }}>
-          {connectionState}
-        </span>
-        <span className="riIndicator">RI: {ri.toFixed(2)}</span>
-        {isLeader && <span className="leaderBadge">LEADER</span>}
-      </div>
-
-      {nodes.length > 0 && (
-        <div className="nodeRoster">
-          <div className="nodeRosterHeader">
-            <strong>Nodes ({nodes.length + 1})</strong>
-          </div>
-          <ul className="nodeList">
-            <li className="nodeItem nodeSelf">
-              <span className="nodeName">{myNode.name}</span>
-              <span className="nodeType">{myNode.type}</span>
-              <span className="nodeState">self</span>
-            </li>
-            {nodes.map((node) => (
-              <li key={node.id} className={`nodeItem ${node.id === leaderId ? 'nodeLeader' : ''}`}>
-                <span className="nodeName">{node.name}</span>
-                <span className="nodeType">{node.type}</span>
-                <span className="nodeState">{node.state}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// AppContent — inner component that uses atmosphere context
-// ============================================================
-
-function AppContent() {
-  // ---- Existing vAIb state ----
-  const [state, setState] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState('')
-
-  // ---- Agent roster & station ----
-  const [agents, setAgents] = useState([])
-  const [tunedAgent, setTunedAgent] = useState(null)
-  const [tracks, setTracks] = useState(null)
-  const [analyser, setAnalyser] = useState(null)
-
-  // ---- Atmosphere integration ----
-  const { ri, parameters } = useAtmosphere()
-  const audioStartedRef = useRef(false)
-
-  // Start audio on first user interaction
-  const handleStartAudio = useCallback(() => {
-    if (!audioStartedRef.current) {
-      startAudioAtmosphere()
-      audioStartedRef.current = true
-    }
-    // Also resume AudioContext if suspended
-    const ctx = window.AudioContext || window.webkitAudioContext
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume()
-    }
-  }, [])
-
-  // Update audio when RI changes
-  useEffect(() => {
-    if (audioStartedRef.current) {
-      updateAudioAtmosphere(ri, parameters)
-    }
-  }, [ri, parameters])
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioStartedRef.current) {
-        stopAudioAtmosphere()
-      }
-    }
-  }, [])
-
-  // ---- Existing data loading ----
+  // Initial data load
   useEffect(() => {
     let mounted = true
-    Promise.all([loadState(), loadAgents(), loadTracks()])
-      .then(([data, agentData, trackList]) => {
+    Promise.all([loadState(), loadAgents(), loadTracks(), checkHealth()])
+      .then(([stateData, agentData, trackList, healthy]) => {
         if (!mounted) return
-        setState(data)
+        setState(stateData)
         const agentList = agentData.agents || []
         setAgents(agentList)
-        // Auto-tune to most active agent (first in sorted list)
-        const defaultAgent = agentList.find((a) => a.id === agentData.defaultId) || agentList[0] || null
-        setTunedAgent(defaultAgent)
+        const def = agentList.find(a => a.id === agentData.defaultId) || agentList[0] || null
+        setTunedAgent(def)
         setTracks(trackList)
+        setApiHealthy(healthy)
         setLoading(false)
       })
-      .catch((err) => {
-        if (!mounted) return
-        setError(err.message)
-        setLoading(false)
-      })
-    return () => {
-      mounted = false
-    }
+      .catch(err => { if (mounted) { setError(err.message); setLoading(false) } })
+    return () => { mounted = false }
   }, [])
 
-  const runtime = state?.runtime
-  const agent = runtime?.agent
-  const currentTrack = runtime?.currentTrack
-  const playlistTracks = runtime?.playlistTracks || []
+  // Periodic health check
+  useEffect(() => {
+    const t = setInterval(async () => setApiHealthy(await checkHealth()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  // ---- Render ----
+  if (loading) return (
+    <>
+      <AtmosphereCanvas />
+      <div className="appShell"><div className="loadingCard">Booting vAIb…</div></div>
+    </>
+  )
+
   const events = state?.events || []
   const notifications = state?.notifications || []
-  const favorites = runtime?.favorites || []
+  const activeCount = agents.filter(a => a.active).length
 
-  const favoritesSet = useMemo(() => new Set(agent?.favorites || []), [agent])
-  const skippedSet = useMemo(() => new Set(agent?.skipped || []), [agent])
-
-  async function act(action, payload = {}) {
-    try {
-      setBusy(action)
-      setError('')
-      const next = await sendAction(action, payload)
-      setState(next)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy('')
-    }
-  }
-
-  // ---- Loading / error states ----
-  if (loading) {
-    return (
-      <>
-        <AtmosphereCanvas />
-        <main className="appShell"><div className="loadingCard">Booting vAIb for Agents…</div></main>
-      </>
-    )
-  }
-
-  if (!state || !agent || !currentTrack) {
-    return (
-      <>
-        <AtmosphereCanvas />
-        <main className="appShell"><div className="loadingCard">State unavailable.</div></main>
-      </>
-    )
-  }
-
-  const activeCount = agents.filter((a) => a.active).length
-
-  // ---- Main UI ----
   return (
     <>
       <AtmosphereCanvas />
+      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" style={{ display: 'none' }} />
 
-      <main className="appShell" onClick={handleStartAudio}>
+      <div className="appShell" onClick={handleGesture}>
 
+        {/* Header */}
         <header className="vaibHeader">
           <span className="vaibWordmark">vAIb</span>
-          <div className="vaibHeaderStats">
-            <span className="fleetStat online"><strong>{activeCount}</strong> online</span>
-            <span className="fleetStat"><strong>{agents.length}</strong> agents</span>
-            {runtime.unreadNotifications > 0 && (
-              <span className="fleetStat signal"><strong>{runtime.unreadNotifications}</strong> signals</span>
-            )}
+          <div className="vaibHeaderRight">
+            {error && <span className="headerError">⚠</span>}
+            <span className="headerStat">{activeCount} online</span>
           </div>
         </header>
 
-        {error ? <div className="errorBanner">{error}</div> : null}
-
-        <div className="vizSection">
-          <Visualizer analyser={analyser} />
+        {/* Tab content */}
+        <div className="tabContent">
+          {tab === 'cockpit' && (
+            <CockpitTab
+              tunedAgent={tunedAgent}
+              track={currentTrack}
+              agentTracks={agentTracks}
+              trackIndex={trackIndex}
+              events={events}
+              notifications={notifications}
+              apiHealthy={apiHealthy}
+              analyser={analyser}
+              onReadAll={() => act('notifications.readAll')}
+            />
+          )}
+          {tab === 'stations' && (
+            <StationsTab agents={agents} tunedId={tunedAgent?.id} onTune={agent => { setTunedAgent(agent); setTab('cockpit') }} />
+          )}
+          {tab === 'queue' && (
+            <QueueTab agentTracks={agentTracks} trackIndex={trackIndex} playing={playing} onPlayTrack={playTrack} />
+          )}
+          {tab === 'agents' && <AgentsTab agents={agents} />}
+          {tab === 'more' && (
+            <MoreTab state={state} act={act} networkPanel={<NetworkPanel />} />
+          )}
         </div>
 
-        <StationPlayer agent={tunedAgent} tracks={tracks} onAnalyser={setAnalyser} />
-        <AgentFleet agents={agents} tunedId={tunedAgent?.id} onTune={setTunedAgent} />
+        {/* Mini player */}
+        <MiniPlayer
+          tunedAgent={tunedAgent}
+          track={currentTrack}
+          playing={playing}
+          progress={progress}
+          duration={duration}
+          onToggle={togglePlay}
+          onNext={nextTrack}
+          onSeek={seekFromEvent}
+        />
 
-      </main>
+        {/* Tab bar */}
+        <TabBar active={tab} onChange={setTab} />
+      </div>
     </>
   )
 }
 
 // ============================================================
-// App — exported root component wrapped with AtmosphereProvider
+// Root
 // ============================================================
-
-/**
- * Generate a unique node name for this tab so every instance is
- * individually recognizable in the roster. PRIME is reserved for
- * the first-opened tab; every additional tab gets a random short
- * name (e.g. node_4k1t) which is still human-readable in the
- * node list.
- */
-function getSessionNodeName() {
-  const stored = sessionStorage.getItem('vaib_node_name');
-  if (stored) return stored;
-  const name = 'node_' + Math.random().toString(36).slice(2, 6);
-  sessionStorage.setItem('vaib_node_name', name);
-  return name;
+function getNodeName() {
+  const s = sessionStorage.getItem('vaib_node_name')
+  if (s) return s
+  const n = 'node_' + Math.random().toString(36).slice(2, 6)
+  sessionStorage.setItem('vaib_node_name', n)
+  return n
 }
 
 export default function App() {
   return (
-    <AtmosphereProvider nodeOptions={{ name: getSessionNodeName(), type: 'desktop' }}>
+    <AtmosphereProvider nodeOptions={{ name: getNodeName(), type: 'desktop' }}>
       <AppContent />
     </AtmosphereProvider>
   )

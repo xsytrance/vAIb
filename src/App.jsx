@@ -40,23 +40,14 @@ async function checkHealth() {
   try { const r = await fetch(`${API}/health`); return r.ok } catch { return false }
 }
 async function uploadAvatar(agentId, file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64 = reader.result.split(',')[1]
-      const r = await fetch(`${API}/agent-avatar/${encodeURIComponent(agentId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: base64, type: file.type }),
-      })
-      r.ok ? resolve() : reject(new Error('Upload failed'))
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+  const buf = await file.arrayBuffer()
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+  const r = await fetch(`${API}/agent-avatar/${encodeURIComponent(agentId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: base64, type: file.type }),
   })
-}
-function avatarUrl(agentId) {
-  return `${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`
+  if (!r.ok) throw new Error('Upload failed')
 }
 
 // ============================================================
@@ -79,7 +70,7 @@ function seededShuffle(arr, seed) {
 // ============================================================
 // Agent Avatar
 // ============================================================
-function AgentAvatar({ agentId, name, size = 64, uploadable = false, onUploaded }) {
+function AgentAvatar({ agentId, name, size = 64, uploadable = false }) {
   const [src, setSrc] = useState(null)
   const [failed, setFailed] = useState(false)
   const inputRef = useRef(null)
@@ -96,10 +87,11 @@ function AgentAvatar({ agentId, name, size = 64, uploadable = false, onUploaded 
     if (!file) return
     try {
       await uploadAvatar(agentId, file)
-      const fresh = `${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`
-      setSrc(fresh); setFailed(false)
-      onUploaded?.()
-    } catch {}
+      setSrc(`${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`)
+      setFailed(false)
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
+    }
     e.target.value = ''
   }
 
@@ -166,7 +158,7 @@ const Icons = {
 // Tab: Cockpit
 // ============================================================
 function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, analyser, onReadAll }) {
-  const [avatarKey, setAvatarKey] = useState(0)
+  const unreadNotifications = notifications.filter(n => !n.read)
   return (
     <div className="tabScreen">
 
@@ -223,14 +215,14 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, anal
       </div>
 
       {/* Signals */}
-      {notifications.filter(n => !n.read).length > 0 && (
+      {unreadNotifications.length > 0 && (
         <div className="card">
           <div className="cardHeaderRow">
             <span className="cardLabel">Signals</span>
             <button type="button" className="textBtn" onClick={onReadAll}>Clear</button>
           </div>
           <ul className="signalList">
-            {notifications.filter(n => !n.read).slice(0, 4).map(n => (
+            {unreadNotifications.slice(0, 4).map(n => (
               <li key={n.id} className="signalItem">
                 <strong>{n.title}</strong>
                 <p>{n.message}</p>
@@ -352,21 +344,13 @@ function QueueTab({ agentTracks, trackIndex, playing, onPlayTrack }) {
 // Tab: Agents
 // ============================================================
 function AgentsTab({ agents }) {
-  const [refreshKey, setRefreshKey] = useState(0)
   return (
     <div className="tabScreen">
       <ul className="agentDetailList">
         {agents.map(agent => (
           <li key={agent.id} className={`card agentDetailCard ${agent.active ? '' : 'agentDormant'}`}>
             <div className="agentDetailTop">
-              <AgentAvatar
-                key={`${agent.id}-${refreshKey}`}
-                agentId={agent.id}
-                name={agent.name}
-                size={48}
-                uploadable
-                onUploaded={() => setRefreshKey(k => k + 1)}
-              />
+              <AgentAvatar agentId={agent.id} name={agent.name} size={48} uploadable />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span className="presenceDot" style={agent.active ? {} : { background: '#444', boxShadow: 'none' }} />
@@ -596,6 +580,12 @@ function AppContent() {
   useEffect(() => () => { if (audioStartedRef.current) stopAudioAtmosphere() }, [])
 
   // Player controls
+  function tuneAndPlay(agent) {
+    autoPlayRef.current = true
+    setTunedAgent(agent)
+    setTab('cockpit')
+  }
+
   function togglePlay() {
     const el = audioRef.current; if (!el) return
     initAnalyser()
@@ -644,9 +634,12 @@ function AppContent() {
     return () => { mounted = false }
   }, [])
 
-  // Periodic health check
+  // Periodic health check — only update state when value changes
   useEffect(() => {
-    const t = setInterval(async () => setApiHealthy(await checkHealth()), 30000)
+    const t = setInterval(async () => {
+      const healthy = await checkHealth()
+      setApiHealthy(prev => prev === healthy ? prev : healthy)
+    }, 30000)
     return () => clearInterval(t)
   }, [])
 
@@ -692,7 +685,7 @@ function AppContent() {
             />
           )}
           {tab === 'stations' && (
-            <StationsTab agents={agents} tunedId={tunedAgent?.id} onTune={agent => { setTunedAgent(agent); setTab('cockpit') }} />
+            <StationsTab agents={agents} tunedId={tunedAgent?.id} onTune={tuneAndPlay} />
           )}
           {tab === 'queue' && (
             <QueueTab agentTracks={agentTracks} trackIndex={trackIndex} playing={playing} onPlayTrack={playTrack} />

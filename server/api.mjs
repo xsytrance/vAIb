@@ -269,39 +269,35 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
-    // GET /agent-avatar/:id — serve stored avatar
-    const avatarGetMatch = req.method === 'GET' && url.pathname.match(/^\/agent-avatar\/([^/]+)$/)
-    if (avatarGetMatch) {
-      const agentId = decodeURIComponent(avatarGetMatch[1])
-      for (const ext of ['jpg', 'png', 'webp', 'gif']) {
-        const filePath = path.join(avatarDir, `${agentId}.${ext}`)
-        try {
-          const data = await fs.readFile(filePath)
-          const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
-          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' })
-          res.end(data)
-          return
-        } catch { /* try next ext */ }
-      }
-      sendJson(res, 404, { error: 'No avatar' })
-      return
-    }
+    const avatarRouteMatch = url.pathname.match(/^\/agent-avatar\/([^/]+)$/)
+    if (avatarRouteMatch) {
+      const safe = decodeURIComponent(avatarRouteMatch[1]).replace(/[^a-zA-Z0-9_-]/g, '_')
 
-    // POST /agent-avatar/:id — save base64-encoded avatar { data, type }
-    const avatarPostMatch = req.method === 'POST' && url.pathname.match(/^\/agent-avatar\/([^/]+)$/)
-    if (avatarPostMatch) {
-      const agentId = decodeURIComponent(avatarPostMatch[1])
-      const body = await readBody(req)
-      if (!body.data || !body.type) { sendJson(res, 400, { error: 'Missing data or type' }); return }
-      const ext = body.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-      const safe = agentId.replace(/[^a-zA-Z0-9_-]/g, '_')
-      const filePath = path.join(avatarDir, `${safe}.${ext}`)
-      // Remove any old avatars for this agent
-      for (const oldExt of ['jpg', 'png', 'webp', 'gif']) {
-        await fs.unlink(path.join(avatarDir, `${safe}.${oldExt}`)).catch(() => {})
+      if (req.method === 'GET') {
+        const files = await fs.readdir(avatarDir).catch(() => [])
+        const match = files.find(f => f.startsWith(safe + '.'))
+        if (!match) { sendJson(res, 404, { error: 'No avatar' }); return }
+        const ext = path.extname(match).slice(1)
+        const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+        const data = await fs.readFile(path.join(avatarDir, match))
+        res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' })
+        res.end(data)
+        return
       }
-      await fs.writeFile(filePath, Buffer.from(body.data, 'base64'))
-      sendJson(res, 200, { ok: true, agentId: safe, ext })
+
+      if (req.method === 'POST') {
+        const body = await readBody(req)
+        if (!body.data || !body.type) { sendJson(res, 400, { error: 'Missing data or type' }); return }
+        const ext = body.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+        // Remove any existing avatar for this agent then write new one
+        const existing = await fs.readdir(avatarDir).catch(() => [])
+        await Promise.all(existing.filter(f => f.startsWith(safe + '.')).map(f => fs.unlink(path.join(avatarDir, f)).catch(() => {})))
+        await fs.writeFile(path.join(avatarDir, `${safe}.${ext}`), Buffer.from(body.data, 'base64'))
+        sendJson(res, 200, { ok: true, agentId: safe, ext })
+        return
+      }
+
+      sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
 

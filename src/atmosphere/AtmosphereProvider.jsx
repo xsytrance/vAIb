@@ -48,11 +48,14 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
   const [fatigue, setFatigue] = useState({ speed: 1.0, sparkle: 1.0, warmth: 1.0, pulse: 1.0, saturation: 1.0 });
 
   // ---- Discovery state (from backend relay — sole authority) ----
+  // Enriched with evidence, confidence, state per agent
   const [discovery, setDiscovery] = useState({
     agents: [],
     dominant: null,
     scannedAt: null,
-    source: 'waiting', // 'waiting' | 'relay' | 'quiet'
+    confidence: 'waiting',   // 'waiting' | 'high' | 'medium' | 'scanned_roots_empty' | 'partial_scan'
+    tiersUsed: { t1: true, t2: true, t3: false },
+    source: 'waiting',       // 'waiting' | 'relay' | 'quiet'
   });
 
   // Ref for latest mood (avoids stale closure in engine callback)
@@ -278,12 +281,16 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
         }
 
         case MessageTypes.DISCOVERY_RESULT: {
-          console.log('[TEMP] DISCOVERY_RESULT — agents=' + (msg.agents ? msg.agents.length : 0) + ', dominant=' + (msg.dominant || 'none'));
+          const agentCount = msg.agents ? msg.agents.length : 0;
+          const conf = msg.confidence || 'unknown';
+          console.log('[TEMP] DISCOVERY_RESULT — agents=' + agentCount + ', dominant=' + (msg.dominant || 'none') + ', confidence=' + conf);
           if (msg.agents) {
             setDiscovery({
-              agents: msg.agents,
+              agents: msg.agents,           // includes evidence[] per agent
               dominant: msg.dominant || null,
               scannedAt: msg.scannedAt || Date.now(),
+              confidence: conf,
+              tiersUsed: msg.tiersUsed || { t1: true, t2: true, t3: false },
               source: 'relay',
             });
           }

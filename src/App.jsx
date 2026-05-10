@@ -105,30 +105,110 @@ function NetworkPanel() {
 }
 
 // ============================================================
+// EvidenceTrace — small expandable source evidence for an agent
+// ============================================================
+
+function EvidenceTrace({ agent }) {
+  const evidence = agent.evidence || [];
+  if (evidence.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, fontSize: '0.72rem', lineHeight: 1.5, color: 'rgba(255,255,255,0.5)' }}>
+      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>
+        Why {agent.name} is present
+      </div>
+      {evidence.map((ev, i) => (
+        <div key={i} style={{ marginBottom: 3 }}>
+          <span style={{ color: 'rgba(255,255,255,0.35)' }}>&bull;</span>{' '}
+          {ev.type}: {ev.path} <span style={{ color: 'rgba(255,255,255,0.25)' }}>(+{ev.scoreContribution?.toFixed(2) || '?'})</span>{' '}
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{ev.detail}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// AgentCardRow — clickable agent row with expandable evidence
+// ============================================================
+
+function AgentCardRow({ agent, isDominant, expanded, onToggle, opacity = 1 }) {
+  const stateColors = {
+    active: 'rgba(142,255,203,0.5)',
+    dormant: 'rgba(255,229,124,0.4)',
+    ghost: 'rgba(255,156,186,0.35)',
+    archival: 'rgba(255,255,255,0.15)',
+  };
+
+  return (
+    <article
+      className={`trackRow ${isDominant ? 'active' : ''}`}
+      style={{ opacity, cursor: 'pointer' }}
+      onClick={onToggle}
+      title={`${agent.name}: ${agent.personality}`}
+    >
+      <div>
+        <strong style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {agent.name}
+          <span
+            style={{
+              fontSize: '0.6rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              padding: '1px 5px',
+              borderRadius: 4,
+              border: `1px solid ${stateColors[agent.state] || 'rgba(255,255,255,0.1)'}`,
+              color: stateColors[agent.state] || 'rgba(255,255,255,0.3)',
+              fontWeight: 500,
+            }}
+          >
+            {agent.state}
+          </span>
+        </strong>
+        <span>{agent.personality || agent.type}</span>
+      </div>
+      <span className="badge">{Math.round((agent.presenceScore || 0) * 100)}%</span>
+
+      {expanded && <div style={{ gridColumn: '1 / -1' }}><EvidenceTrace agent={agent} /></div>}
+    </article>
+  );
+}
+
+// ============================================================
 // AppContent — inner component that uses atmosphere + agent context
 // ============================================================
 
 function AppContent() {
-  // ---- Agent integration ----
+  // ---- Agent integration (reframed actions) ----
   const {
     currentSignal,
-    station,       // real discovered station composition (active + ghost agents)
+    station,
     agentMood,
     isPlaying,
     toast,
     tuneIn,
     mute,
-    shiftSignal,
-    holdSignal,
-    markResonant,
-    markStatic,
+    nudgeDrift,
+    suggestLinger,
+    resonates,
+    tooMuchStatic,
   } = useAgent()
 
   // ---- Station composition from operational truth ----
-  const activeAgents  = station?.active || [];
-  const ghostAgents   = station?.ghost || [];
-  const dominantAgent = station?.dominant;
-  const stationMood   = station?.stationMood || 'neutral';
+  const activeAgents   = station?.active || [];
+  const dormantAgents  = station?.dormant || [];
+  const ghostAgents    = station?.ghost || [];
+  const archivalAgents = station?.archival || [];
+  const dominantAgent  = station?.dominant;
+  const stationMood    = station?.stationMood || 'neutral';
+  const confidence     = station?.confidence || 'waiting';
+
+  // ---- Expandable agent evidence state ----
+  const [expandedAgent, setExpandedAgent] = useState(null);
+
+  const toggleEvidence = (agentId) => {
+    setExpandedAgent(prev => prev === agentId ? null : agentId);
+  };
 
   // ---- Atmosphere integration ----
   const { ri, parameters } = useAtmosphere()
@@ -166,10 +246,10 @@ function AppContent() {
         <header className="hero panel">
           <div>
             <span className="eyebrow">vAIb for Agents</span>
-            <h1>The first AI-native signal station, with Saito as test pilot.</h1>
+            <h1>Signal station for AI agents</h1>
             <p>
-              This is half player, half personality instrument. Saito controls the signal.
-              You tune in, observe, and nudge.
+              Agents control the signal. You tune in, observe, and nudge.
+              The atmosphere responds to operational truth — real agent presence, not fiction.
             </p>
           </div>
           <div className="heroBadges">
@@ -212,14 +292,24 @@ function AppContent() {
               <p className="reasonBox">{currentSignal.whyAgentKeepsIt}</p>
             )}
 
-            <div className="controlRow">
-              <button type="button" onClick={isPlaying ? mute : tuneIn}>
+            {/* Primary: tune in / mute — small, not giant */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button type="button" onClick={isPlaying ? mute : tuneIn} style={{ flex: 1, padding: '8px 16px', fontSize: '0.8rem' }}>
                 {isPlaying ? 'Mute' : 'Tune In'}
               </button>
-              <button type="button" onClick={shiftSignal}>Shift Signal</button>
-              <button type="button" onClick={holdSignal}>Hold Signal</button>
-              <button type="button" onClick={markResonant}>Mark Resonant</button>
-              <button type="button" onClick={markStatic}>Mark Static</button>
+            </div>
+
+            {/* Influence section — subtle, secondary */}
+            <div style={{ marginTop: 16, padding: '12px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, opacity: 0.7 }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 8, color: 'rgba(255,255,255,0.4)' }}>
+                Influence — the agent may respond
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <button type="button" className="ghostButton" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={nudgeDrift}>Nudge drift</button>
+                <button type="button" className="ghostButton" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={suggestLinger}>Suggest linger</button>
+                <button type="button" className="ghostButton" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={resonates}>Resonates</button>
+                <button type="button" className="ghostButton" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={tooMuchStatic}>Too much static</button>
+              </div>
             </div>
 
             <div className="subStatRow">
@@ -242,11 +332,51 @@ function AppContent() {
                 <h2>{dominantAgent ? `${activeAgents.find(a => a.id === dominantAgent)?.name || dominantAgent} — active` : 'Station quiet'}</h2>
               </div>
             </div>
-            <p className="muted">
-              {dominantAgent
+
+            {/* Confidence-based station status */}
+            {confidence === 'scanned_roots_empty' && (
+              <p className="muted">Known roots scanned. No operational agents found.</p>
+            )}
+            {confidence === 'high' && (
+              <p className="muted">{station?.agentCount || 0} agent{(station?.agentCount || 0) !== 1 ? 's' : ''} discovered from operational evidence.</p>
+            )}
+            {confidence === 'medium' && (
+              <p className="muted">Partial scan — {station?.agentCount || 0} agent{(station?.agentCount || 0) !== 1 ? 's' : ''} found, confidence limited.</p>
+            )}
+            {confidence === 'partial_scan' && (
+              <p className="muted">Partial scan complete. Results may be incomplete.</p>
+            )}
+            {confidence === 'waiting' && (
+              <p className="muted">{dominantAgent
                 ? (activeAgents.find(a => a.id === dominantAgent)?.personality || 'Operational agent on this station.')
                 : 'No agents currently active on this station. The station is quiet.'}
-            </p>
+              </p>
+            )}
+
+            {/* Dominant agent source trace */}
+            {dominantAgent && (() => {
+              const d = activeAgents.find(a => a.id === dominantAgent);
+              if (!d?.evidence || d.evidence.length === 0) return null;
+              const top3 = d.evidence.slice(0, 3);
+              return (
+                <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, fontSize: '0.72rem', lineHeight: 1.5, color: 'rgba(255,255,255,0.45)' }}>
+                  <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', marginBottom: 6 }}>
+                    Source trace — {d.name}
+                  </div>
+                  {top3.map((ev, i) => (
+                    <div key={i} style={{ marginBottom: 2 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>&bull;</span>{' '}
+                      {ev.type}: {ev.path} <span style={{ color: 'rgba(255,255,255,0.2)' }}>(+{ev.scoreContribution?.toFixed(2) || '?'})</span>
+                    </div>
+                  ))}
+                  {d.evidence.length > 3 && (
+                    <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.2)', fontSize: '0.65rem' }}>
+                      +{d.evidence.length - 3} more sources
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {dominantAgent && (
               <div className="metricGrid">
@@ -282,12 +412,39 @@ function AppContent() {
                   <p className="muted">No active agents. The station is waiting.</p>
                 )}
               </div>
+
+              {dormantAgents.length > 0 && (
+                <div>
+                  <h3>Dormant</h3>
+                  <div className="tagRow">
+                    {dormantAgents.map(a => (
+                      <span key={a.id} style={{ opacity: 0.55 }} className="tag soft" title={`${a.name}: ${a.personality}`}>
+                        {a.name} ({Math.round((a.presenceScore || 0) * 100)}%)
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {ghostAgents.length > 0 && (
                 <div>
-                  <h3>Ghost / dormant</h3>
+                  <h3>Ghost</h3>
                   <div className="tagRow">
                     {ghostAgents.map(a => (
-                      <span key={a.id} style={{ opacity: 0.4 }} className="tag soft">
+                      <span key={a.id} style={{ opacity: 0.35 }} className="tag soft" title={`${a.name}: ${a.personality}`}>
+                        {a.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {archivalAgents.length > 0 && (
+                <div>
+                  <h3>Archival</h3>
+                  <div className="tagRow">
+                    {archivalAgents.map(a => (
+                      <span key={a.id} style={{ opacity: 0.25 }} className="tag soft" title={`${a.name}: ${a.personality}`}>
                         {a.name}
                       </span>
                     ))}
@@ -298,63 +455,108 @@ function AppContent() {
           </article>
         </section>
 
-        {/* ---- Agent Rotation ---- */}
+        {/* ---- Agent Rotation — all 4 state categories with expandable evidence ---- */}
         <section className="grid midGrid">
           <article className="panel libraryPanel">
             <div className="panelHeader">
               <div>
                 <span className="eyebrow">Agent Rotation</span>
-                <h2>{activeAgents.length > 0 ? `${activeAgents.length} active` : 'Station quiet'}</h2>
+                <h2>
+                  {confidence === 'scanned_roots_empty'
+                    ? 'Station quiet'
+                    : confidence === 'waiting'
+                    ? 'Scanning...'
+                    : `${activeAgents.length} active${dormantAgents.length > 0 ? ` / ${dormantAgents.length} dormant` : ''}${ghostAgents.length > 0 ? ` / ${ghostAgents.length} ghost` : ''}${archivalAgents.length > 0 ? ` / ${archivalAgents.length} archival` : ''}`}
+                </h2>
               </div>
             </div>
 
             <div className="trackList">
               {/* Active agents — present, operational */}
-              {activeAgents.length > 0 ? (
-                activeAgents.map((agent) => (
-                  <article
-                    key={agent.id}
-                    className={`trackRow ${agent.id === dominantAgent ? 'active' : ''}`}
-                    style={{ opacity: (agent.presenceScore || 0.5) * 1.2 }}
-                    title={`${agent.name}: ${agent.personality}`}
-                  >
-                    <div>
-                      <strong>{agent.name}</strong>
-                      <span>{agent.personality || agent.type}</span>
-                    </div>
-                    <span className="badge">{Math.round((agent.presenceScore || 0) * 100)}%</span>
-                  </article>
-                ))
-              ) : (
-                <div className="trackRow">
-                  <div>
-                    <strong>Station quiet</strong>
-                    <span>No operational agents discovered</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Ghost / dormant agents — low opacity, atmospheric residue */}
-              {ghostAgents.length > 0 && (
+              {activeAgents.length > 0 && (
                 <>
-                  {ghostAgents.map((agent) => (
-                    <article
+                  {activeAgents.map((agent) => (
+                    <AgentCardRow
                       key={agent.id}
-                      className="trackRow"
-                      style={{ opacity: 0.25 }}
-                      title={`${agent.name} — dormant echo`}
-                    >
-                      <div>
-                        <strong style={{ fontWeight: 400 }}>{agent.name}</strong>
-                        <span>echo — {Math.round((agent.presenceScore || 0) * 100)}% residue</span>
-                      </div>
-                    </article>
+                      agent={agent}
+                      isDominant={agent.id === dominantAgent}
+                      expanded={expandedAgent === agent.id}
+                      onToggle={() => toggleEvidence(agent.id)}
+                      opacity={1}
+                    />
                   ))}
                 </>
               )}
 
+              {/* Dormant agents — slightly reduced */}
+              {dormantAgents.length > 0 && (
+                <>
+                  {dormantAgents.map((agent) => (
+                    <AgentCardRow
+                      key={agent.id}
+                      agent={agent}
+                      isDominant={false}
+                      expanded={expandedAgent === agent.id}
+                      onToggle={() => toggleEvidence(agent.id)}
+                      opacity={0.7}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Ghost agents — low opacity */}
+              {ghostAgents.length > 0 && (
+                <>
+                  {ghostAgents.map((agent) => (
+                    <AgentCardRow
+                      key={agent.id}
+                      agent={agent}
+                      isDominant={false}
+                      expanded={expandedAgent === agent.id}
+                      onToggle={() => toggleEvidence(agent.id)}
+                      opacity={0.3}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Archival agents — very low opacity */}
+              {archivalAgents.length > 0 && (
+                <>
+                  {archivalAgents.map((agent) => (
+                    <AgentCardRow
+                      key={agent.id}
+                      agent={agent}
+                      isDominant={false}
+                      expanded={expandedAgent === agent.id}
+                      onToggle={() => toggleEvidence(agent.id)}
+                      opacity={0.15}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Empty state */}
+              {activeAgents.length === 0 && dormantAgents.length === 0 && ghostAgents.length === 0 && archivalAgents.length === 0 && confidence !== 'waiting' && (
+                <div className="trackRow">
+                  <div>
+                    <strong>Station quiet</strong>
+                    <span>{confidence === 'scanned_roots_empty' ? 'Known roots scanned. No operational agents found.' : 'No agents discovered'}</span>
+                  </div>
+                </div>
+              )}
+
+              {confidence === 'waiting' && activeAgents.length === 0 && dormantAgents.length === 0 && ghostAgents.length === 0 && archivalAgents.length === 0 && (
+                <div className="trackRow">
+                  <div>
+                    <strong>Scanning...</strong>
+                    <span>Waiting for discovery results from relay</span>
+                  </div>
+                </div>
+              )}
+
               {/* Fallback: static Saito rotation when no real agents */}
-              {activeAgents.length === 0 && ghostAgents.length === 0 && saitoRotation.map((sig) => (
+              {activeAgents.length === 0 && dormantAgents.length === 0 && ghostAgents.length === 0 && archivalAgents.length === 0 && saitoRotation.map((sig) => (
                 <article key={sig.id} className={`trackRow ${sig.id === currentSignal?.id ? 'active' : ''}`}>
                   <div>
                     <strong>{sig.title}</strong>
@@ -399,8 +601,21 @@ function AppContent() {
             <div className="futureNotes">
               <h3>Station notes</h3>
               <ul className="cleanList">
-                <li>Saito is the only active agent on this station.</li>
-                <li>Future agents: VG God, Hanzo, Legion &mdash; each with distinct signal character.</li>
+                {confidence === 'scanned_roots_empty' && (
+                  <li>Known roots scanned. No operational agents found.</li>
+                )}
+                {confidence === 'high' && (
+                  <li>{station?.agentCount || 0} agent{(station?.agentCount || 0) !== 1 ? 's' : ''} discovered from operational evidence.</li>
+                )}
+                {confidence === 'medium' && (
+                  <li>Partial scan — {station?.agentCount || 0} agent{(station?.agentCount || 0) !== 1 ? 's' : ''} found with limited confidence.</li>
+                )}
+                {confidence === 'partial_scan' && (
+                  <li>Partial scan complete. Results may be incomplete.</li>
+                )}
+                {confidence === 'waiting' && (
+                  <li>Waiting for discovery scan to complete...</li>
+                )}
                 <li>Taste drift: Saito&apos;s preferences evolve based on your resonance marks.</li>
                 <li>Distributed: open this URL on another device to share the atmosphere.</li>
               </ul>

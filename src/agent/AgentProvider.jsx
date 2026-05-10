@@ -38,13 +38,18 @@ export function AgentProvider({ children }) {
   const [toast, setToast] = useState(null);
 
   // ---- Station composition from backend discovery ----
+  // Uses agent.state from backend (active/dormant/ghost/archival)
+  // instead of deriving locally.
   const [station, setStation] = useState({
     dominant: null,
     active: [],
+    dormant: [],
     ghost: [],
+    archival: [],
     stationMood: 'neutral',
     agentCount: 0,
-    source: 'waiting', // 'waiting' | 'relay' | 'quiet'
+    confidence: 'waiting', // from backend discovery confidence
+    source: 'waiting',     // 'waiting' | 'relay' | 'quiet'
   });
 
   // ---- Toast helper ----
@@ -62,14 +67,18 @@ export function AgentProvider({ children }) {
     }
 
     if (discovery.source === 'relay') {
-      console.log('[TEMP][AgentProvider] DISCOVERY_RESULT received — agents=' + discovery.agents.length + ', dominant=' + (discovery.dominant || 'none'));
+      const conf = discovery.confidence || 'unknown';
+      console.log('[TEMP][AgentProvider] DISCOVERY_RESULT received — agents=' + discovery.agents.length + ', dominant=' + (discovery.dominant || 'none') + ', confidence=' + conf);
 
       const agents = discovery.agents || [];
-      const active = agents.filter(a => (a.presenceScore || 0) >= 0.3);
-      const ghost = agents.filter(a => {
-        const s = a.presenceScore || 0;
-        return s > 0 && s < 0.3;
-      });
+
+      // Use backend-provided state (active/dormant/ghost/archival)
+      // NOT derived locally. Backend is sole authority.
+      const active  = agents.filter(a => a.state === 'active');
+      const dormant = agents.filter(a => a.state === 'dormant');
+      const ghost   = agents.filter(a => a.state === 'ghost');
+      const archival = agents.filter(a => a.state === 'archival');
+
       const dominant = discovery.dominant || null;
 
       // Derive station mood from dominant agent type
@@ -80,28 +89,25 @@ export function AgentProvider({ children }) {
           : 'neutral'
         : 'neutral';
 
-      // Add ghost mode labels to agents for UI rendering
-      const activeWithGhost = active.map(a => ({
+      // Attach derived signal params for atmosphere engine
+      const withSignal = (list) => list.map(a => ({
         ...a,
-        ghostMode: getGhostMode(a.presenceScore || 0),
-        derivedSignal: deriveSignalFromAgent(a),
-      }));
-      const ghostWithMode = ghost.map(a => ({
-        ...a,
-        ghostMode: getGhostMode(a.presenceScore || 0),
         derivedSignal: deriveSignalFromAgent(a),
       }));
 
       setStation({
         dominant,
-        active: activeWithGhost,
-        ghost: ghostWithMode,
+        active: withSignal(active),
+        dormant: withSignal(dormant),
+        ghost: withSignal(ghost),
+        archival: withSignal(archival),
         stationMood,
         agentCount: agents.length,
+        confidence: conf,
         source: 'relay',
       });
 
-      console.log('[TEMP][AgentProvider] Station composed — active=' + active.length + ', ghost=' + ghost.length + ', mood=' + stationMood);
+      console.log('[TEMP][AgentProvider] Station composed — active=' + active.length + ', dormant=' + dormant.length + ', ghost=' + ghost.length + ', archival=' + archival.length + ', mood=' + stationMood + ', confidence=' + conf);
     }
   }, [discovery]);
 
@@ -282,12 +288,16 @@ export function AgentProvider({ children }) {
         agentMood,
         isPlaying,
         toast,
+        // ---- Core actions ----
         tuneIn,
         mute,
-        shiftSignal,
-        holdSignal,
-        markResonant,
-        markStatic,
+        // ---- Influence actions (reframed: influence, not command) ----
+        nudgeDrift:    shiftSignal,    // was: shiftSignal — suggest a direction change
+        suggestLinger: holdSignal,     // was: holdSignal — suggest staying
+        resonates:     markResonant,   // was: markResonant — positive feedback
+        tooMuchStatic: markStatic,     // was: markStatic — negative feedback
+        // ---- Aliases for backward compat (deprecated) ----
+        shiftSignal, holdSignal, markResonant, markStatic,
       }}
     >
       {children}

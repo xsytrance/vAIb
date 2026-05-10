@@ -603,8 +603,10 @@ function AppContent() {
     const el = audioRef.current
     if (!el || !currentTrack) return
     el.src = currentTrack.audioUrl
+    // Auto-play: use the audio element directly — no AudioContext here.
+    // AudioContext (analyser) requires a user gesture; audio element playback does not
+    // when setMediaPlaybackRequiresUserGesture(false) is set in Android.
     if (playing || autoPlayRef.current) {
-      initAnalyser()
       el.play().then(() => { setPlaying(true); autoPlayRef.current = false }).catch(() => {})
     }
   }, [trackIndex, currentTrack])
@@ -625,7 +627,7 @@ function AppContent() {
     }
   }, [agentTracks])
 
-  // Analyser init (once, on first play)
+  // Analyser init — call only after a user gesture; AudioContext needs it
   const initAnalyser = useCallback(() => {
     if (analyserRef.current || !audioRef.current) return
     try {
@@ -638,10 +640,11 @@ function AppContent() {
     } catch (e) {}
   }, [])
 
-  // Ambient atmosphere audio
+  // First gesture: start ambient audio + init analyser for visualizer
   const handleGesture = useCallback(() => {
     if (!audioStartedRef.current) { startAudioAtmosphere(); audioStartedRef.current = true }
-  }, [])
+    initAnalyser()
+  }, [initAnalyser])
 
   useEffect(() => {
     if (audioStartedRef.current) updateAudioAtmosphere(ri, parameters)
@@ -657,12 +660,11 @@ function AppContent() {
 
   function togglePlay() {
     const el = audioRef.current; if (!el) return
-    initAnalyser()
+    initAnalyser() // safe to call; no-ops if already initialized or gesture not yet given
     if (playing) { el.pause(); setPlaying(false) }
     else { el.play().catch(() => {}); setPlaying(true) }
   }
   function nextTrack() {
-    initAnalyser()
     setTrackIndex(i => (i + 1) % agentTracks.length)
     setPlaying(true)
   }

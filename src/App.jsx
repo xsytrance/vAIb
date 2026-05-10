@@ -39,6 +39,25 @@ async function sendAction(action, payload = {}) {
 async function checkHealth() {
   try { const r = await fetch(`${API}/health`); return r.ok } catch { return false }
 }
+async function uploadAvatar(agentId, file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1]
+      const r = await fetch(`${API}/agent-avatar/${encodeURIComponent(agentId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: base64, type: file.type }),
+      })
+      r.ok ? resolve() : reject(new Error('Upload failed'))
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+function avatarUrl(agentId) {
+  return `${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`
+}
 
 // ============================================================
 // Utilities
@@ -55,6 +74,50 @@ function seededShuffle(arr, seed) {
   const r = [...arr]
   for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1));[r[i], r[j]] = [r[j], r[i]] }
   return r
+}
+
+// ============================================================
+// Agent Avatar
+// ============================================================
+function AgentAvatar({ agentId, name, size = 64, uploadable = false, onUploaded }) {
+  const [src, setSrc] = useState(null)
+  const [failed, setFailed] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    setSrc(`${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`)
+    setFailed(false)
+  }, [agentId])
+
+  const initials = (name || '?').split(/[\s_-]/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await uploadAvatar(agentId, file)
+      const fresh = `${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`
+      setSrc(fresh); setFailed(false)
+      onUploaded?.()
+    } catch {}
+    e.target.value = ''
+  }
+
+  return (
+    <div className="avatarWrap" style={{ width: size, height: size }}
+      onClick={() => uploadable && inputRef.current?.click()}>
+      {!failed && src
+        ? <img src={src} alt={name} className="avatarImg" onError={() => setFailed(true)} />
+        : <div className="avatarInitials" style={{ fontSize: size * 0.32 }}>{initials}</div>
+      }
+      {uploadable && (
+        <>
+          <div className="avatarUploadOverlay">📷</div>
+          <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+        </>
+      )}
+    </div>
+  )
 }
 
 // ============================================================
@@ -102,34 +165,42 @@ const Icons = {
 // ============================================================
 // Tab: Cockpit
 // ============================================================
-function CockpitTab({ tunedAgent, track, agentTracks, trackIndex, events, notifications, apiHealthy, analyser, onReadAll }) {
+function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, analyser, onReadAll }) {
+  const [avatarKey, setAvatarKey] = useState(0)
   return (
     <div className="tabScreen">
-      {/* Status card */}
-      <div className="card statusCard">
-        <div className="statusRow">
-          <span className="statusLabel">Backend API</span>
-          <span className={`statusPill ${apiHealthy ? 'online' : 'offline'}`}>
-            {apiHealthy ? 'online' : 'offline'}
-          </span>
-        </div>
-        <div className="statusRow">
-          <span className="statusLabel">Local State</span>
-          <span className="statusPill online">online</span>
-        </div>
-      </div>
 
-      {/* Now Broadcasting */}
-      {tunedAgent && track && (
-        <div className="card nowBroadcastingCard">
-          <span className="broadcastEyebrow">Now Broadcasting</span>
-          <h2 className="broadcastTitle">{track.title}</h2>
-          <p className="broadcastArtist">{track.artist}</p>
-          <div className="broadcastMeta">
-            <span className="agentBadge">{tunedAgent.name}</span>
-            {track.tags[0] && <span className="broadcastTag">Vibe: {track.tags[0]}</span>}
-            <span className="broadcastDuration">{formatDuration(track.duration)}</span>
+      {/* Agent hero — front and center */}
+      {tunedAgent && (
+        <div className="card heroCard">
+          <div className="heroTop">
+            <AgentAvatar agentId={tunedAgent.id} name={tunedAgent.name} size={72} />
+            <div className="heroInfo">
+              <div className="heroNameRow">
+                <span className="presenceDot" />
+                <h1 className="heroName">{tunedAgent.name}</h1>
+                <span className={`statusPill ${tunedAgent.active ? 'online' : 'offline'}`}>
+                  {tunedAgent.active ? 'LIVE' : 'offline'}
+                </span>
+              </div>
+              {tunedAgent.role && <p className="heroRole">{tunedAgent.role}</p>}
+              <span className="heroSource">{tunedAgent.source}</span>
+            </div>
           </div>
+
+          {track && (
+            <div className="heroTrack">
+              <span className="broadcastEyebrow">Now Broadcasting</span>
+              <p className="heroTrackTitle">{track.title}</p>
+              <p className="heroTrackArtist">{track.artist}</p>
+              {track.tags[0] && (
+                <div className="broadcastMeta" style={{ marginTop: 6 }}>
+                  <span className="broadcastTag">Vibe: {track.tags[0]}</span>
+                  <span className="broadcastDuration">{formatDuration(track.duration)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -137,12 +208,21 @@ function CockpitTab({ tunedAgent, track, agentTracks, trackIndex, events, notifi
       <div className="card vizCard">
         <span className="cardLabel">Visualizer</span>
         <Visualizer analyser={analyser} compact />
-        <div className="visualizerModes" style={{ marginTop: 8 }}>
-          {/* mode switcher injected by Visualizer when not compact */}
+      </div>
+
+      {/* Status */}
+      <div className="card statusCard">
+        <div className="statusRow">
+          <span className="statusLabel">Backend API</span>
+          <span className={`statusPill ${apiHealthy ? 'online' : 'offline'}`}>{apiHealthy ? 'online' : 'offline'}</span>
+        </div>
+        <div className="statusRow">
+          <span className="statusLabel">Local State</span>
+          <span className="statusPill online">online</span>
         </div>
       </div>
 
-      {/* Recent signals */}
+      {/* Signals */}
       {notifications.filter(n => !n.read).length > 0 && (
         <div className="card">
           <div className="cardHeaderRow">
@@ -150,7 +230,7 @@ function CockpitTab({ tunedAgent, track, agentTracks, trackIndex, events, notifi
             <button type="button" className="textBtn" onClick={onReadAll}>Clear</button>
           </div>
           <ul className="signalList">
-            {notifications.filter(n => !n.read).slice(0, 5).map(n => (
+            {notifications.filter(n => !n.read).slice(0, 4).map(n => (
               <li key={n.id} className="signalItem">
                 <strong>{n.title}</strong>
                 <p>{n.message}</p>
@@ -160,11 +240,11 @@ function CockpitTab({ tunedAgent, track, agentTracks, trackIndex, events, notifi
         </div>
       )}
 
-      {/* Recent events */}
+      {/* Events */}
       <div className="card">
         <span className="cardLabel">Recent events</span>
         <ul className="eventFeed">
-          {events.slice(0, 8).map(e => (
+          {events.slice(0, 6).map(e => (
             <li key={e.id} className="eventItem">
               <span className="eventSummary">{e.summary}</span>
               <span className="eventTime">{new Date(e.createdAt).toLocaleTimeString()}</span>
@@ -272,19 +352,32 @@ function QueueTab({ agentTracks, trackIndex, playing, onPlayTrack }) {
 // Tab: Agents
 // ============================================================
 function AgentsTab({ agents }) {
+  const [refreshKey, setRefreshKey] = useState(0)
   return (
     <div className="tabScreen">
       <ul className="agentDetailList">
         {agents.map(agent => (
           <li key={agent.id} className={`card agentDetailCard ${agent.active ? '' : 'agentDormant'}`}>
             <div className="agentDetailTop">
-              <span className="presenceDot" style={agent.active ? {} : { background: '#444', boxShadow: 'none' }} />
-              <span className="agentDetailName">{agent.name}</span>
-              <span className="agentDetailSource">{agent.source}</span>
+              <AgentAvatar
+                key={`${agent.id}-${refreshKey}`}
+                agentId={agent.id}
+                name={agent.name}
+                size={48}
+                uploadable
+                onUploaded={() => setRefreshKey(k => k + 1)}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="presenceDot" style={agent.active ? {} : { background: '#444', boxShadow: 'none' }} />
+                  <span className="agentDetailName">{agent.name}</span>
+                  <span className="agentDetailSource">{agent.source}</span>
+                </div>
+                {agent.role && <p className="agentDetailRole">{agent.role}</p>}
+                {agent.vibe && <p className="agentDetailVibe">{agent.vibe}</p>}
+              </div>
             </div>
-            {agent.role && <p className="agentDetailRole">{agent.role}</p>}
-            {agent.vibe && <p className="agentDetailVibe">{agent.vibe}</p>}
-            <span className={`statusPill ${agent.active ? 'online' : 'offline'}`} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+            <span className={`statusPill ${agent.active ? 'online' : 'offline'}`} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
               {agent.gatewayState || 'offline'}
             </span>
           </li>
@@ -432,6 +525,7 @@ function AppContent() {
   const audioRef = useRef(null)
   const analyserRef = useRef(null)
   const [analyser, setAnalyser] = useState(null)
+  const autoPlayRef = useRef(false)
 
   // ---- Atmosphere ----
   const { ri, parameters } = useAtmosphere()
@@ -455,7 +549,10 @@ function AppContent() {
     const el = audioRef.current
     if (!el || !currentTrack) return
     el.src = currentTrack.audioUrl
-    if (playing) el.play().catch(() => {})
+    if (playing || autoPlayRef.current) {
+      initAnalyser()
+      el.play().then(() => { setPlaying(true); autoPlayRef.current = false }).catch(() => {})
+    }
   }, [trackIndex, currentTrack])
 
   useEffect(() => {
@@ -540,6 +637,8 @@ function AppContent() {
         setTracks(trackList)
         setApiHealthy(healthy)
         setLoading(false)
+        // Trigger auto-play — works on Android WebView (gesture not required)
+        if (trackList.length) autoPlayRef.current = true
       })
       .catch(err => { if (mounted) { setError(err.message); setLoading(false) } })
     return () => { mounted = false }
@@ -585,8 +684,6 @@ function AppContent() {
             <CockpitTab
               tunedAgent={tunedAgent}
               track={currentTrack}
-              agentTracks={agentTracks}
-              trackIndex={trackIndex}
               events={events}
               notifications={notifications}
               apiHealthy={apiHealthy}

@@ -18,6 +18,11 @@ try {
 
 import http from 'node:http'
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+const avatarDir = path.join(process.cwd(), 'data', 'avatars')
+await fs.mkdir(avatarDir, { recursive: true })
 import { clone, readState, writeState } from './store.mjs'
 import { discoverAgents } from './discover.mjs'
 import { fetchCuratedTracks, isConfigured as musicConfigured } from './music.mjs'
@@ -261,6 +266,42 @@ const server = http.createServer(async (req, res) => {
       }
       const tracks = await fetchCuratedTracks()
       sendJson(res, 200, { tracks, source: 'jamendo' })
+      return
+    }
+
+    // GET /agent-avatar/:id — serve stored avatar
+    const avatarGetMatch = req.method === 'GET' && url.pathname.match(/^\/agent-avatar\/([^/]+)$/)
+    if (avatarGetMatch) {
+      const agentId = decodeURIComponent(avatarGetMatch[1])
+      for (const ext of ['jpg', 'png', 'webp', 'gif']) {
+        const filePath = path.join(avatarDir, `${agentId}.${ext}`)
+        try {
+          const data = await fs.readFile(filePath)
+          const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' })
+          res.end(data)
+          return
+        } catch { /* try next ext */ }
+      }
+      sendJson(res, 404, { error: 'No avatar' })
+      return
+    }
+
+    // POST /agent-avatar/:id — save base64-encoded avatar { data, type }
+    const avatarPostMatch = req.method === 'POST' && url.pathname.match(/^\/agent-avatar\/([^/]+)$/)
+    if (avatarPostMatch) {
+      const agentId = decodeURIComponent(avatarPostMatch[1])
+      const body = await readBody(req)
+      if (!body.data || !body.type) { sendJson(res, 400, { error: 'Missing data or type' }); return }
+      const ext = body.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+      const safe = agentId.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filePath = path.join(avatarDir, `${safe}.${ext}`)
+      // Remove any old avatars for this agent
+      for (const oldExt of ['jpg', 'png', 'webp', 'gif']) {
+        await fs.unlink(path.join(avatarDir, `${safe}.${oldExt}`)).catch(() => {})
+      }
+      await fs.writeFile(filePath, Buffer.from(body.data, 'base64'))
+      sendJson(res, 200, { ok: true, agentId: safe, ext })
       return
     }
 

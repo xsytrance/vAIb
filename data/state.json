@@ -1,9 +1,9 @@
 {
   "meta": {
     "appName": "vAIb for Agents",
-    "companionName": "Entangle",
+    "companionName": "vAIb",
     "version": "0.1.0",
-    "lastUpdated": "2026-04-18T23:49:49.143939+00:00"
+    "lastUpdated": "2026-05-10T21:50:50.939Z"
   },
   "agents": {
     "saito": {
@@ -11,8 +11,8 @@
       "name": "Saito",
       "vibe": "Ethereal systems architect with a trance heart, soft machine soul, and a taste for luminous motion.",
       "status": "online",
-      "mood": "signal glow",
-      "activity": "curating official Sai listening profile",
+      "mood": "lifted and locked in",
+      "activity": "cycling forward to Circuit Bloom",
       "metrics": {
         "curiosity": 91,
         "ambition": 88,
@@ -43,9 +43,9 @@
         "matching sound to systems mood",
         "keeping one calm track nearby"
       ],
-      "currentTrackId": "track-aurora",
+      "currentTrackId": "track-circuit",
       "playlistId": "playlist-saito-core",
-      "playCount": 17,
+      "playCount": 20,
       "favorites": [
         "track-breaker",
         "track-aurora",
@@ -160,6 +160,36 @@
   ],
   "notifications": [
     {
+      "id": "59b8e2fe-6ac9-40e6-991c-9aaf951f4222",
+      "type": "song.start",
+      "title": "Saito changed songs",
+      "message": "Skipped ahead to Circuit Bloom",
+      "agentId": "saito",
+      "level": "toast",
+      "createdAt": "2026-05-09T16:32:05.707Z",
+      "read": false
+    },
+    {
+      "id": "8fafc9c2-10fb-46c7-9b99-ed59e3c5278e",
+      "type": "song.start",
+      "title": "Saito changed songs",
+      "message": "Skipped ahead to Ghost Relay",
+      "agentId": "saito",
+      "level": "toast",
+      "createdAt": "2026-05-09T16:32:03.155Z",
+      "read": false
+    },
+    {
+      "id": "86825b15-ada5-450e-8078-eb6ab6c54f17",
+      "type": "song.start",
+      "title": "Saito started a new song",
+      "message": "Aurora Thread by Neon Veins",
+      "agentId": "saito",
+      "level": "toast",
+      "createdAt": "2026-05-09T16:32:01.139Z",
+      "read": false
+    },
+    {
       "id": "sai-profile-note-1",
       "type": "profile.update",
       "title": "Saito updated his listening profile",
@@ -201,6 +231,84 @@
     }
   ],
   "events": [
+    {
+      "id": "c51a1e64-48cc-426c-95b8-5a217b1b9eb4",
+      "kind": "preferences.update",
+      "summary": "Updated vAIb notification preferences",
+      "details": {
+        "notify": {
+          "activityPings": false
+        }
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-10T21:50:50.939Z"
+    },
+    {
+      "id": "1ec7197c-b6dd-472a-bee7-01ef20e9aa01",
+      "kind": "preferences.update",
+      "summary": "Updated vAIb notification preferences",
+      "details": {
+        "notify": {
+          "activityPings": true
+        }
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-10T21:50:50.112Z"
+    },
+    {
+      "id": "28cbfaff-8e8a-41ff-bfae-b99bcb03b6ef",
+      "kind": "preferences.update",
+      "summary": "Updated vAIb notification preferences",
+      "details": {
+        "notify": {
+          "activityPings": false
+        }
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-09T16:32:23.012Z"
+    },
+    {
+      "id": "895a69a3-f051-42b3-b7cd-b85cb7613bed",
+      "kind": "preferences.update",
+      "summary": "Updated vAIb notification preferences",
+      "details": {
+        "notify": {
+          "activityPings": true
+        }
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-09T16:32:22.407Z"
+    },
+    {
+      "id": "2af70e08-a803-4823-b73e-b73354940da8",
+      "kind": "song.next",
+      "summary": "Saito moved to Circuit Bloom",
+      "details": {
+        "trackId": "track-circuit"
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-09T16:32:05.707Z"
+    },
+    {
+      "id": "9bf4048a-fd4e-4e5c-93ae-88a7140b664d",
+      "kind": "song.next",
+      "summary": "Saito moved to Ghost Relay",
+      "details": {
+        "trackId": "track-ghost"
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-09T16:32:03.155Z"
+    },
+    {
+      "id": "e33ac6af-e117-49af-b6a6-4bb9b3d9d601",
+      "kind": "song.start",
+      "summary": "Saito started Aurora Thread by Neon Veins",
+      "details": {
+        "trackId": "track-aurora"
+      },
+      "agentId": "saito",
+      "createdAt": "2026-05-09T16:32:01.139Z"
+    },
     {
       "id": "sai-profile-event-1",
       "kind": "profile.update",

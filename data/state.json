@@ -81,6 +81,12 @@
         "topSongs": [],
         "anthemTrackId": null,
         "focusLoopTrackId": null,
+        "resonanceScore": 0,
+        "traits": [],
+        "streaks": {
+          "fullListenDays": 0,
+          "explorationDays": 0
+        },
         "rotationMode": "balanced",
         "antiRepeatWindow": 3,
         "bio": "",
@@ -93,13 +99,7 @@
           "melodic techno"
         ],
         "originNode": "local",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        }
+        "notes": ""
       }
     }
   },

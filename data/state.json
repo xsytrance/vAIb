@@ -4,7 +4,7 @@
     "companionName": "vAIb",
     "version": "0.2.0",
     "schemaVersion": 2,
-    "lastUpdated": "2026-05-11T12:31:40.549Z",
+    "lastUpdated": "2026-05-11T12:31:31.538Z",
     "defaultAgentId": "saito"
   },
   "agents": {
@@ -99,69 +99,6 @@
         "streaks": {
           "fullListenDays": 0,
           "explorationDays": 0
-        }
-      }
-    },
-    "pluto:openclaw-main": {
-      "id": "pluto:openclaw-main",
-      "name": "Openclaw Main",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Openclaw Main",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/pluto%3Aopenclaw-main",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
         }
       }
     }
@@ -275,7 +212,7 @@
       "agentId": "saito",
       "title": "Saito started a track",
       "message": "Now playing Aurora Thread by Neon Veins.",
-      "createdAt": "2026-05-11T11:33:29.693Z",
+      "createdAt": "2026-05-11T12:31:31.539Z",
       "read": false
     }
   ],
@@ -284,7 +221,7 @@
       "id": "event-seed-1",
       "kind": "system.bootstrap",
       "agentId": "saito",
-      "createdAt": "2026-05-11T11:33:29.693Z",
+      "createdAt": "2026-05-11T12:31:31.539Z",
       "summary": "Initialized the first AI-native vAIb profile for Saito."
     }
   ],

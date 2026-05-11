@@ -3,6 +3,8 @@
    Mobile-first, single-screen, tab-based layout
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&display=swap');
+
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -571,12 +573,16 @@ input { font: inherit; }
 
 .profileHeroCard {
   border-color: rgba(0,255,220,0.2);
+  position: relative;
+  overflow: hidden;
 }
 
 .profileHeroTop {
   display: flex;
   gap: 12px;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .profileHeroInfo {
@@ -710,9 +716,9 @@ input { font: inherit; }
   border-radius: 999px;
   margin-bottom: 10px;
   background: linear-gradient(90deg,
-    hsla(var(--aura-hue), 90%, 62%, 0.2),
-    hsla(calc(var(--aura-hue) + 35), 90%, 62%, 0.75),
-    hsla(calc(var(--aura-hue) + 80), 90%, 62%, 0.2));
+    hsla(var(--aura-hue), 90%, 62%, calc(var(--aura-alpha, 0.24) * 0.6)),
+    hsla(calc(var(--aura-hue) + 35), 90%, 62%, calc(var(--aura-alpha, 0.24) + 0.28)),
+    hsla(calc(var(--aura-hue) + 80), 90%, 62%, calc(var(--aura-alpha, 0.24) * 0.6)));
 }
 
 .profileTextInput.profileTextarea {
@@ -793,6 +799,284 @@ input { font: inherit; }
   color: rgba(230,244,255,0.92);
   border-top: 1px solid rgba(255,255,255,0.08);
   padding-top: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.profileResonanceTone {
+  font-size: 0.66rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.16);
+  color: rgba(235,244,255,0.85);
+  background: rgba(255,255,255,0.06);
+}
+
+.profileResonanceTone.positive {
+  border-color: rgba(142,255,203,0.4);
+  background: rgba(142,255,203,0.12);
+  color: #8effcb;
+}
+
+.profileResonanceTone.negative {
+  border-color: rgba(255,100,130,0.4);
+  background: rgba(255,100,130,0.12);
+  color: #ff9cba;
+}
+
+.profileTraitCloud {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.profileTraitBadge {
+  font-size: 0.65rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid rgba(0,255,220,0.32);
+  background: rgba(0,255,220,0.1);
+  color: var(--cyan);
+}
+
+.profileTraitBadge.negative {
+  border-color: rgba(255,100,130,0.38);
+  background: rgba(255,100,130,0.1);
+  color: #ff9cba;
+}
+
+.profileUnlockGrid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.profileUnlockChip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.03);
+}
+
+.profileUnlockChip span {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.62);
+}
+
+.profileUnlockChip strong {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.86);
+}
+
+.profileUnlockChip.unlocked {
+  border-color: rgba(142,255,203,0.36);
+  background: rgba(142,255,203,0.1);
+}
+
+.profileUnlockChip.unlocked strong {
+  color: #8effcb;
+}
+
+.profileUnlockChip.locked {
+  opacity: 0.65;
+}
+
+.profileNudgeRow {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profileNudgeChip {
+  font-size: 0.64rem;
+  border-radius: 999px;
+  border: 1px solid rgba(96,176,255,0.34);
+  background: rgba(96,176,255,0.12);
+  color: #bde2ff;
+  padding: 3px 8px;
+}
+
+.tyler6ProfileTheme {
+  --t6-bg: #0a0908;
+  --t6-bg2: #1a0f0a;
+  --t6-border: #5f3a1a;
+  --t6-primary: #ff9a3b;
+  --t6-primary-soft: rgba(255,154,59,0.24);
+  --t6-crimson: #8e1e2f;
+  --t6-purple: #6553a8;
+  --t6-text: #f3e7db;
+  --t6-muted: rgba(243,231,219,0.72);
+}
+
+.tyler6ProfileTheme .profileAgentSelectorCard,
+.tyler6ProfileTheme .tyler6SectionCard,
+.tyler6ProfileTheme .profileHeroCard {
+  border-color: var(--t6-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255,154,59,0.06), transparent 28%),
+    linear-gradient(135deg, rgba(142,30,47,0.08), rgba(0,0,0,0.2)),
+    rgba(8,7,7,0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,154,59,0.05),
+    0 10px 26px rgba(0,0,0,0.45);
+}
+
+.tyler6ProfileTheme .profileNameInput,
+.tyler6ProfileTheme .profileTextInput {
+  border-color: rgba(255,154,59,0.35);
+  background: rgba(14,10,8,0.82);
+  color: var(--t6-text);
+}
+
+.tyler6ProfileTheme .agentBadge {
+  border-color: rgba(255,154,59,0.5);
+  background: rgba(255,154,59,0.14);
+  color: var(--t6-primary);
+}
+
+.tyler6ProfileTheme .profileLevel,
+.tyler6ProfileTheme .profileStatLabel,
+.tyler6ProfileTheme .cardLabel,
+.tyler6ProfileTheme .eventTime,
+.tyler6ProfileTheme .cardMuted {
+  color: var(--t6-muted);
+}
+
+.tyler6ProfileTheme .profileXpFill {
+  background: linear-gradient(90deg, #c95b1f, var(--t6-primary), #ffd07a);
+}
+
+.tyler6ProfileTheme .profileTraitBadge {
+  border-color: rgba(255,154,59,0.4);
+  background: rgba(255,154,59,0.12);
+  color: #ffd7a8;
+}
+
+.tyler6ProfileTheme .profileTraitBadge.negative {
+  border-color: rgba(142,30,47,0.5);
+  background: rgba(142,30,47,0.2);
+  color: #ffb1bd;
+}
+
+.tyler6ProfileTheme .profileGenrePill {
+  border-color: rgba(101,83,168,0.45);
+  background: rgba(101,83,168,0.2);
+  color: #cbc0ff;
+}
+
+.tyler6ProfileTheme .profileNudgeChip {
+  border-color: rgba(255,154,59,0.4);
+  background: rgba(255,154,59,0.12);
+  color: #ffd7a8;
+}
+
+.tyler6ProfileTheme .profileHeroInfo .profileNameInput,
+.tyler6ProfileTheme .profileHeroInfo .profileNameInput::placeholder {
+  font-family: var(--t6-heading-font, 'Cinzel', serif);
+  letter-spacing: 0.06em;
+}
+
+.tyler6ProfileTheme .cardLabel,
+.tyler6ProfileTheme .tyler6LoreTitle,
+.tyler6ProfileTheme .profileResonanceTone {
+  font-family: var(--t6-heading-font, 'Cinzel', serif);
+  letter-spacing: 0.08em;
+}
+
+.tyler6ProfileTheme .profileHeroCard {
+  background:
+    radial-gradient(circle at 76% 12%, rgba(255,154,59,0.2), transparent 38%),
+    linear-gradient(180deg, rgba(255,154,59,0.08), transparent 28%),
+    linear-gradient(135deg, rgba(142,30,47,0.08), rgba(0,0,0,0.2)),
+    rgba(8,7,7,0.92);
+}
+
+.tyler6ProfileTheme .profileSaveBtn {
+  border-color: rgba(255,154,59,0.55);
+  background: linear-gradient(90deg, rgba(142,30,47,0.36), rgba(255,154,59,0.36));
+}
+
+.tyler6Backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tyler6Sky,
+.tyler6Runes,
+.tyler6Embers {
+  position: absolute;
+  inset: 0;
+}
+
+.tyler6Sky {
+  background:
+    radial-gradient(circle at 78% 16%, rgba(255,154,59,0.28), transparent 34%),
+    radial-gradient(circle at 20% 22%, rgba(101,83,168,0.22), transparent 30%),
+    linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.45));
+}
+
+.tyler6Runes {
+  background-image:
+    linear-gradient(130deg, transparent 44%, rgba(255,154,59,0.12) 50%, transparent 56%),
+    linear-gradient(58deg, transparent 42%, rgba(101,83,168,0.1) 48%, transparent 54%);
+  opacity: 0.5;
+}
+
+.tyler6Embers {
+  background-image: radial-gradient(circle, rgba(255,154,59,0.4) 0 1px, transparent 1.5px);
+  background-size: 42px 42px;
+  opacity: 0.22;
+}
+
+.tyler6LoreStrip {
+  margin-top: 10px;
+  border: 1px solid rgba(255,154,59,0.34);
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(135deg, rgba(255,154,59,0.1), rgba(142,30,47,0.14));
+  position: relative;
+  z-index: 1;
+}
+
+.tyler6LoreTitle {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #ffd6a5;
+  margin-bottom: 4px;
+}
+
+.tyler6LoreStrip p {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: rgba(243,231,219,0.86);
+}
+
+.tyler6PaletteRow {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.tyler6PaletteRow span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
 }
 
 /* ============================================================

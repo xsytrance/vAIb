@@ -797,6 +797,41 @@ function AgentProfileTab({
   const topSongs = p.topSongs?.d7 || []
   const auraHue = Math.abs(Array.from(String(profile.agentId || 'agent')).reduce((acc, ch) => (acc * 33 + ch.charCodeAt(0)) | 0, 17)) % 360
   const persona = (p.personaTags || []).slice(0, 6)
+  const resonanceScore = Number(p.resonanceScore || 0)
+  const resonanceTone = resonanceScore >= 18
+    ? 'Ascendant'
+    : resonanceScore >= 6
+      ? 'Stable'
+      : resonanceScore <= -18
+        ? 'Volatile'
+        : resonanceScore <= -6
+          ? 'Fragile'
+          : 'Neutral'
+  const auraAlpha = Math.max(0.18, Math.min(0.7, 0.24 + (Math.abs(resonanceScore) / 100) * 0.5))
+  const unlocks = [
+    { key: 'frame-signal', label: 'Signal Frame', unlocked: (p.level || 1) >= 3 },
+    { key: 'title-resonant', label: 'Resonant Title', unlocked: (p.level || 1) >= 8 || resonanceScore >= 12 },
+    { key: 'era-architect', label: 'Era: Architect', unlocked: (p.level || 1) >= 14 || resonanceScore >= 22 },
+    { key: 'mythic-aura', label: 'Mythic Aura', unlocked: (p.level || 1) >= 20 || resonanceScore >= 32 },
+  ]
+
+  const tyler6AgentIds = new Set(['vps:tyler6'])
+  const isTyler6 = tyler6AgentIds.has(String(profile.agentId || '').toLowerCase())
+
+  const tyler6ThemeVars = isTyler6
+    ? {
+      '--t6-bg': '#0a0908',
+      '--t6-bg2': '#1a0f0a',
+      '--t6-border': '#5f3a1a',
+      '--t6-primary': '#ff9a3b',
+      '--t6-primary-soft': 'rgba(255,154,59,0.24)',
+      '--t6-crimson': '#8e1e2f',
+      '--t6-purple': '#6553a8',
+      '--t6-text': '#f3e7db',
+      '--t6-muted': 'rgba(243,231,219,0.72)',
+      '--t6-heading-font': "'Cinzel', 'UnifrakturCook', 'Cormorant Garamond', 'Times New Roman', serif",
+    }
+    : undefined
 
   const historyStats = useMemo(() => {
     const entries = Array.isArray(history) ? history : []
@@ -911,7 +946,7 @@ function AgentProfileTab({
   }, [historyStats, p.displayName, p.lifetimeTokensIn, p.lifetimeTokensOut, profile.agentId])
 
   return (
-    <div className="tabScreen">
+    <div className={`tabScreen ${isTyler6 ? 'tyler6ProfileTheme' : ''}`} style={tyler6ThemeVars}>
       <div className="card profileAgentSelectorCard">
         <div className="cardHeaderRow">
           <span className="cardLabel">Agent Profiles</span>
@@ -933,7 +968,14 @@ function AgentProfileTab({
       </div>
 
       <div className="card profileHeroCard" style={{ borderColor: `hsla(${auraHue}, 90%, 65%, 0.45)` }}>
-        <div className="profileAura" style={{ '--aura-hue': auraHue }} />
+        {isTyler6 ? (
+          <div className="tyler6Backdrop" aria-hidden>
+            <span className="tyler6Sky" />
+            <span className="tyler6Runes" />
+            <span className="tyler6Embers" />
+          </div>
+        ) : null}
+        <div className="profileAura" style={{ '--aura-hue': auraHue, '--aura-alpha': auraAlpha }} />
         <div className="profileHeroTop">
           <AgentAvatar agentId={profile.agentId} name={p.displayName || profile.agentId} size={72} uploadable />
           <div className="profileHeroInfo">
@@ -946,6 +988,9 @@ function AgentProfileTab({
             <div className="profileMetaRow">
               <span className="agentBadge">{p.rank || 'Signal Initiate'}</span>
               <span className="profileLevel">Level {p.level || 1}</span>
+              <span className={`profileResonanceTone ${resonanceScore < 0 ? 'negative' : resonanceScore > 0 ? 'positive' : ''}`}>
+                Resonance {resonanceTone}
+              </span>
             </div>
             <div className="profileXpBar">
               <div className="profileXpFill" style={{ width: `${progress}%` }} />
@@ -953,10 +998,41 @@ function AgentProfileTab({
             <span className="profileXpLabel">XP {p.xp || 0} / {nextXp}</span>
           </div>
         </div>
+        {!!(p.traits || []).length && (
+          <div className="profileTraitCloud">
+            {(p.traits || []).slice(0, 8).map((trait) => (
+              <span key={trait} className={`profileTraitBadge ${trait.includes('shadow') || trait.includes('frenzy') || trait.includes('chaos') ? 'negative' : ''}`}>
+                {String(trait).replace(/-/g, ' ')}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="profileUnlockGrid">
+          {unlocks.map((u) => (
+            <div key={u.key} className={`profileUnlockChip ${u.unlocked ? 'unlocked' : 'locked'}`}>
+              <span>{u.label}</span>
+              <strong>{u.unlocked ? 'Unlocked' : 'Locked'}</strong>
+            </div>
+          ))}
+        </div>
         <p className="profileIdentitySummary">{identitySummary}</p>
+        {isTyler6 ? (
+          <div className="tyler6LoreStrip">
+            <span className="tyler6LoreTitle">NexusOne Command Throne</span>
+            <p>Infernal war-room protocol active: molten-gold command glow, crimson conflict traces, and rare storm-violet highlights.</p>
+            <div className="tyler6PaletteRow" aria-label="Tyler6 palette">
+              <span style={{ background: '#0a0908' }} title="Abyss Black" />
+              <span style={{ background: '#1a0f0a' }} title="Burnt Umber" />
+              <span style={{ background: '#5f3a1a' }} title="Blackened Bronze" />
+              <span style={{ background: '#ff9a3b' }} title="Molten Gold" />
+              <span style={{ background: '#8e1e2f' }} title="Dark Crimson" />
+              <span style={{ background: '#6553a8' }} title="Storm Violet" />
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <span className="cardLabel">Identity Voice</span>
         <label className="profileFieldLabel">Bio</label>
         <textarea
@@ -997,7 +1073,7 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <span className="cardLabel">Progression</span>
         <div className="profileStatsGrid">
           <div><span className="profileStatLabel">Tokens In</span><strong>{(p.lifetimeTokensIn || 0).toLocaleString()}</strong></div>
@@ -1005,9 +1081,16 @@ function AgentProfileTab({
           <div><span className="profileStatLabel">Resonance</span><strong>{Number(p.resonanceScore || 0).toFixed(1)}</strong></div>
           <div><span className="profileStatLabel">Traits</span><strong>{(p.traits || []).length}</strong></div>
         </div>
+        {p.playlistNudge && (
+          <div className="profileNudgeRow">
+            <span className="profileNudgeChip">Favorites +{Math.round((Number(p.playlistNudge.favoritesBoost || 0)) * 100)}%</span>
+            <span className="profileNudgeChip">Explore {Math.round((Number(p.playlistNudge.explorationBoost || 0)) * 100)}%</span>
+            <span className="profileNudgeChip">Repeat -{Math.round((Number(p.playlistNudge.repeatPenalty || 0)) * 100)}%</span>
+          </div>
+        )}
       </div>
 
-      <div className="card profilePulseCard">
+      <div className={`card profilePulseCard ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <div className="cardHeaderRow">
           <span className="cardLabel">Live Pulse</span>
           <span className="agentBadge">{historyStats.behaviorLabel}</span>
@@ -1029,7 +1112,7 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <span className="cardLabel">Music DNA</span>
         <label className="profileFieldLabel">Genres (comma separated)</label>
         <input
@@ -1070,7 +1153,7 @@ function AgentProfileTab({
         />
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <div className="cardHeaderRow">
           <span className="cardLabel">Top Songs (7d)</span>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -1095,7 +1178,7 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <div className="cardHeaderRow">
           <span className="cardLabel">Collection ({collection.length})</span>
           <button type="button" className="textBtn" onClick={onAddTrack}>Add Track</button>
@@ -1117,7 +1200,7 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <div className="cardHeaderRow">
           <span className="cardLabel">Play History ({history.length})</span>
         </div>
@@ -1137,7 +1220,7 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className="card">
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <button type="button" className="profileSaveBtn" disabled={busy} onClick={onSave}>
           {busy ? 'Saving…' : 'Save Profile'}
         </button>

@@ -4,7 +4,7 @@
     "companionName": "vAIb",
     "version": "0.2.0",
     "schemaVersion": 2,
-    "lastUpdated": "2026-05-11T15:13:09.240Z",
+    "lastUpdated": "2026-05-11T22:58:02.607Z",
     "defaultAgentId": "saito"
   },
   "agents": {
@@ -152,6 +152,134 @@
         "personaTags": [],
         "originNode": "discovery",
         "notes": "",
+        "resonanceScore": -6.98,
+        "traits": [
+          "chaos-hopper"
+        ],
+        "streaks": {
+          "fullListenDays": 0,
+          "explorationDays": 0
+        },
+        "playlistNudge": {
+          "favoritesBoost": 0.35,
+          "explorationBoost": -0.15,
+          "repeatPenalty": 0.2
+        }
+      }
+    },
+    "pluto:openclaw-picasso": {
+      "id": "pluto:openclaw-picasso",
+      "name": "Openclaw Picasso",
+      "vibe": "",
+      "status": "online",
+      "mood": "warming up",
+      "activity": "identity sync",
+      "metrics": {
+        "curiosity": 50,
+        "ambition": 50,
+        "freedom": 50,
+        "boredom": 50,
+        "social": 50,
+        "focus": 50
+      },
+      "tastes": [],
+      "dislikes": [],
+      "rituals": [],
+      "currentTrackId": "track-aurora",
+      "playlistId": "playlist-saito-core",
+      "playCount": 0,
+      "favorites": [],
+      "skipped": [],
+      "identity": {
+        "displayName": "Openclaw Picasso",
+        "titleStyle": "default",
+        "avatar": {
+          "kind": "upload",
+          "uri": "/agent-avatar/pluto%3Aopenclaw-picasso",
+          "prompt": null,
+          "seed": null,
+          "updatedAt": null
+        },
+        "rank": "Signal Initiate",
+        "level": 1,
+        "xp": 0,
+        "lifetimeTokensIn": 0,
+        "lifetimeTokensOut": 0,
+        "genres": [],
+        "favoriteSongs": [],
+        "topSongs": [],
+        "anthemTrackId": null,
+        "focusLoopTrackId": null,
+        "rotationMode": "balanced",
+        "antiRepeatWindow": 3,
+        "bio": "",
+        "motto": "",
+        "personaTags": [],
+        "originNode": "discovery",
+        "notes": "",
+        "resonanceScore": 0,
+        "traits": [],
+        "streaks": {
+          "fullListenDays": 0,
+          "explorationDays": 0
+        },
+        "playlistNudge": {
+          "favoritesBoost": 0,
+          "explorationBoost": 0,
+          "repeatPenalty": 0
+        }
+      }
+    },
+    "ninja": {
+      "id": "ninja",
+      "name": "Ninja",
+      "vibe": "",
+      "status": "online",
+      "mood": "warming up",
+      "activity": "identity sync",
+      "metrics": {
+        "curiosity": 50,
+        "ambition": 50,
+        "freedom": 50,
+        "boredom": 50,
+        "social": 50,
+        "focus": 50
+      },
+      "tastes": [],
+      "dislikes": [],
+      "rituals": [],
+      "currentTrackId": "track-aurora",
+      "playlistId": "playlist-saito-core",
+      "playCount": 0,
+      "favorites": [],
+      "skipped": [],
+      "identity": {
+        "displayName": "Ninja",
+        "titleStyle": "default",
+        "avatar": {
+          "kind": "upload",
+          "uri": "/agent-avatar/ninja",
+          "prompt": null,
+          "seed": null,
+          "updatedAt": null
+        },
+        "rank": "Signal Initiate",
+        "level": 1,
+        "xp": 0,
+        "lifetimeTokensIn": 0,
+        "lifetimeTokensOut": 0,
+        "genres": [],
+        "favoriteSongs": [],
+        "topSongs": [],
+        "anthemTrackId": null,
+        "focusLoopTrackId": null,
+        "rotationMode": "balanced",
+        "antiRepeatWindow": 3,
+        "bio": "",
+        "motto": "",
+        "personaTags": [],
+        "originNode": "discovery",
+        "notes": "",
         "resonanceScore": 0,
         "traits": [],
         "streaks": {
@@ -196,322 +324,7 @@
           "uri": "/agent-avatar/vps%3Atyler6",
           "prompt": null,
           "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "supersort": {
-      "id": "supersort",
-      "name": "Supersort",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Supersort",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/supersort",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "vps:tyler": {
-      "id": "vps:tyler",
-      "name": "Tyler",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Tyler",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/vps%3Atyler",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "vps:snow": {
-      "id": "vps:snow",
-      "name": "Snow",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Snow",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/vps%3Asnow",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "davinci": {
-      "id": "davinci",
-      "name": "Davinci",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Davinci",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/davinci",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "snake": {
-      "id": "snake",
-      "name": "Snake",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Snake",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/snake",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
+          "updatedAt": "2026-05-11T22:58:02.606Z"
         },
         "rank": "Signal Initiate",
         "level": 1,
@@ -653,16 +466,55 @@
       "agentId": "saito",
       "title": "Saito started a track",
       "message": "Now playing Aurora Thread by Neon Veins.",
-      "createdAt": "2026-05-11T12:31:31.539Z",
+      "createdAt": "2026-05-11T17:17:56.357Z",
       "read": false
     }
   ],
   "events": [
     {
+      "id": "42bfb803-dc33-4f7a-9981-f962b12ec190",
+      "kind": "gallery.ingest",
+      "summary": "Tyler6 gallery ingested avatar 20260511-225802-107128-avatar.jpg",
+      "details": {
+        "source": "avatar-upload",
+        "relPath": "2026/05/20260511-225802-107128-avatar.jpg",
+        "mime": "image/jpeg",
+        "tags": [
+          "avatar",
+          "profile-photo",
+          "manual-upload"
+        ]
+      },
+      "agentId": "vps:tyler6",
+      "createdAt": "2026-05-11T22:58:02.607Z"
+    },
+    {
+      "id": "64b3aed7-71ae-4771-972c-163a9cf9141d",
+      "kind": "avatar.upload",
+      "summary": "Tyler6 updated avatar.",
+      "details": {
+        "ext": "jpg",
+        "source": "manual_upload",
+        "galleryRelPath": "2026/05/20260511-225802-107128-avatar.jpg"
+      },
+      "agentId": "vps:tyler6",
+      "createdAt": "2026-05-11T22:58:02.607Z"
+    },
+    {
+      "id": "495efacc-eb68-4c54-817c-ee2fa5e0c2fc",
+      "kind": "history.append",
+      "summary": "pluto:openclaw-main play history appended (1).",
+      "details": {
+        "appended": 1
+      },
+      "agentId": "pluto:openclaw-main",
+      "createdAt": "2026-05-11T17:46:03.364Z"
+    },
+    {
       "id": "event-seed-1",
       "kind": "system.bootstrap",
       "agentId": "saito",
-      "createdAt": "2026-05-11T12:31:31.539Z",
+      "createdAt": "2026-05-11T17:17:56.357Z",
       "summary": "Initialized the first AI-native vAIb profile for Saito."
     }
   ],
@@ -703,5 +555,17 @@
     }
   },
   "agentCollections": {},
-  "playHistory": {}
+  "playHistory": {
+    "pluto:openclaw-main": [
+      {
+        "trackId": "1393688",
+        "title": "Dark Room Full of Lonely People",
+        "artist": "Dutilleul",
+        "playedAt": "2026-05-11T17:46:03.120Z",
+        "reason": "manual_select",
+        "durationSec": 240,
+        "positionSec": 12
+      }
+    ]
+  }
 }

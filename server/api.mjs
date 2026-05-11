@@ -1548,7 +1548,7 @@ const server = http.createServer(async (req, res) => {
         const data = await fs.readFile(path.join(avatarDir, match))
         res.writeHead(200, {
           'Content-Type': mime,
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'public, max-age=30',
           'Access-Control-Allow-Origin': '*',
         })
         res.end(data)
@@ -1563,15 +1563,79 @@ const server = http.createServer(async (req, res) => {
         }
         const ext = body.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
 
+        await fs.mkdir(avatarDir, { recursive: true })
         const existing = await fs.readdir(avatarDir).catch(() => [])
         await Promise.all(
           existing
             .filter((f) => f.startsWith(`${safe}.`))
             .map((f) => fs.unlink(path.join(avatarDir, f)).catch(() => {})),
         )
-        await fs.writeFile(path.join(avatarDir, `${safe}.${ext}`), Buffer.from(body.data, 'base64'))
+        const imageBuffer = Buffer.from(body.data, 'base64')
+        const avatarFile = path.join(avatarDir, `${safe}.${ext}`)
+        await fs.writeFile(avatarFile, imageBuffer)
 
-        sendJson(res, 200, { ok: true, agentId: safe, ext })
+        const state = await readState()
+        const { agentId, agent } = resolveAgent(state, decodeURIComponent(avatarRouteMatch[1]))
+        agent.identity = agent.identity || buildDefaultIdentity(agentId, agent.name || formatAgentName(agentId))
+        agent.identity.avatar = {
+          kind: 'upload',
+          uri: `/agent-avatar/${encodeURIComponent(agentId)}`,
+          prompt: null,
+          seed: null,
+          updatedAt: new Date().toISOString(),
+        }
+
+        const now = new Date()
+        const y = String(now.getUTCFullYear())
+        const m = String(now.getUTCMonth() + 1).padStart(2, '0')
+        const stamp = `${y}${m}${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}${String(now.getUTCSeconds()).padStart(2, '0')}`
+        const stem = sanitizeFileStem(body?.filename || `${agent?.name || agentId}-avatar`)
+        const fileName = `${stamp}-${stem}-avatar.${ext}`
+        const relPath = `${y}/${m}/${fileName}`
+        const absDir = path.join(galleryRootDir, sanitizeAgentKey(agentId), y, m)
+        await fs.mkdir(absDir, { recursive: true })
+        const absPath = path.join(absDir, fileName)
+        await fs.writeFile(absPath, imageBuffer)
+
+        const index = await readGalleryIndex(agentId)
+        const galleryEntry = {
+          id: randomUUID(),
+          agentId,
+          title: `${agent?.name || agentId} profile avatar`,
+          caption: 'Manual avatar upload',
+          source: 'avatar-upload',
+          tags: ['avatar', 'profile-photo', 'manual-upload'],
+          mime: String(body.type || '').trim().toLowerCase(),
+          ext,
+          fileName,
+          relPath,
+          url: galleryPublicUrl(agentId, relPath),
+          sizeBytes: imageBuffer.byteLength,
+          createdAt: now.toISOString(),
+        }
+        index.unshift(galleryEntry)
+        await writeGalleryIndex(agentId, index.slice(0, 5000))
+
+        recordEvent(state, {
+          kind: 'avatar.upload',
+          summary: `${agent.name || agentId} updated avatar.`,
+          details: { ext, source: 'manual_upload', galleryRelPath: relPath },
+          agentId,
+        })
+        recordEvent(state, {
+          kind: 'gallery.ingest',
+          summary: `${agent.name || agentId} gallery ingested avatar ${fileName}`,
+          details: {
+            source: 'avatar-upload',
+            relPath,
+            mime: galleryEntry.mime,
+            tags: galleryEntry.tags,
+          },
+          agentId,
+        })
+        await writeState(state)
+
+        sendJson(res, 200, { ok: true, agentId, ext, avatar: agent.identity.avatar, galleryImage: galleryEntry })
         return
       }
 

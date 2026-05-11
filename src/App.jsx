@@ -44,15 +44,27 @@ async function sendAction(action, payload = {}, agentId = null) {
 async function checkHealth() {
   try { const r = await fetch(`${API}/health`); return r.ok } catch { return false }
 }
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+  return btoa(binary)
+}
+
 async function uploadAvatar(agentId, file) {
   const buf = await file.arrayBuffer()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+  const base64 = arrayBufferToBase64(buf)
   const r = await fetch(`${API}/agent-avatar/${encodeURIComponent(agentId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: base64, type: file.type }),
+    body: JSON.stringify({ data: base64, type: file.type, filename: file.name }),
   })
-  if (!r.ok) throw new Error('Upload failed')
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Upload failed')
+  return r.json()
 }
 
 async function loadAgentProfile(agentId) {
@@ -300,6 +312,107 @@ function buildRotationQueue({ pool, mode = 'balanced', favorites = [], history =
 const PLAYBACK_RESUME_KEY = 'vaib_playback_resume_v1'
 const AGENT_COLLECTIONS_KEY = 'vaib_agent_collections_v1'
 const AGENT_PLAY_HISTORY_KEY = 'vaib_agent_play_history_v1'
+const PINNED_PROFILE_AGENT_KEY = 'vaib_pinned_profile_agent_v1'
+const MOTION_MODE_KEY = 'vaib_motion_mode_v1'
+
+function loadPinnedProfileAgent() {
+  try {
+    return localStorage.getItem(PINNED_PROFILE_AGENT_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function savePinnedProfileAgent(agentId = '') {
+  try {
+    if (!agentId) localStorage.removeItem(PINNED_PROFILE_AGENT_KEY)
+    else localStorage.setItem(PINNED_PROFILE_AGENT_KEY, String(agentId))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadMotionMode() {
+  try {
+    const mode = localStorage.getItem(MOTION_MODE_KEY) || 'medium'
+    return ['off', 'low', 'medium', 'high', 'dynamic'].includes(mode) ? mode : 'medium'
+  } catch {
+    return 'medium'
+  }
+}
+
+function saveMotionMode(mode = 'medium') {
+  try {
+    localStorage.setItem(MOTION_MODE_KEY, mode)
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function hashString(input = '') {
+  let h = 0
+  const s = String(input || '')
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+function agentThemeVars(agentId = '', resonanceScore = 0) {
+  const h = hashString(agentId) % 360
+  const alt = (h + 42) % 360
+  const glow = Math.max(0.18, Math.min(0.45, 0.2 + (Math.abs(Number(resonanceScore) || 0) / 100) * 0.22))
+  return {
+    '--agent-hue': `${h}`,
+    '--agent-hue-alt': `${alt}`,
+    '--agent-glow': `${glow}`,
+  }
+}
+
+function computeStarAgent(agents = [], historyMap = {}) {
+  if (!Array.isArray(agents) || !agents.length) return { agent: null, reason: 'No agents discovered.' }
+
+  const now = Date.now()
+  const rows = agents.map((agent) => {
+    const id = String(agent?.id || '')
+    const history = Array.isArray(historyMap?.[id]) ? historyMap[id] : []
+    const statusScore = agent?.active ? 30 : (String(agent?.gatewayState || '').toLowerCase().includes('idle') ? 20 : 8)
+    const seenMs = Date.parse(agent?.updatedAt || agent?.lastSeenAt || '')
+    const ageMin = Number.isFinite(seenMs) ? Math.max(0, (now - seenMs) / 60000) : 1e6
+    const freshnessScore = Math.max(0, 25 - Math.min(25, ageMin / 3))
+    const eventCountScore = Math.min(20, history.length / 8)
+
+    let completionScore = 0
+    let skipPenalty = 0
+    if (history.length) {
+      const sample = history.slice(0, 80)
+      const completions = sample
+        .map((e) => Number(e?.completionRatio))
+        .filter((v) => Number.isFinite(v))
+      const avgCompletion = completions.length
+        ? completions.reduce((a, b) => a + b, 0) / completions.length
+        : 0.55
+      const skipCount = sample.filter((e) => String(e?.reason || '').toLowerCase().includes('skip')).length
+      const skipRate = sample.length ? skipCount / sample.length : 0
+      completionScore = Math.max(0, Math.min(18, avgCompletion * 18))
+      skipPenalty = Math.max(0, Math.min(10, skipRate * 12))
+    }
+
+    const total = statusScore + freshnessScore + eventCountScore + completionScore - skipPenalty
+    const reasonBits = []
+    if (statusScore >= 30) reasonBits.push('live')
+    if (freshnessScore >= 16) reasonBits.push('fresh signal')
+    if (eventCountScore >= 8) reasonBits.push('active history')
+    if (completionScore >= 10) reasonBits.push('high completion')
+
+    return {
+      agent,
+      score: Number(total.toFixed(2)),
+      reason: reasonBits.length ? reasonBits.join(' · ') : 'balanced profile signal',
+    }
+  })
+
+  rows.sort((a, b) => b.score - a.score)
+  return rows[0]
+}
 
 function loadPlaybackResume() {
   try {
@@ -415,7 +528,7 @@ function saveAgentPlayHistory(history) {
 // ============================================================
 // Agent Avatar
 // ============================================================
-function AgentAvatar({ agentId, name, size = 64, uploadable = false }) {
+function AgentAvatar({ agentId, name, size = 64, uploadable = false, className = '', onUpload = null }) {
   const [src, setSrc] = useState(null)
   const [failed, setFailed] = useState(false)
   const inputRef = useRef(null)
@@ -431,9 +544,10 @@ function AgentAvatar({ agentId, name, size = 64, uploadable = false }) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      await uploadAvatar(agentId, file)
+      const payload = await uploadAvatar(agentId, file)
       setSrc(`${API}/agent-avatar/${encodeURIComponent(agentId)}?t=${Date.now()}`)
       setFailed(false)
+      onUpload?.(payload)
     } catch (err) {
       console.error('Avatar upload failed:', err)
     }
@@ -441,7 +555,7 @@ function AgentAvatar({ agentId, name, size = 64, uploadable = false }) {
   }
 
   return (
-    <div className="avatarWrap" style={{ width: size, height: size }}
+    <div className={`avatarWrap ${className}`.trim()} style={{ width: size, height: size }}
       onClick={() => uploadable && inputRef.current?.click()}>
       {!failed && src
         ? <img src={src} alt={name} className="avatarImg" onError={() => setFailed(true)} />
@@ -809,6 +923,15 @@ function AgentProfileTab({
   allAgents = [],
   selectedAgentId,
   liveTrack,
+  starAgent,
+  starReason = '',
+  pinnedAgentId = '',
+  onPinAgent,
+  motionMode = 'medium',
+  onAvatarUploaded,
+  editMode = false,
+  onToggleEditMode,
+  onCancelEdit,
 }) {
   if (!profile) {
     return (
@@ -816,24 +939,43 @@ function AgentProfileTab({
         <div className="card profileAgentSelectorCard">
           <div className="cardHeaderRow">
             <span className="cardLabel">Agent Profiles</span>
-            <span className="eventTime">{allAgents.length} total</span>
+            <div className="profileHeaderBadges">
+              {starAgent?.id ? <span className="starAgentChip">⭐ Star: {starAgent.name || starAgent.id}</span> : null}
+              <span className="eventTime">{allAgents.length} total</span>
+            </div>
           </div>
           <div className="profileAgentScroller">
             {allAgents.map((agent) => (
               <button
                 key={agent.id}
                 type="button"
-                className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''}`}
+                className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''} ${pinnedAgentId === agent.id ? 'pinned' : ''}`}
                 onClick={() => onOpenAgent?.(agent.id)}
               >
                 <AgentAvatar agentId={agent.id} name={agent.name} size={28} />
                 <span>{agent.name}</span>
+                {starAgent?.id === agent.id ? <span className="profileAgentMeta">⭐</span> : null}
+                {pinnedAgentId === agent.id ? <span className="profileAgentMeta">📌</span> : null}
               </button>
             ))}
           </div>
         </div>
-        <div className="emptyScreen" style={{ minHeight: 120 }}>
-          <p>Select an agent to view identity profile.</p>
+        <div className="card profileEmptyCard">
+          <span className="cardLabel">Profile Chamber</span>
+          <p className="cardMuted">Identity channel is waiting. Spin up a profile and lock onto an agent signature.</p>
+          <div className="profileEmptyActions">
+            {starAgent?.id ? (
+              <button type="button" className="profileBtn" onClick={() => onOpenAgent?.(starAgent.id)}>
+                Open Star Agent
+              </button>
+            ) : null}
+            {pinnedAgentId ? (
+              <button type="button" className="ghostButton" onClick={() => onOpenAgent?.(pinnedAgentId)}>
+                Open Pinned Favorite
+              </button>
+            ) : null}
+          </div>
+          {starReason ? <p className="eventTime profileEmptyReason">Signal analysis: {starReason}</p> : null}
         </div>
       </div>
     )
@@ -880,6 +1022,11 @@ function AgentProfileTab({
       '--t6-heading-font': "'Cinzel', 'UnifrakturCook', 'Cormorant Garamond', 'Times New Roman', serif",
     }
     : undefined
+
+  const heroThemeVars = {
+    ...agentThemeVars(profile.agentId, resonanceScore),
+    ...(isTyler6 ? tyler6ThemeVars : {}),
+  }
 
   const historyStats = useMemo(() => {
     const entries = Array.isArray(history) ? history : []
@@ -994,28 +1141,33 @@ function AgentProfileTab({
   }, [historyStats, p.displayName, p.lifetimeTokensIn, p.lifetimeTokensOut, profile.agentId])
 
   return (
-    <div className={`tabScreen ${isTyler6 ? 'tyler6ProfileTheme' : ''}`} style={tyler6ThemeVars}>
+    <div className={`tabScreen ${isTyler6 ? 'tyler6ProfileTheme' : ''}`} style={heroThemeVars}>
       <div className="card profileAgentSelectorCard">
         <div className="cardHeaderRow">
           <span className="cardLabel">Agent Profiles</span>
-          <span className="eventTime">{allAgents.length} total</span>
+          <div className="profileHeaderBadges">
+            {starAgent?.id ? <span className="starAgentChip">⭐ Star: {starAgent.name || starAgent.id}</span> : null}
+            <span className="eventTime">{allAgents.length} total</span>
+          </div>
         </div>
         <div className="profileAgentScroller">
           {allAgents.map((agent) => (
             <button
               key={agent.id}
               type="button"
-              className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''}`}
+              className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''} ${pinnedAgentId === agent.id ? 'pinned' : ''}`}
               onClick={() => onOpenAgent?.(agent.id)}
             >
               <AgentAvatar agentId={agent.id} name={agent.name} size={28} />
               <span>{agent.name}</span>
+              {starAgent?.id === agent.id ? <span className="profileAgentMeta">⭐</span> : null}
+              {pinnedAgentId === agent.id ? <span className="profileAgentMeta">📌</span> : null}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="card profileHeroCard" style={{ borderColor: `hsla(${auraHue}, 90%, 65%, 0.45)` }}>
+      <div className="card profileHeroCard profileTradingCard" style={{ borderColor: `hsla(${auraHue}, 90%, 65%, 0.45)` }}>
         {isTyler6 ? (
           <div className="tyler6Backdrop" aria-hidden>
             <span className="tyler6Sky" />
@@ -1024,46 +1176,106 @@ function AgentProfileTab({
           </div>
         ) : null}
         <div className="profileAura" style={{ '--aura-hue': auraHue, '--aura-alpha': auraAlpha }} />
-        <div className="profileHeroTop">
-          <AgentAvatar agentId={profile.agentId} name={p.displayName || profile.agentId} size={72} uploadable />
-          <div className="profileHeroInfo">
-            <input
-              className="profileNameInput"
-              value={p.displayName || ''}
-              onChange={(e) => onChange({ displayName: e.target.value })}
-              placeholder="Stylized display name"
-            />
-            <div className="profileMetaRow">
-              <span className="agentBadge">{p.rank || 'Signal Initiate'}</span>
-              <span className="profileLevel">Level {p.level || 1}</span>
-              <span className={`profileResonanceTone ${resonanceScore < 0 ? 'negative' : resonanceScore > 0 ? 'positive' : ''}`}>
-                Resonance {resonanceTone}
-              </span>
-            </div>
-            <div className="profileXpBar">
-              <div className="profileXpFill" style={{ width: `${progress}%` }} />
-            </div>
-            <span className="profileXpLabel">XP {p.xp || 0} / {nextXp}</span>
+        <div className="profileHeroControlRow">
+          <span className="profileStarReason">{starReason ? `⭐ ${starReason}` : '⭐ Star agent signal calibrated'}</span>
+          <div className="profileHeroControlBtns">
+            <button type="button" className="textBtn" onClick={() => onPinAgent?.(profile.agentId)}>
+              {pinnedAgentId === profile.agentId ? 'Unpin Favorite' : 'Pin Favorite'}
+            </button>
+            <button type="button" className="textBtn" onClick={() => onToggleEditMode?.()}>
+              {editMode ? 'Done' : 'Edit'}
+            </button>
+            {editMode ? (
+              <button type="button" className="textBtn" onClick={() => onCancelEdit?.()}>
+                Cancel
+              </button>
+            ) : null}
+            <span className="profileMotionModeBadge">motion: {motionMode}</span>
           </div>
         </div>
-        {!!(p.traits || []).length && (
-          <div className="profileTraitCloud">
-            {(p.traits || []).slice(0, 8).map((trait) => (
-              <span key={trait} className={`profileTraitBadge ${trait.includes('shadow') || trait.includes('frenzy') || trait.includes('chaos') ? 'negative' : ''}`}>
-                {String(trait).replace(/-/g, ' ')}
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="profileUnlockGrid">
-          {unlocks.map((u) => (
-            <div key={u.key} className={`profileUnlockChip ${u.unlocked ? 'unlocked' : 'locked'}`}>
-              <span>{u.label}</span>
-              <strong>{u.unlocked ? 'Unlocked' : 'Locked'}</strong>
+
+        <div className="profileTradingDeck" tabIndex={0}>
+          <div className="profileTradingDeckTrack" aria-hidden>
+            <div className="profileTradingDeckSlide profileTradingDeckSlide--primary">
+              <div className="profileAvatarSpotlight">
+                <AgentAvatar
+                  agentId={profile.agentId}
+                  name={p.displayName || profile.agentId}
+                  size={200}
+                  uploadable
+                  className="profileAvatarHero"
+                  onUpload={onAvatarUploaded}
+                />
+                <span className="profileAvatarHint">Tap avatar to upload</span>
+              </div>
+              <div className="profileHeroInfo">
+                {editMode ? (
+                  <input
+                    className="profileNameInput"
+                    value={p.displayName || ''}
+                    onChange={(e) => onChange({ displayName: e.target.value })}
+                    placeholder="Stylized display name"
+                  />
+                ) : (
+                  <h2 className="profileDisplayName">{p.displayName || profile.agentId}</h2>
+                )}
+                <div className="profileMetaRow">
+                  <span className="agentBadge">{p.rank || 'Signal Initiate'}</span>
+                  <span className="profileLevel">Level {p.level || 1}</span>
+                  <span className={`profileResonanceTone ${resonanceScore < 0 ? 'negative' : resonanceScore > 0 ? 'positive' : ''}`}>
+                    Resonance {resonanceTone}
+                  </span>
+                </div>
+                <div className="profileXpBar">
+                  <div className="profileXpFill" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="profileXpLabel">XP {p.xp || 0} / {nextXp}</span>
+              </div>
             </div>
-          ))}
+
+            <div className="profileTradingDeckSlide profileTradingDeckSlide--stats">
+              <div className="cardHeaderRow">
+                <span className="cardLabel">Signal Stats Card</span>
+                <span className="agentBadge">{historyStats.behaviorLabel}</span>
+              </div>
+              <div className="profileStatsGrid profileTradingStatsGrid">
+                <div><span className="profileStatLabel">Events</span><strong>{historyStats.total.toLocaleString()}</strong></div>
+                <div><span className="profileStatLabel">Unique Tracks</span><strong>{historyStats.uniqueTracks.toLocaleString()}</strong></div>
+                <div><span className="profileStatLabel">Completion</span><strong>{Math.round(historyStats.avgCompletion * 100)}%</strong></div>
+                <div><span className="profileStatLabel">Skip Rate</span><strong>{Math.round(historyStats.skipRate * 100)}%</strong></div>
+                <div><span className="profileStatLabel">Playtime</span><strong>{formatDuration(historyStats.totalPlaytimeSec)}</strong></div>
+                <div><span className="profileStatLabel">Peak Hour</span><strong>{historyStats.peakHour || '--:--'}</strong></div>
+              </div>
+              {historyStats.topGenres.length ? (
+                <div className="profileGenreCloud">
+                  {historyStats.topGenres.map((genre) => <span key={genre} className="profileGenrePill">{genre}</span>)}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="profileTradingDeckSlide profileTradingDeckSlide--identity">
+              {!!(p.traits || []).length && (
+                <div className="profileTraitCloud">
+                  {(p.traits || []).slice(0, 8).map((trait) => (
+                    <span key={trait} className={`profileTraitBadge ${trait.includes('shadow') || trait.includes('frenzy') || trait.includes('chaos') ? 'negative' : ''}`}>
+                      {String(trait).replace(/-/g, ' ')}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="profileUnlockGrid">
+                {unlocks.map((u) => (
+                  <div key={u.key} className={`profileUnlockChip ${u.unlocked ? 'unlocked' : 'locked'}`}>
+                    <span>{u.label}</span>
+                    <strong>{u.unlocked ? 'Unlocked' : 'Locked'}</strong>
+                  </div>
+                ))}
+              </div>
+              <p className="profileIdentitySummary">{identitySummary}</p>
+            </div>
+          </div>
         </div>
-        <p className="profileIdentitySummary">{identitySummary}</p>
+
         {isTyler6 ? (
           <div className="tyler6LoreStrip">
             <span className="tyler6LoreTitle">NexusOne Command Throne</span>
@@ -1080,126 +1292,98 @@ function AgentProfileTab({
         ) : null}
       </div>
 
-      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
-        <span className="cardLabel">Identity Voice</span>
-        <label className="profileFieldLabel">Bio</label>
-        <textarea
-          className="profileTextInput profileTextarea"
-          value={p.bio || ''}
-          onChange={(e) => onChange({ bio: e.target.value })}
-          placeholder="Who this agent is in your universe"
-        />
+      {editMode ? (
+        <>
+          <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
+            <span className="cardLabel">Identity Voice</span>
+            <label className="profileFieldLabel">Bio</label>
+            <textarea
+              className="profileTextInput profileTextarea"
+              value={p.bio || ''}
+              onChange={(e) => onChange({ bio: e.target.value })}
+              placeholder="Who this agent is in your universe"
+            />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Motto</label>
-        <input
-          className="profileTextInput"
-          value={p.motto || ''}
-          onChange={(e) => onChange({ motto: e.target.value })}
-          placeholder="One line mantra"
-        />
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Motto</label>
+            <input
+              className="profileTextInput"
+              value={p.motto || ''}
+              onChange={(e) => onChange({ motto: e.target.value })}
+              placeholder="One line mantra"
+            />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Persona Tags (comma separated)</label>
-        <input
-          className="profileTextInput"
-          value={(persona || []).join(', ')}
-          onChange={(e) => onChange({ personaTags: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
-          placeholder="architect, night-owl, melodic"
-        />
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Persona Tags (comma separated)</label>
+            <input
+              className="profileTextInput"
+              value={(persona || []).join(', ')}
+              onChange={(e) => onChange({ personaTags: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+              placeholder="architect, night-owl, melodic"
+            />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Private Notes</label>
-        <textarea
-          className="profileTextInput profileTextarea"
-          value={p.notes || ''}
-          onChange={(e) => onChange({ notes: e.target.value })}
-          placeholder="What makes this agent unique for you"
-        />
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Private Notes</label>
+            <textarea
+              className="profileTextInput profileTextarea"
+              value={p.notes || ''}
+              onChange={(e) => onChange({ notes: e.target.value })}
+              placeholder="What makes this agent unique for you"
+            />
 
-        {persona.length > 0 && (
-          <div className="profilePersonaCloud">
-            {persona.map((tag) => <span key={tag} className="profilePersonaTag">#{tag}</span>)}
+            {persona.length > 0 && (
+              <div className="profilePersonaCloud">
+                {persona.map((tag) => <span key={tag} className="profilePersonaTag">#{tag}</span>)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
-        <span className="cardLabel">Progression</span>
-        <div className="profileStatsGrid">
-          <div><span className="profileStatLabel">Tokens In</span><strong>{(p.lifetimeTokensIn || 0).toLocaleString()}</strong></div>
-          <div><span className="profileStatLabel">Tokens Out</span><strong>{(p.lifetimeTokensOut || 0).toLocaleString()}</strong></div>
-          <div><span className="profileStatLabel">Resonance</span><strong>{Number(p.resonanceScore || 0).toFixed(1)}</strong></div>
-          <div><span className="profileStatLabel">Traits</span><strong>{(p.traits || []).length}</strong></div>
-        </div>
-        {p.playlistNudge && (
-          <div className="profileNudgeRow">
-            <span className="profileNudgeChip">Favorites +{Math.round((Number(p.playlistNudge.favoritesBoost || 0)) * 100)}%</span>
-            <span className="profileNudgeChip">Explore {Math.round((Number(p.playlistNudge.explorationBoost || 0)) * 100)}%</span>
-            <span className="profileNudgeChip">Repeat -{Math.round((Number(p.playlistNudge.repeatPenalty || 0)) * 100)}%</span>
+          <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
+            <span className="cardLabel">Music DNA</span>
+            <label className="profileFieldLabel">Genres (comma separated)</label>
+            <input
+              className="profileTextInput"
+              value={(p.genres || []).join(', ')}
+              onChange={(e) => onChange({ genres: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+              placeholder="uplifting trance, breakbeat"
+            />
+
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Favorite Songs (track IDs, comma separated)</label>
+            <input
+              className="profileTextInput"
+              value={(p.favoriteSongs || []).join(', ')}
+              onChange={(e) => onChange({ favoriteSongs: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+              placeholder="track-aurora, track-circuit"
+            />
+
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Rotation Mode</label>
+            <select
+              className="profileTextInput"
+              value={p.rotationMode || 'balanced'}
+              onChange={(e) => onChange({ rotationMode: e.target.value })}
+            >
+              <option value="balanced">balanced</option>
+              <option value="favorites">favorites-heavy</option>
+              <option value="exploration">exploration-heavy</option>
+            </select>
+
+            <label className="profileFieldLabel" style={{ marginTop: 10 }}>Anti-repeat window (tracks)</label>
+            <input
+              className="profileTextInput"
+              type="number"
+              min="0"
+              max="50"
+              value={Number(p.antiRepeatWindow) || 0}
+              onChange={(e) => onChange({ antiRepeatWindow: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })}
+              placeholder="3"
+            />
           </div>
-        )}
-      </div>
 
-      <div className={`card profilePulseCard ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
-        <div className="cardHeaderRow">
-          <span className="cardLabel">Live Pulse</span>
-          <span className="agentBadge">{historyStats.behaviorLabel}</span>
-        </div>
-        <div className="profileStatsGrid">
-          <div><span className="profileStatLabel">Events</span><strong>{historyStats.total.toLocaleString()}</strong></div>
-          <div><span className="profileStatLabel">Unique Tracks</span><strong>{historyStats.uniqueTracks.toLocaleString()}</strong></div>
-          <div><span className="profileStatLabel">Completion</span><strong>{Math.round(historyStats.avgCompletion * 100)}%</strong></div>
-          <div><span className="profileStatLabel">Skip Rate</span><strong>{Math.round(historyStats.skipRate * 100)}%</strong></div>
-          <div><span className="profileStatLabel">Playtime</span><strong>{formatDuration(historyStats.totalPlaytimeSec)}</strong></div>
-          <div><span className="profileStatLabel">Peak Hour</span><strong>{historyStats.peakHour || '--:--'}</strong></div>
-        </div>
-        {historyStats.topGenres.length ? (
-          <div className="profileGenreCloud">
-            {historyStats.topGenres.map((genre) => <span key={genre} className="profileGenrePill">{genre}</span>)}
+          <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
+            <button type="button" className="profileSaveBtn" disabled={busy} onClick={onSave}>
+              {busy ? 'Saving…' : 'Save Profile'}
+            </button>
+            {saveError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{saveError}</p> : null}
           </div>
-        ) : (
-          <p className="cardMuted" style={{ marginTop: 10 }}>No genre tags in telemetry yet.</p>
-        )}
-      </div>
-
-      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
-        <span className="cardLabel">Music DNA</span>
-        <label className="profileFieldLabel">Genres (comma separated)</label>
-        <input
-          className="profileTextInput"
-          value={(p.genres || []).join(', ')}
-          onChange={(e) => onChange({ genres: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
-          placeholder="uplifting trance, breakbeat"
-        />
-
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Favorite Songs (track IDs, comma separated)</label>
-        <input
-          className="profileTextInput"
-          value={(p.favoriteSongs || []).join(', ')}
-          onChange={(e) => onChange({ favoriteSongs: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
-          placeholder="track-aurora, track-circuit"
-        />
-
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Rotation Mode</label>
-        <select
-          className="profileTextInput"
-          value={p.rotationMode || 'balanced'}
-          onChange={(e) => onChange({ rotationMode: e.target.value })}
-        >
-          <option value="balanced">balanced</option>
-          <option value="favorites">favorites-heavy</option>
-          <option value="exploration">exploration-heavy</option>
-        </select>
-
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Anti-repeat window (tracks)</label>
-        <input
-          className="profileTextInput"
-          type="number"
-          min="0"
-          max="50"
-          value={Number(p.antiRepeatWindow) || 0}
-          onChange={(e) => onChange({ antiRepeatWindow: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })}
-          placeholder="3"
-        />
-      </div>
+        </>
+      ) : null}
 
       <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
         <div className="cardHeaderRow">
@@ -1296,12 +1480,14 @@ function AgentProfileTab({
         )}
       </div>
 
-      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
-        <button type="button" className="profileSaveBtn" disabled={busy} onClick={onSave}>
-          {busy ? 'Saving…' : 'Save Profile'}
-        </button>
-        {saveError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{saveError}</p> : null}
-      </div>
+      {editMode ? (
+        <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
+          <button type="button" className="profileSaveBtn" disabled={busy} onClick={onSave}>
+            {busy ? 'Saving…' : 'Save Profile'}
+          </button>
+          {saveError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{saveError}</p> : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1640,6 +1826,8 @@ function MoreTab({
   updateAdminForm,
   onUpdateAdminFormChange,
   onSaveUpdateAdmin,
+  motionMode = 'medium',
+  onMotionModeChange,
 }) {
   if (!state) return null
   return (
@@ -1853,6 +2041,22 @@ function MoreTab({
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Visual Motion</span>
+        <p className="cardMuted">Set interface animation intensity. Dynamic auto-adapts to context and performance.</p>
+        <select
+          className="profileTextInput"
+          value={motionMode}
+          onChange={(e) => onMotionModeChange?.(e.target.value)}
+        >
+          <option value="off">off</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="dynamic">dynamic</option>
+        </select>
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
         {networkPanel}
       </div>
     </div>
@@ -2005,6 +2209,8 @@ function AppContent() {
   const [historyAgentId, setHistoryAgentId] = useState(null)
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileSaveError, setProfileSaveError] = useState('')
+  const [profileEditMode, setProfileEditMode] = useState(false)
+  const [profileBaseline, setProfileBaseline] = useState(null)
   const [imageSettings, setImageSettings] = useState(null)
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState('')
@@ -2023,12 +2229,18 @@ function AppContent() {
     apkUrl: '',
     sha256: '',
   })
+  const [pinnedProfileAgentId, setPinnedProfileAgentId] = useState(() => loadPinnedProfileAgent())
+  const [motionMode, setMotionMode] = useState(() => loadMotionMode())
+  const [starReason, setStarReason] = useState('')
   const [resumeBanner, setResumeBanner] = useState('')
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(0.85)
 
   const sessionIdRef = useRef(`sess_${Math.random().toString(36).slice(2, 10)}`)
   const lastUpdateCheckRef = useRef(0)
+
+  const starAgentMeta = useMemo(() => computeStarAgent(agents, agentPlayHistory), [agents, agentPlayHistory])
+  const starAgentId = starAgentMeta?.agent?.id || ''
 
   // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
@@ -2119,10 +2331,49 @@ function AppContent() {
   }, [agentPlayHistory])
 
   useEffect(() => {
+    savePinnedProfileAgent(pinnedProfileAgentId)
+  }, [pinnedProfileAgentId])
+
+  useEffect(() => {
+    saveMotionMode(motionMode)
+  }, [motionMode])
+
+  useEffect(() => {
     if (!profileAgentId) return
     setProfileCollection(Object.values(agentCollections?.[profileAgentId] || {}))
     setProfileHistory(Array.isArray(agentPlayHistory?.[profileAgentId]) ? agentPlayHistory[profileAgentId] : [])
   }, [profileAgentId, agentCollections, agentPlayHistory])
+
+  useEffect(() => {
+    const reason = starAgentMeta?.reason || ''
+    setStarReason(reason)
+  }, [starAgentMeta?.reason])
+
+  useEffect(() => {
+    if (!agents.length || profileAgentId) return
+    const preferred = pinnedProfileAgentId && agents.some((a) => a.id === pinnedProfileAgentId)
+      ? pinnedProfileAgentId
+      : starAgentId
+    if (preferred) openProfile(preferred)
+  }, [agents, profileAgentId, pinnedProfileAgentId, starAgentId])
+
+  useEffect(() => {
+    if (motionMode !== 'dynamic') return
+
+    const prefersReduced = typeof window !== 'undefined'
+      ? window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      : false
+    const hidden = typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false
+
+    let target = 'medium'
+    if (prefersReduced) target = 'off'
+    else if (hidden) target = 'low'
+    else if (playing) target = 'high'
+
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-motion-dynamic', target)
+    }
+  }, [motionMode, playing, tab])
 
   // Reset player when agent changes
   useEffect(() => {
@@ -2407,6 +2658,8 @@ function AppContent() {
       ])
       setProfileData(payload)
       setProfileDraft(payload)
+      setProfileBaseline(payload)
+      setProfileEditMode(false)
       setProfileCollection(Array.isArray(collectionPayload?.tracks) ? collectionPayload.tracks : [])
       setProfileHistory(Array.isArray(historyPayload?.history) ? historyPayload.history : [])
       setProfileGallery(Array.isArray(galleryPayload?.images) ? galleryPayload.images : [])
@@ -2440,6 +2693,7 @@ function AppContent() {
   }
 
   function updateProfileDraft(patch) {
+    setProfileEditMode(true)
     setProfileDraft((prev) => {
       if (!prev) return prev
       return {
@@ -2473,6 +2727,8 @@ function AppContent() {
       const saved = await saveAgentProfile(profileAgentId, payload)
       setProfileData(saved)
       setProfileDraft(saved)
+      setProfileBaseline(saved)
+      setProfileEditMode(false)
 
       const mergedCollection = await saveAgentCollection(profileAgentId, {
         mode: 'merge',
@@ -2808,6 +3064,40 @@ function AppContent() {
     }
   }
 
+  function handleProfileAvatarUploaded(payload) {
+    const added = payload?.galleryImage || null
+    if (added && payload?.agentId && payload.agentId === profileAgentId) {
+      setProfileGallery((prev) => {
+        const next = Array.isArray(prev) ? [...prev] : []
+        next.unshift(added)
+        return next.slice(0, 200)
+      })
+    }
+    if (payload?.avatar && payload?.agentId && payload.agentId === profileAgentId) {
+      setProfileEditMode(true)
+      setProfileDraft((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            avatar: payload.avatar,
+          },
+        }
+      })
+    }
+  }
+
+  function toggleProfileEditMode() {
+    setProfileEditMode((prev) => !prev)
+  }
+
+  function cancelProfileEdit() {
+    if (profileBaseline) setProfileDraft(profileBaseline)
+    setProfileSaveError('')
+    setProfileEditMode(false)
+  }
+
   async function refreshHistoryForAgent(agentId = historyAgentId || tunedAgent?.id || profileAgentId) {
     if (!agentId) return
     try {
@@ -3002,7 +3292,7 @@ function AppContent() {
       <AtmosphereCanvas />
       <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" style={{ display: 'none' }} />
 
-      <div className="appShell" onClick={handleGesture}>
+      <div className="appShell" onClick={handleGesture} data-motion={motionMode}>
 
         {/* Header */}
         <header className="vaibHeader">
@@ -3057,6 +3347,17 @@ function AppContent() {
               allAgents={agents}
               selectedAgentId={profileAgentId}
               liveTrack={currentTrack}
+              starAgent={starAgentMeta?.agent || null}
+              starReason={starReason}
+              pinnedAgentId={pinnedProfileAgentId}
+              onPinAgent={(agentId) => {
+                setPinnedProfileAgentId((prev) => (prev === agentId ? '' : agentId))
+              }}
+              onAvatarUploaded={handleProfileAvatarUploaded}
+              editMode={profileEditMode}
+              onToggleEditMode={toggleProfileEditMode}
+              onCancelEdit={cancelProfileEdit}
+              motionMode={motionMode}
             />
           )}
           {tab === 'history' && (
@@ -3096,6 +3397,8 @@ function AppContent() {
               updateAdminForm={updateAdminForm}
               onUpdateAdminFormChange={updateUpdateAdminForm}
               onSaveUpdateAdmin={saveUpdateAdminLane}
+              motionMode={motionMode}
+              onMotionModeChange={setMotionMode}
             />
           )}
         </div>

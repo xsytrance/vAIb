@@ -57,6 +57,23 @@ input { font: inherit; }
   backdrop-filter: blur(12px);
 }
 
+.vaibBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vaibLogo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid rgba(124, 160, 255, 0.35);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  flex-shrink: 0;
+}
+
 .vaibWordmark {
   font-size: 1.2rem;
   font-weight: 800;

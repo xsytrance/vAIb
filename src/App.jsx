@@ -3296,7 +3296,16 @@ function AppContent() {
 
         {/* Header */}
         <header className="vaibHeader">
-          <span className="vaibWordmark">vAIb</span>
+          <div className="vaibBrand" aria-label="vAIb">
+            <img
+              className="vaibLogo"
+              src="/branding/vaib-official-logo.jpg"
+              alt="vAIb official logo"
+              loading="eager"
+              decoding="async"
+            />
+            <span className="vaibWordmark">vAIb</span>
+          </div>
           <div className="vaibHeaderRight">
             {error && <span className="headerError">⚠</span>}
             <span className="headerStat">{activeCount} online</span>

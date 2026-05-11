@@ -126,6 +126,22 @@ async function loadAgentHistory(agentId, limit = 200) {
   return r.json()
 }
 
+async function loadAgentGallery(agentId) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/gallery`)
+  if (!r.ok) throw new Error('Failed to load agent gallery')
+  return r.json()
+}
+
+async function ingestAgentGalleryImage(agentId, payload) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/gallery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to ingest gallery image')
+  return r.json()
+}
+
 async function loadStatsLab(agentId, params = {}) {
   const q = new URLSearchParams()
   if (agentId) q.set('agentId', agentId)
@@ -749,6 +765,7 @@ function AgentProfileTab({
   profile,
   collection = [],
   history = [],
+  gallery = [],
   busy,
   saveError,
   onChange,
@@ -756,6 +773,7 @@ function AgentProfileTab({
   onPlayTopSong,
   onAddTrack,
   onRemoveTrack,
+  onIngestGalleryImage,
   onOpenAgent,
   onTune,
   allAgents = [],
@@ -1197,6 +1215,34 @@ function AgentProfileTab({
           </ul>
         ) : (
           <p className="cardMuted">No tracks in this agent collection yet.</p>
+        )}
+      </div>
+
+      <div className={`card ${isTyler6 ? 'tyler6SectionCard' : ''}`}>
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Art Gallery ({gallery.length})</span>
+          <button type="button" className="textBtn" onClick={onIngestGalleryImage}>Ingest Image</button>
+        </div>
+        {gallery.length ? (
+          <ul className="eventFeed">
+            {gallery.slice(0, 20).map((img) => (
+              <li key={img.id || img.relPath} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 6 }}>
+                {img?.url ? (
+                  <img
+                    src={`${API}${img.url}`}
+                    alt={img.title || img.fileName || 'gallery image'}
+                    className="galleryThumb"
+                  />
+                ) : null}
+                <span className="eventSummary">{img.title || img.fileName || 'Untitled image'}</span>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>
+                  {(img.tags || []).slice(0, 4).join(', ') || 'no tags'} · {new Date(img.createdAt || Date.now()).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted">No art-gallery images yet.</p>
         )}
       </div>
 
@@ -1801,6 +1847,7 @@ function AppContent() {
   const [profileDraft, setProfileDraft] = useState(null)
   const [profileCollection, setProfileCollection] = useState([])
   const [profileHistory, setProfileHistory] = useState([])
+  const [profileGallery, setProfileGallery] = useState([])
   const [historyAgentId, setHistoryAgentId] = useState(null)
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileSaveError, setProfileSaveError] = useState('')
@@ -2183,15 +2230,17 @@ function AppContent() {
       setProfileAgentId(agentId)
       setProfileSaveError('')
       setProfileBusy(true)
-      const [payload, collectionPayload, historyPayload] = await Promise.all([
+      const [payload, collectionPayload, historyPayload, galleryPayload] = await Promise.all([
         loadAgentProfile(agentId),
         loadAgentCollection(agentId).catch(() => ({ tracks: [] })),
         loadAgentHistory(agentId, 200).catch(() => ({ history: [] })),
+        loadAgentGallery(agentId).catch(() => ({ images: [] })),
       ])
       setProfileData(payload)
       setProfileDraft(payload)
       setProfileCollection(Array.isArray(collectionPayload?.tracks) ? collectionPayload.tracks : [])
       setProfileHistory(Array.isArray(historyPayload?.history) ? historyPayload.history : [])
+      setProfileGallery(Array.isArray(galleryPayload?.images) ? galleryPayload.images : [])
       setHistoryAgentId(agentId)
       setTab('profile')
 
@@ -2419,6 +2468,42 @@ function AppContent() {
     }
   }
 
+  async function ingestGalleryImageForProfile() {
+    if (!profileAgentId) return
+    const data = prompt('Base64 image payload (required)')
+    if (!data) return
+    const title = prompt('Title (optional)', '') || ''
+    const caption = prompt('Caption (optional)', '') || ''
+    const tagsCsv = prompt('Tags (comma separated)', '') || ''
+    const mime = prompt('MIME type', 'image/jpeg') || 'image/jpeg'
+    const filename = prompt('Original filename (optional)', '') || ''
+
+    try {
+      setProfileBusy(true)
+      setProfileSaveError('')
+      const saved = await ingestAgentGalleryImage(profileAgentId, {
+        data,
+        mime,
+        type: mime,
+        title,
+        caption,
+        filename,
+        tags: tagsCsv.split(',').map((v) => v.trim()).filter(Boolean),
+        source: 'profile-manual',
+      })
+      const added = saved?.image
+      setProfileGallery((prev) => {
+        const next = Array.isArray(prev) ? [...prev] : []
+        if (added) next.unshift(added)
+        return next.slice(0, 200)
+      })
+    } catch (err) {
+      setProfileSaveError(err.message || 'Failed to ingest image')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
   async function refreshHistoryForAgent(agentId = historyAgentId || tunedAgent?.id || profileAgentId) {
     if (!agentId) return
     try {
@@ -2629,6 +2714,7 @@ function AppContent() {
               profile={profileDraft || profileData}
               collection={profileCollection}
               history={profileHistory}
+              gallery={profileGallery}
               busy={profileBusy}
               saveError={profileSaveError}
               onChange={updateProfileDraft}
@@ -2636,6 +2722,7 @@ function AppContent() {
               onPlayTopSong={playProfileTopSong}
               onAddTrack={addTrackToProfileCollection}
               onRemoveTrack={removeTrackFromProfileCollection}
+              onIngestGalleryImage={ingestGalleryImageForProfile}
               onOpenAgent={openProfile}
               onTune={(agentId) => {
                 const a = agents.find((x) => x.id === agentId)

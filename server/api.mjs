@@ -48,6 +48,8 @@ import {
 
 const avatarDir = path.join(process.cwd(), 'data', 'avatars')
 await fs.mkdir(avatarDir, { recursive: true })
+const galleryRootDir = path.join(process.cwd(), 'data', 'art-gallery')
+await fs.mkdir(galleryRootDir, { recursive: true })
 
 const port = Number(process.env.VAIB_PORT || 4014)
 startDiscoveryScanner()
@@ -60,6 +62,55 @@ function sendJson(res, status, payload) {
     'Access-Control-Allow-Headers': 'Content-Type',
   })
   res.end(JSON.stringify(payload))
+}
+
+function sanitizeAgentKey(agentId = '') {
+  return String(agentId).trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'agent'
+}
+
+function sanitizeFileStem(name = '') {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 64) || 'image'
+}
+
+function extFromMime(mime = '') {
+  const m = String(mime || '').toLowerCase().trim()
+  if (m === 'image/jpeg' || m === 'image/jpg') return 'jpg'
+  if (m === 'image/png') return 'png'
+  if (m === 'image/webp') return 'webp'
+  if (m === 'image/gif') return 'gif'
+  return 'jpg'
+}
+
+function galleryIndexPath(agentId) {
+  return path.join(galleryRootDir, sanitizeAgentKey(agentId), 'index.json')
+}
+
+async function readGalleryIndex(agentId) {
+  const file = galleryIndexPath(agentId)
+  try {
+    const raw = await fs.readFile(file, 'utf8')
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function writeGalleryIndex(agentId, entries) {
+  const safeAgent = sanitizeAgentKey(agentId)
+  const dir = path.join(galleryRootDir, safeAgent)
+  await fs.mkdir(dir, { recursive: true })
+  await fs.writeFile(path.join(dir, 'index.json'), JSON.stringify(entries || [], null, 2))
+}
+
+function galleryPublicUrl(agentId, relPath = '') {
+  const rel = String(relPath || '').replace(/\\/g, '/')
+  return `/art-gallery/${encodeURIComponent(agentId)}/${rel.split('/').map(encodeURIComponent).join('/')}`
 }
 
 function normalizeTrack(state, trackId) {
@@ -902,6 +953,89 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (req.method === 'GET' && /^\/agent\/[^/]+\/gallery$/.test(url.pathname)) {
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const entries = await readGalleryIndex(agentId)
+      sendJson(res, 200, {
+        agentId,
+        images: entries,
+        total: entries.length,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && /^\/agent\/[^/]+\/gallery$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const { agent } = resolveAgent(state, agentId)
+      const body = await readBody(req)
+
+      const data = String(body?.data || '').trim()
+      const mime = String(body?.mime || body?.type || 'image/jpeg').trim().toLowerCase()
+      if (!data) {
+        sendJson(res, 400, { error: 'Missing base64 image data' })
+        return
+      }
+
+      const ext = extFromMime(mime)
+      const safeAgent = sanitizeAgentKey(agentId)
+      const now = new Date()
+      const y = String(now.getUTCFullYear())
+      const m = String(now.getUTCMonth() + 1).padStart(2, '0')
+      const d = String(now.getUTCDate()).padStart(2, '0')
+      const hh = String(now.getUTCHours()).padStart(2, '0')
+      const mm = String(now.getUTCMinutes()).padStart(2, '0')
+      const ss = String(now.getUTCSeconds()).padStart(2, '0')
+      const stamp = `${y}${m}${d}-${hh}${mm}${ss}`
+      const stem = sanitizeFileStem(body?.filename || body?.title || `${agent?.name || agentId}-art`)
+      const fileName = `${stamp}-${stem}.${ext}`
+      const relPath = `${y}/${m}/${fileName}`
+      const absDir = path.join(galleryRootDir, safeAgent, y, m)
+      await fs.mkdir(absDir, { recursive: true })
+      const absPath = path.join(absDir, fileName)
+      await fs.writeFile(absPath, Buffer.from(data, 'base64'))
+
+      const index = await readGalleryIndex(agentId)
+      const entry = {
+        id: randomUUID(),
+        agentId,
+        title: String(body?.title || '').trim() || null,
+        caption: String(body?.caption || '').trim() || null,
+        source: String(body?.source || 'chat').trim() || 'chat',
+        tags: Array.isArray(body?.tags) ? body.tags.map((t) => String(t || '').trim()).filter(Boolean).slice(0, 20) : [],
+        mime,
+        ext,
+        fileName,
+        relPath,
+        url: galleryPublicUrl(agentId, relPath),
+        sizeBytes: Buffer.byteLength(Buffer.from(data, 'base64')),
+        createdAt: now.toISOString(),
+      }
+      index.unshift(entry)
+      await writeGalleryIndex(agentId, index.slice(0, 5000))
+
+      recordEvent(state, {
+        kind: 'gallery.ingest',
+        summary: `${agent.name || agentId} gallery ingested image ${fileName}`,
+        details: {
+          source: entry.source,
+          relPath,
+          mime,
+          tags: entry.tags,
+        },
+        agentId,
+      })
+      await writeState(state)
+
+      sendJson(res, 201, {
+        ok: true,
+        agentId,
+        image: entry,
+        total: Math.min(index.length, 5000),
+      })
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/settings/image-generation') {
       const state = await readState()
       sendJson(res, 200, redactImageSettings(state.settings || {}))
@@ -1192,6 +1326,46 @@ const server = http.createServer(async (req, res) => {
       }
 
       sendJson(res, 405, { error: 'Method not allowed' })
+      return
+    }
+
+    const galleryRouteMatch = url.pathname.match(/^\/art-gallery\/([^/]+)\/(.+)$/)
+    if (req.method === 'GET' && galleryRouteMatch) {
+      const agentId = decodeURIComponent(galleryRouteMatch[1])
+      const tail = decodeURIComponent(galleryRouteMatch[2])
+      const safeAgent = sanitizeAgentKey(agentId)
+      const candidate = path.normalize(path.join(galleryRootDir, safeAgent, tail))
+      const root = path.normalize(path.join(galleryRootDir, safeAgent))
+      if (!candidate.startsWith(root)) {
+        sendJson(res, 400, { error: 'Invalid gallery path' })
+        return
+      }
+      try {
+        const stat = await fs.stat(candidate)
+        if (!stat.isFile()) {
+          sendJson(res, 404, { error: 'Not found' })
+          return
+        }
+        const ext = path.extname(candidate).slice(1).toLowerCase()
+        const mime = ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+              ? 'image/webp'
+              : ext === 'gif'
+                ? 'image/gif'
+                : 'application/octet-stream'
+        const data = await fs.readFile(candidate)
+        res.writeHead(200, {
+          'Content-Type': mime,
+          'Cache-Control': 'public, max-age=60',
+          'Access-Control-Allow-Origin': '*',
+        })
+        res.end(data)
+      } catch {
+        sendJson(res, 404, { error: 'Not found' })
+      }
       return
     }
 

@@ -29,7 +29,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { readState, writeState } from './store.mjs'
-import { discoverAgents } from './discover.mjs'
+import { discoverAgents, discoverAgentRegistry, startDiscoveryScanner } from './discover.mjs'
 import { fetchCuratedTracks, isConfigured as musicConfigured } from './music.mjs'
 import {
   appendTelemetryEvent,
@@ -50,6 +50,7 @@ const avatarDir = path.join(process.cwd(), 'data', 'avatars')
 await fs.mkdir(avatarDir, { recursive: true })
 
 const port = Number(process.env.VAIB_PORT || 4014)
+startDiscoveryScanner()
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
@@ -1195,41 +1196,39 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/agents') {
-      let agents = []
-      try {
-        agents = await discoverAgents()
-      } catch {
-        agents = []
-      }
+      const scope = String(url.searchParams.get('scope') || 'global').toLowerCase()
+      const force = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('force') || '').toLowerCase())
+      const registry = await discoverAgentRegistry({ scope: scope === 'edge' ? 'edge' : 'global', force })
 
-      if (!Array.isArray(agents) || !agents.length) {
-        const state = await readState()
-        const fallback = Object.values(state.agents || {}).map((agent) => ({
-          id: agent.id,
-          name: agent.name || agent.id,
-          role: agent.activity || '',
-          vibe: agent.vibe || '',
-          source: 'state',
-          active: String(agent.status || '').toLowerCase() !== 'offline',
-          gatewayState: String(agent.status || '').toLowerCase() === 'offline' ? 'offline' : 'running',
-          updatedAt: state.meta?.lastUpdated || new Date().toISOString(),
-        }))
-        agents = fallback
-      }
+      const agents = registry.agents.map((agent) => ({
+        id: agent.id,
+        name: agent.name || agent.id,
+        source: agent.sources?.[0]?.kind || 'registry',
+        role: agent.role || '',
+        vibe: agent.vibe || '',
+        gatewayState: agent.sources?.find((s) => s.gatewayState)?.gatewayState || (agent.status === 'active' ? 'running' : agent.status),
+        updatedAt: agent.lastSeenAt || registry.updatedAt,
+        active: agent.status === 'active',
+        status: agent.status,
+        stale: Boolean(agent.stale),
+        confidence: Number(agent.confidence) || 0,
+        owner: agent.owner || null,
+      }))
 
-      agents.sort((a, b) => {
-        if (a.active !== b.active) return a.active ? -1 : 1
-        if (a.updatedAt && b.updatedAt) return new Date(b.updatedAt) - new Date(a.updatedAt)
-        return 0
-      })
-
-      const state = await readState()
       const defaultId = agents.find((a) => a.active)?.id
-        || state.meta?.defaultAgentId
+        || agents.find((a) => a.status === 'idle')?.id
         || agents[0]?.id
         || null
 
-      sendJson(res, 200, { agents, defaultId })
+      sendJson(res, 200, { agents, defaultId, scope: registry.scope, updatedAt: registry.updatedAt, stats: registry.stats })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/registry/agents') {
+      const scope = String(url.searchParams.get('scope') || 'global').toLowerCase()
+      const force = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('force') || '').toLowerCase())
+      const registry = await discoverAgentRegistry({ scope: scope === 'edge' ? 'edge' : 'global', force })
+      sendJson(res, 200, registry)
       return
     }
 

@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Browser } from '@capacitor/browser'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
 import { AgentProvider, useAgent } from './agent/AgentProvider'
 // NOTE: No Saito imports. All display is driven by backend discovery only.
@@ -139,6 +142,33 @@ async function ingestAgentGalleryImage(agentId, payload) {
     body: JSON.stringify(payload || {}),
   })
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to ingest gallery image')
+  return r.json()
+}
+
+async function checkMobileUpdate(params = {}) {
+  const q = new URLSearchParams()
+  q.set('platform', params.platform || 'android')
+  q.set('channel', params.channel || 'stable')
+  q.set('versionName', params.versionName || '1.0')
+  q.set('versionCode', String(Number(params.versionCode) || 1))
+  const r = await fetch(`${API}/mobile/update/check?${q.toString()}`)
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to check mobile update')
+  return r.json()
+}
+
+async function loadMobileUpdateSettings() {
+  const r = await fetch(`${API}/settings/mobile-updates`)
+  if (!r.ok) throw new Error('Failed to load mobile update settings')
+  return r.json()
+}
+
+async function saveMobileUpdateSettings(payload) {
+  const r = await fetch(`${API}/settings/mobile-updates`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to save mobile update settings')
   return r.json()
 }
 
@@ -1599,6 +1629,17 @@ function MoreTab({
   onTestImageSettings,
   onGenerateAvatar,
   profileAgentId,
+  updateChannel = 'stable',
+  onUpdateChannelChange,
+  updateInfo,
+  updateBusy,
+  updateError,
+  updateMessage,
+  onCheckUpdate,
+  onOpenUpdate,
+  updateAdminForm,
+  onUpdateAdminFormChange,
+  onSaveUpdateAdmin,
 }) {
   if (!state) return null
   return (
@@ -1696,6 +1737,119 @@ function MoreTab({
         </div>
         {imageMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{imageMessage}</p> : null}
         {imageError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{imageError}</p> : null}
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Mobile Updates (APK)</span>
+        <p className="cardMuted">Checks backend manifest and opens APK URL when a newer build is available.</p>
+
+        <label className="profileFieldLabel">Channel</label>
+        <select
+          className="profileTextInput"
+          value={updateChannel}
+          onChange={(e) => onUpdateChannelChange?.(e.target.value)}
+        >
+          <option value="stable">stable</option>
+          <option value="beta">beta</option>
+        </select>
+
+        <div className="profileActionsRow">
+          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onCheckUpdate}>Check Update</button>
+          <button
+            type="button"
+            className="profileBtn"
+            disabled={updateBusy || !updateInfo?.latest?.apkUrl || !updateInfo?.update?.available}
+            onClick={onOpenUpdate}
+          >
+            Open APK
+          </button>
+        </div>
+
+        {updateInfo ? (
+          <div className="updateInfoBox">
+            <div className="updateInfoRow">
+              <span>Current</span>
+              <strong>{updateInfo?.current?.versionName || '1.0'} ({updateInfo?.current?.versionCode || 1})</strong>
+            </div>
+            <div className="updateInfoRow">
+              <span>Latest</span>
+              <strong>{updateInfo?.latest?.versionName || '1.0'} ({updateInfo?.latest?.versionCode || 1})</strong>
+            </div>
+            <div className="updateInfoRow">
+              <span>Status</span>
+              <strong>{updateInfo?.update?.available ? (updateInfo?.update?.mandatory ? 'mandatory update' : 'update available') : 'up to date'}</strong>
+            </div>
+            {updateInfo?.latest?.notes ? <p className="cardMuted" style={{ marginTop: 8 }}>{updateInfo.latest.notes}</p> : null}
+          </div>
+        ) : null}
+
+        <label className="profileFieldLabel" style={{ marginTop: 12 }}>Admin: Latest versionName</label>
+        <input
+          className="profileTextInput"
+          value={updateAdminForm?.versionName || ''}
+          onChange={(e) => onUpdateAdminFormChange?.({ versionName: e.target.value })}
+          placeholder="1.0"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: Latest versionCode</label>
+        <input
+          className="profileTextInput"
+          type="number"
+          min="1"
+          value={Number(updateAdminForm?.versionCode) || 1}
+          onChange={(e) => onUpdateAdminFormChange?.({ versionCode: Math.max(1, Number(e.target.value) || 1) })}
+          placeholder="1"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: minVersionCode</label>
+        <input
+          className="profileTextInput"
+          type="number"
+          min="1"
+          value={Number(updateAdminForm?.minVersionCode) || 1}
+          onChange={(e) => onUpdateAdminFormChange?.({ minVersionCode: Math.max(1, Number(e.target.value) || 1) })}
+          placeholder="1"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: APK URL</label>
+        <input
+          className="profileTextInput"
+          value={updateAdminForm?.apkUrl || ''}
+          onChange={(e) => onUpdateAdminFormChange?.({ apkUrl: e.target.value })}
+          placeholder="https://.../app-debug.apk"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: SHA256</label>
+        <input
+          className="profileTextInput"
+          value={updateAdminForm?.sha256 || ''}
+          onChange={(e) => onUpdateAdminFormChange?.({ sha256: e.target.value })}
+          placeholder="64-char hex"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: Notes</label>
+        <textarea
+          className="profileTextInput profileTextarea"
+          value={updateAdminForm?.notes || ''}
+          onChange={(e) => onUpdateAdminFormChange?.({ notes: e.target.value })}
+          placeholder="Release notes"
+        />
+
+        <label className="prefItem" style={{ marginTop: 8 }}>
+          <span>Admin: mandatory</span>
+          <input
+            type="checkbox"
+            checked={Boolean(updateAdminForm?.mandatory)}
+            onChange={(e) => onUpdateAdminFormChange?.({ mandatory: e.target.checked })}
+          />
+        </label>
+
+        <div className="profileActionsRow">
+          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onSaveUpdateAdmin}>Save Update Lane</button>
+        </div>
+
+        {updateMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{updateMessage}</p> : null}
+        {updateError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{updateError}</p> : null}
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -1855,11 +2009,26 @@ function AppContent() {
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState('')
   const [imageMessage, setImageMessage] = useState('')
+  const [updateChannel, setUpdateChannel] = useState('stable')
+  const [updateInfo, setUpdateInfo] = useState(null)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateError, setUpdateError] = useState('')
+  const [updateMessage, setUpdateMessage] = useState('')
+  const [updateAdminForm, setUpdateAdminForm] = useState({
+    versionName: '1.0',
+    versionCode: 1,
+    minVersionCode: 1,
+    mandatory: false,
+    notes: '',
+    apkUrl: '',
+    sha256: '',
+  })
   const [resumeBanner, setResumeBanner] = useState('')
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(0.85)
 
   const sessionIdRef = useRef(`sess_${Math.random().toString(36).slice(2, 10)}`)
+  const lastUpdateCheckRef = useRef(0)
 
   // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
@@ -2389,6 +2558,141 @@ function AppContent() {
     }
   }
 
+  function updateUpdateAdminForm(patch = {}) {
+    setUpdateAdminForm((prev) => ({
+      ...(prev || {}),
+      ...(patch || {}),
+    }))
+  }
+
+  async function loadUpdateAdminLane(channel = updateChannel) {
+    try {
+      const payload = await loadMobileUpdateSettings()
+      const latest = payload?.config?.android?.[channel]?.latest || payload?.config?.android?.stable?.latest || null
+      if (latest) {
+        setUpdateAdminForm({
+          versionName: latest.versionName || '1.0',
+          versionCode: Number(latest.versionCode) || 1,
+          minVersionCode: Number(latest.minVersionCode) || 1,
+          mandatory: Boolean(latest.mandatory),
+          notes: latest.notes || '',
+          apkUrl: latest.apkUrl || '',
+          sha256: latest.sha256 || '',
+        })
+      }
+    } catch {
+      // keep defaults if settings endpoint is unavailable
+    }
+  }
+
+  async function getCurrentAppVersion() {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const info = await CapacitorApp.getInfo()
+        return {
+          versionName: String(info?.version || '1.0'),
+          versionCode: Number(info?.build || 1) || 1,
+        }
+      }
+    } catch {
+      // fallback to web/package version below
+    }
+    return {
+      versionName: '1.0',
+      versionCode: 1,
+    }
+  }
+
+  async function checkForMobileUpdate({ silent = false } = {}) {
+    try {
+      setUpdateBusy(true)
+      if (!silent) {
+        setUpdateError('')
+        setUpdateMessage('')
+      }
+      const current = await getCurrentAppVersion()
+      const payload = await checkMobileUpdate({
+        platform: 'android',
+        channel: updateChannel,
+        versionName: current.versionName,
+        versionCode: current.versionCode,
+      })
+      setUpdateInfo(payload)
+      lastUpdateCheckRef.current = Date.now()
+      if (!silent) {
+        if (payload?.update?.available) {
+          setUpdateMessage(`Update available: ${payload?.latest?.versionName} (${payload?.latest?.versionCode})`)
+        } else {
+          setUpdateMessage('App is up to date.')
+        }
+      }
+      return payload
+    } catch (err) {
+      if (!silent) setUpdateError(err.message || 'Failed to check update')
+      return null
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
+  async function openUpdateApkAction() {
+    const apkUrl = String(updateInfo?.latest?.apkUrl || '').trim()
+    if (!apkUrl) {
+      setUpdateError('No APK URL configured for this channel.')
+      return
+    }
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url: apkUrl })
+      } else {
+        window.open(apkUrl, '_blank', 'noopener,noreferrer')
+      }
+      setUpdateMessage('Opened update URL.')
+    } catch (err) {
+      setUpdateError(err.message || 'Failed to open update URL')
+    }
+  }
+
+  async function saveUpdateAdminLane() {
+    try {
+      setUpdateBusy(true)
+      setUpdateError('')
+      setUpdateMessage('')
+      const payload = await saveMobileUpdateSettings({
+        platform: 'android',
+        channel: updateChannel,
+        latest: {
+          versionName: updateAdminForm?.versionName,
+          versionCode: updateAdminForm?.versionCode,
+          minVersionCode: updateAdminForm?.minVersionCode,
+          mandatory: updateAdminForm?.mandatory,
+          notes: updateAdminForm?.notes,
+          apkUrl: updateAdminForm?.apkUrl,
+          sha256: updateAdminForm?.sha256,
+          publishedAt: new Date().toISOString(),
+        },
+      })
+      const latest = payload?.config?.android?.[updateChannel]?.latest
+      if (latest) {
+        setUpdateAdminForm({
+          versionName: latest.versionName || '1.0',
+          versionCode: Number(latest.versionCode) || 1,
+          minVersionCode: Number(latest.minVersionCode) || 1,
+          mandatory: Boolean(latest.mandatory),
+          notes: latest.notes || '',
+          apkUrl: latest.apkUrl || '',
+          sha256: latest.sha256 || '',
+        })
+      }
+      setUpdateMessage(`Saved ${updateChannel} lane.`)
+      await checkForMobileUpdate({ silent: true })
+    } catch (err) {
+      setUpdateError(err.message || 'Failed to save update lane')
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
   function playProfileTopSong() {
     if (!profileDraft?.profile || !profileAgentId) return
     const profilePool = profileCollection?.length ? profileCollection : tracks
@@ -2627,6 +2931,28 @@ function AppContent() {
     return () => clearInterval(t)
   }, [])
 
+  useEffect(() => {
+    loadUpdateAdminLane(updateChannel)
+  }, [updateChannel])
+
+  useEffect(() => {
+    checkForMobileUpdate({ silent: true })
+  }, [updateChannel])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const removePromise = CapacitorApp.addListener('resume', async () => {
+      const now = Date.now()
+      if (now - (lastUpdateCheckRef.current || 0) < 5 * 60 * 1000) return
+      await checkForMobileUpdate({ silent: true })
+    })
+    return () => {
+      Promise.resolve(removePromise)
+        .then((h) => h?.remove?.())
+        .catch(() => {})
+    }
+  }, [updateChannel])
+
   // Persist playback state on app/page interruptions (background, close, refresh)
   useEffect(() => {
     function persistNow() {
@@ -2759,6 +3085,17 @@ function AppContent() {
               onTestImageSettings={testImageSettingsAction}
               onGenerateAvatar={generateAvatarAction}
               profileAgentId={profileAgentId}
+              updateChannel={updateChannel}
+              onUpdateChannelChange={setUpdateChannel}
+              updateInfo={updateInfo}
+              updateBusy={updateBusy}
+              updateError={updateError}
+              updateMessage={updateMessage}
+              onCheckUpdate={() => checkForMobileUpdate({ silent: false })}
+              onOpenUpdate={openUpdateApkAction}
+              updateAdminForm={updateAdminForm}
+              onUpdateAdminFormChange={updateUpdateAdminForm}
+              onSaveUpdateAdmin={saveUpdateAdminLane}
             />
           )}
         </div>

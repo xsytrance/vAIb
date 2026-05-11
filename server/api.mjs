@@ -113,6 +113,256 @@ function galleryPublicUrl(agentId, relPath = '') {
   return `/art-gallery/${encodeURIComponent(agentId)}/${rel.split('/').map(encodeURIComponent).join('/')}`
 }
 
+const mobileUpdatesConfigPath = path.join(process.cwd(), 'config', 'mobile-updates.json')
+
+function defaultMobileUpdatesConfig() {
+  return {
+    android: {
+      stable: {
+        latest: {
+          versionName: '1.0',
+          versionCode: 1,
+          minVersionCode: 1,
+          mandatory: false,
+          notes: 'Initial mobile update channel.',
+          apkUrl: '',
+          sha256: '',
+          publishedAt: null,
+        },
+      },
+      beta: {
+        latest: {
+          versionName: '1.0',
+          versionCode: 1,
+          minVersionCode: 1,
+          mandatory: false,
+          notes: 'Initial beta channel.',
+          apkUrl: '',
+          sha256: '',
+          publishedAt: null,
+        },
+      },
+    },
+  }
+}
+
+function loadMobileUpdatesConfig() {
+  try {
+    const raw = readFileSync(mobileUpdatesConfigPath, 'utf8')
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return defaultMobileUpdatesConfig()
+    return parsed
+  } catch {
+    return defaultMobileUpdatesConfig()
+  }
+}
+
+function normalizeMobileRelease(raw = {}) {
+  return {
+    versionName: String(raw.versionName || '1.0'),
+    versionCode: Math.max(1, Number(raw.versionCode) || 1),
+    minVersionCode: Math.max(1, Number(raw.minVersionCode) || 1),
+    mandatory: Boolean(raw.mandatory),
+    notes: String(raw.notes || ''),
+    apkUrl: String(raw.apkUrl || ''),
+    sha256: String(raw.sha256 || '').toLowerCase(),
+    publishedAt: raw.publishedAt || null,
+  }
+}
+
+function resolveMobileRelease(config, platform = 'android', channel = 'stable') {
+  const root = config?.[platform]
+  if (!root || typeof root !== 'object') return null
+  const lane = root?.[channel] || root?.stable || null
+  if (!lane || typeof lane !== 'object') return null
+  return normalizeMobileRelease(lane.latest || {})
+}
+
+function buildMobileUpdatePayload({ current, latest, platform, channel }) {
+  const currentCode = Math.max(1, Number(current?.versionCode) || 1)
+  const latestCode = Math.max(1, Number(latest?.versionCode) || 1)
+  const updateAvailable = latestCode > currentCode
+  const belowMinimum = currentCode < Math.max(1, Number(latest?.minVersionCode) || 1)
+  const mandatory = Boolean(latest?.mandatory || belowMinimum)
+
+  return {
+    ok: true,
+    platform,
+    channel,
+    checkedAt: new Date().toISOString(),
+    current: {
+      versionName: String(current?.versionName || ''),
+      versionCode: currentCode,
+    },
+    latest,
+    update: {
+      available: updateAvailable,
+      type: updateAvailable ? 'apk' : 'none',
+      mandatory: updateAvailable ? mandatory : false,
+      reason: updateAvailable
+        ? (belowMinimum ? 'below_minimum_supported_version' : 'new_version_available')
+        : 'up_to_date',
+    },
+  }
+}
+
+function normalizeSha256Hex(v = '') {
+  const s = String(v || '').trim().toLowerCase()
+  return /^[a-f0-9]{64}$/.test(s) ? s : ''
+}
+
+function normalizeChannel(v = '') {
+  const s = String(v || '').trim().toLowerCase()
+  return s === 'beta' ? 'beta' : 'stable'
+}
+
+function normalizePlatform(v = '') {
+  const s = String(v || '').trim().toLowerCase()
+  if (s === 'android' || s === 'ios') return s
+  return 'android'
+}
+
+function normalizeVersionName(v = '') {
+  return String(v || '').trim() || '1.0'
+}
+
+function normalizeVersionCode(v = 1) {
+  return Math.max(1, Number(v) || 1)
+}
+
+function normalizeMobileReleasePatch(body = {}) {
+  const out = {}
+  if (body.versionName != null) out.versionName = normalizeVersionName(body.versionName)
+  if (body.versionCode != null) out.versionCode = normalizeVersionCode(body.versionCode)
+  if (body.minVersionCode != null) out.minVersionCode = normalizeVersionCode(body.minVersionCode)
+  if (body.mandatory != null) out.mandatory = Boolean(body.mandatory)
+  if (body.notes != null) out.notes = String(body.notes || '')
+  if (body.apkUrl != null) out.apkUrl = String(body.apkUrl || '').trim()
+  if (body.sha256 != null) out.sha256 = normalizeSha256Hex(body.sha256)
+  if (body.publishedAt != null) out.publishedAt = body.publishedAt || null
+  return out
+}
+
+async function saveMobileUpdatesConfig(config) {
+  const dir = path.dirname(mobileUpdatesConfigPath)
+  await fs.mkdir(dir, { recursive: true })
+  await fs.writeFile(mobileUpdatesConfigPath, JSON.stringify(config, null, 2))
+}
+
+function normalizeConfigStructure(input) {
+  const base = defaultMobileUpdatesConfig()
+  const cfg = input && typeof input === 'object' ? input : {}
+  for (const platform of ['android']) {
+    if (!cfg[platform] || typeof cfg[platform] !== 'object') cfg[platform] = {}
+    for (const channel of ['stable', 'beta']) {
+      const lane = cfg[platform][channel] && typeof cfg[platform][channel] === 'object' ? cfg[platform][channel] : {}
+      lane.latest = normalizeMobileRelease({
+        ...base[platform][channel].latest,
+        ...(lane.latest || {}),
+      })
+      cfg[platform][channel] = lane
+    }
+  }
+  return cfg
+}
+
+function normalizeReleaseForResponse(rel) {
+  const r = normalizeMobileRelease(rel)
+  return {
+    ...r,
+    sha256: normalizeSha256Hex(r.sha256),
+  }
+}
+
+function normalizeConfigForResponse(cfg = {}) {
+  const c = normalizeConfigStructure(JSON.parse(JSON.stringify(cfg || {})))
+  return {
+    android: {
+      stable: { latest: normalizeReleaseForResponse(c.android.stable.latest) },
+      beta: { latest: normalizeReleaseForResponse(c.android.beta.latest) },
+    },
+  }
+}
+
+function normalizeLatestPatchWithValidation(body = {}) {
+  const patch = normalizeMobileReleasePatch(body)
+  if ('sha256' in patch && body.sha256 && !patch.sha256) {
+    throw new Error('sha256 must be 64-char hex')
+  }
+  return patch
+}
+
+function normalizeReleaseMerged(existing, patch) {
+  return normalizeMobileRelease({ ...(existing || {}), ...(patch || {}) })
+}
+
+function normalizeCheckCurrent(url) {
+  return {
+    versionName: normalizeVersionName(url.searchParams.get('versionName') || url.searchParams.get('version') || '1.0'),
+    versionCode: normalizeVersionCode(url.searchParams.get('versionCode') || 1),
+  }
+}
+
+function normalizeCheckTarget(url) {
+  return {
+    platform: normalizePlatform(url.searchParams.get('platform') || 'android'),
+    channel: normalizeChannel(url.searchParams.get('channel') || 'stable'),
+  }
+}
+
+function sanitizeUpdatePayload(payload) {
+  const out = { ...(payload || {}) }
+  if (out.latest) {
+    out.latest.sha256 = normalizeSha256Hex(out.latest.sha256)
+  }
+  return out
+}
+
+function normalizeManifestLoaded(raw) {
+  return normalizeConfigStructure(raw)
+}
+
+function buildUpdateCheckResponse({ config, url }) {
+  const target = normalizeCheckTarget(url)
+  const current = normalizeCheckCurrent(url)
+  const latest = resolveMobileRelease(config, target.platform, target.channel)
+  if (!latest) {
+    return {
+      ok: false,
+      error: `No release lane configured for ${target.platform}/${target.channel}`,
+      platform: target.platform,
+      channel: target.channel,
+      current,
+    }
+  }
+  return sanitizeUpdatePayload(buildMobileUpdatePayload({
+    current,
+    latest,
+    platform: target.platform,
+    channel: target.channel,
+  }))
+}
+
+function normalizeReleasePatchBody(body) {
+  return normalizeLatestPatchWithValidation(body || {})
+}
+
+function normalizeAdminLaneBody(body) {
+  return {
+    platform: normalizePlatform(body?.platform || 'android'),
+    channel: normalizeChannel(body?.channel || 'stable'),
+    latest: normalizeReleasePatchBody(body?.latest || body || {}),
+  }
+}
+
+function applyLanePatch(config, lanePatch) {
+  const cfg = normalizeConfigStructure(config)
+  const platformRoot = cfg[lanePatch.platform] || (cfg[lanePatch.platform] = {})
+  const lane = platformRoot[lanePatch.channel] || (platformRoot[lanePatch.channel] = {})
+  lane.latest = normalizeReleaseMerged(lane.latest || {}, lanePatch.latest)
+  return cfg
+}
+
 function normalizeTrack(state, trackId) {
   return state.library.find((track) => track.id === trackId)
 }
@@ -1403,6 +1653,34 @@ const server = http.createServer(async (req, res) => {
       const force = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('force') || '').toLowerCase())
       const registry = await discoverAgentRegistry({ scope: scope === 'edge' ? 'edge' : 'global', force })
       sendJson(res, 200, registry)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/mobile/update/check') {
+      const rawCfg = loadMobileUpdatesConfig()
+      const config = normalizeManifestLoaded(rawCfg)
+      const payload = buildUpdateCheckResponse({ config, url })
+      sendJson(res, payload.ok ? 200 : 404, payload)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/settings/mobile-updates') {
+      const cfg = loadMobileUpdatesConfig()
+      sendJson(res, 200, { ok: true, config: normalizeConfigForResponse(cfg) })
+      return
+    }
+
+    if (req.method === 'PATCH' && url.pathname === '/settings/mobile-updates') {
+      const body = await readBody(req)
+      const lanePatch = normalizeAdminLaneBody(body)
+      const current = loadMobileUpdatesConfig()
+      const next = applyLanePatch(current, lanePatch)
+      await saveMobileUpdatesConfig(next)
+      sendJson(res, 200, {
+        ok: true,
+        updated: { platform: lanePatch.platform, channel: lanePatch.channel },
+        config: normalizeConfigForResponse(next),
+      })
       return
     }
 

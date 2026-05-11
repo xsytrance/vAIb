@@ -915,6 +915,36 @@ input { font: inherit; }
   padding: 3px 8px;
 }
 
+.updateInfoBox {
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  padding: 10px;
+}
+
+.updateInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.updateInfoRow:last-child {
+  margin-bottom: 0;
+}
+
+.updateInfoRow span {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+}
+
+.updateInfoRow strong {
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.9);
+}
+
 .tyler6ProfileTheme {
   --t6-bg: #0a0908;
   --t6-bg2: #1a0f0a;

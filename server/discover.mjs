@@ -1,11 +1,16 @@
-// server/discover.mjs — dynamic agent discovery from Hermes profiles and OpenClaw agents
+// server/discover.mjs — local + remote multi-endpoint discovery for vAIb X
 import fs from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
 const HOME = os.homedir()
 const HERMES_PROFILES = path.join(HOME, '.hermes', 'profiles')
 const OPENCLAW_AGENTS = path.join(HOME, '.openclaw', 'agents')
+const REMOTE_DISCOVERY_PORT = Number(process.env.VAIB_REMOTE_DISCOVERY_PORT || 4014)
+const REMOTE_DISCOVERY_TIMEOUT_MS = Number(process.env.VAIB_REMOTE_DISCOVERY_TIMEOUT_MS || 2500)
+const REMOTE_DISCOVERY_DISABLED = ['1', 'true', 'yes', 'on'].includes(String(process.env.VAIB_DISABLE_REMOTE_DISCOVERY || '').toLowerCase())
+const NODE_NAME = String(process.env.VAIB_NODE_NAME || '').trim().toLowerCase()
 
 function parseSoul(raw) {
   const lines = raw.split('\n')
@@ -14,18 +19,15 @@ function parseSoul(raw) {
   let vibe = null
 
   for (const line of lines) {
-    // # SOUL — NAME
     if (!name && /^# SOUL\s*[—–-]\s*/i.test(line)) {
       name = line.replace(/^# SOUL\s*[—–-]\s*/i, '').trim()
       continue
     }
-    // - You are NAME: description
     if (!role && /^- You are /i.test(line)) {
       const match = line.match(/^- You are [^:]+:\s*(.+)/)
       if (match) role = match[1].trim()
       continue
     }
-    // Style: ...
     if (!vibe && /^- Style:/i.test(line)) {
       vibe = line.replace(/^- Style:\s*/i, '').trim()
       continue
@@ -104,7 +106,6 @@ async function discoverOpenClawAgents() {
     if (!entry.isDirectory()) continue
     const agentDir = path.join(OPENCLAW_AGENTS, entry.name)
 
-    // OpenClaw agents may have an IDENTITY.md or similar
     let name = entry.name
     let role = null
     let vibe = null
@@ -122,7 +123,6 @@ async function discoverOpenClawAgents() {
       }
     }
 
-    // OpenClaw doesn't use gateway_state.json — mark active if agent subdir exists
     agents.push({
       id: `openclaw-${entry.name}`,
       name,
@@ -137,10 +137,90 @@ async function discoverOpenClawAgents() {
   return agents
 }
 
+function loadRemoteEndpointConfig() {
+  const jsonPath = path.join(process.cwd(), 'config', 'discovery.endpoints.json')
+  try {
+    const raw = readFileSync(jsonPath, 'utf8')
+    const parsed = JSON.parse(raw)
+    const endpoints = Array.isArray(parsed?.endpoints) ? parsed.endpoints : []
+    return endpoints
+      .map((e) => ({
+        name: String(e?.name || '').trim(),
+        host: String(e?.host || '').trim(),
+        user: String(e?.user || '').trim(),
+        passwordEnv: String(e?.passwordEnv || '').trim(),
+      }))
+      .filter((e) => e.name && e.host)
+  } catch {
+    return []
+  }
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function normalizeRemoteAgent(endpointName, rawAgent = {}) {
+  const baseId = String(rawAgent.id || '').trim() || 'unknown'
+  return {
+    id: `${endpointName}:${baseId}`,
+    originalId: baseId,
+    endpoint: endpointName,
+    name: rawAgent.name || baseId,
+    source: `remote:${endpointName}`,
+    role: rawAgent.role || null,
+    vibe: rawAgent.vibe || null,
+    gatewayState: rawAgent.gatewayState || rawAgent.status || null,
+    updatedAt: rawAgent.updatedAt || null,
+    active: Boolean(rawAgent.active),
+  }
+}
+
+async function discoverRemoteAgents() {
+  if (REMOTE_DISCOVERY_DISABLED) return []
+
+  const endpoints = loadRemoteEndpointConfig()
+  if (!endpoints.length) return []
+
+  const filtered = endpoints.filter((e) => !NODE_NAME || e.name.toLowerCase() !== NODE_NAME)
+  const payloads = await Promise.all(
+    filtered.map((endpoint) =>
+      fetchJsonWithTimeout(`http://${endpoint.host}:${REMOTE_DISCOVERY_PORT}/agents`, REMOTE_DISCOVERY_TIMEOUT_MS)
+        .then((payload) => ({ endpoint, payload }))
+    )
+  )
+
+  const all = []
+  for (const { endpoint, payload } of payloads) {
+    const remoteAgents = Array.isArray(payload?.agents) ? payload.agents : []
+    for (const a of remoteAgents) {
+      all.push(normalizeRemoteAgent(endpoint.name, a))
+    }
+  }
+
+  return all
+}
+
 export async function discoverAgents() {
-  const [hermes, openclaw] = await Promise.all([
+  const [hermes, openclaw, remote] = await Promise.all([
     discoverHermesAgents(),
     discoverOpenClawAgents(),
+    discoverRemoteAgents(),
   ])
-  return [...hermes, ...openclaw]
+
+  const dedup = new Map()
+  for (const a of [...remote, ...hermes, ...openclaw]) {
+    if (!dedup.has(a.id)) dedup.set(a.id, a)
+  }
+  return [...dedup.values()]
 }

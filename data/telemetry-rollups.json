@@ -1,0 +1,233 @@
+{
+  "updatedAt": "2026-05-11T12:31:40.999Z",
+  "windows": {
+    "all": {
+      "agentId": null,
+      "window": "all",
+      "metrics": {
+        "playtimeSec": 0,
+        "completionRatio": 0,
+        "skipRatio": 0,
+        "starts": 1,
+        "ends": 0,
+        "skips": 0,
+        "pauses": 0,
+        "resumes": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "volumeChanges": 1,
+        "seeks": 0,
+        "favorites": 0,
+        "dislikes": 0,
+        "activeSessionCount": 2,
+        "peakHour": "08:00",
+        "volumeThrash": 0
+      },
+      "topSongs": [
+        {
+          "trackId": "_probe_track",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        }
+      ],
+      "actionCounts": {
+        "song.play.start": 1,
+        "song.volume.change": 1
+      },
+      "hourBuckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "resonance": {
+        "delta": 0,
+        "components": {
+          "fullListenBonus": 0,
+          "favoriteBonus": 0,
+          "diversityBonus": 0,
+          "earlySkipPenalty": 0,
+          "mutePenalty": 0,
+          "volumeThrashPenalty": 0,
+          "dislikePenalty": 0
+        }
+      }
+    },
+    "d7": {
+      "agentId": null,
+      "window": "7d",
+      "metrics": {
+        "playtimeSec": 0,
+        "completionRatio": 0,
+        "skipRatio": 0,
+        "starts": 1,
+        "ends": 0,
+        "skips": 0,
+        "pauses": 0,
+        "resumes": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "volumeChanges": 1,
+        "seeks": 0,
+        "favorites": 0,
+        "dislikes": 0,
+        "activeSessionCount": 2,
+        "peakHour": "08:00",
+        "volumeThrash": 0
+      },
+      "topSongs": [
+        {
+          "trackId": "_probe_track",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        }
+      ],
+      "actionCounts": {
+        "song.play.start": 1,
+        "song.volume.change": 1
+      },
+      "hourBuckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "resonance": {
+        "delta": 0,
+        "components": {
+          "fullListenBonus": 0,
+          "favoriteBonus": 0,
+          "diversityBonus": 0,
+          "earlySkipPenalty": 0,
+          "mutePenalty": 0,
+          "volumeThrashPenalty": 0,
+          "dislikePenalty": 0
+        }
+      }
+    },
+    "d30": {
+      "agentId": null,
+      "window": "30d",
+      "metrics": {
+        "playtimeSec": 0,
+        "completionRatio": 0,
+        "skipRatio": 0,
+        "starts": 1,
+        "ends": 0,
+        "skips": 0,
+        "pauses": 0,
+        "resumes": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "volumeChanges": 1,
+        "seeks": 0,
+        "favorites": 0,
+        "dislikes": 0,
+        "activeSessionCount": 2,
+        "peakHour": "08:00",
+        "volumeThrash": 0
+      },
+      "topSongs": [
+        {
+          "trackId": "_probe_track",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        }
+      ],
+      "actionCounts": {
+        "song.play.start": 1,
+        "song.volume.change": 1
+      },
+      "hourBuckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "resonance": {
+        "delta": 0,
+        "components": {
+          "fullListenBonus": 0,
+          "favoriteBonus": 0,
+          "diversityBonus": 0,
+          "earlySkipPenalty": 0,
+          "mutePenalty": 0,
+          "volumeThrashPenalty": 0,
+          "dislikePenalty": 0
+        }
+      }
+    }
+  }
+}

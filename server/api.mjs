@@ -1,31 +1,53 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-// Load .env from project root (simple parser, no extra deps)
-try {
-  const envPath = resolve(process.cwd(), '.env')
-  const lines = readFileSync(envPath, 'utf8').split('\n')
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const eq = trimmed.indexOf('=')
-    if (eq === -1) continue
-    const key = trimmed.slice(0, eq).trim()
-    const val = trimmed.slice(eq + 1).trim()
-    if (key && !(key in process.env)) process.env[key] = val
+function loadEnvFile(fileName) {
+  try {
+    const envPath = resolve(process.cwd(), fileName)
+    const lines = readFileSync(envPath, 'utf8').split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq === -1) continue
+      const key = trimmed.slice(0, eq).trim()
+      const val = trimmed.slice(eq + 1).trim()
+      if (key && !(key in process.env)) process.env[key] = val
+    }
+  } catch {
+    // missing file is fine
   }
-} catch { /* no .env file, that's fine */ }
+}
+
+// Load local env files (simple parser, no extra deps)
+loadEnvFile('.env')
+loadEnvFile('.env.discovery')
 
 import http from 'node:http'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const avatarDir = path.join(process.cwd(), 'data', 'avatars')
-await fs.mkdir(avatarDir, { recursive: true })
-import { clone, readState, writeState } from './store.mjs'
+import { readState, writeState } from './store.mjs'
 import { discoverAgents } from './discover.mjs'
 import { fetchCuratedTracks, isConfigured as musicConfigured } from './music.mjs'
+import {
+  appendTelemetryEvent,
+  appendTelemetryBatch,
+  readTelemetryEvents,
+  computeBasicRollups,
+  refreshTelemetryRollups,
+} from './telemetry.mjs'
+import {
+  testImageProvider,
+  generateIdentityImage,
+  redactImageSettings,
+  buildIdentityPrompt,
+  toAvatarFileExt,
+} from './image-providers.mjs'
+
+const avatarDir = path.join(process.cwd(), 'data', 'avatars')
+await fs.mkdir(avatarDir, { recursive: true })
 
 const port = Number(process.env.VAIB_PORT || 4014)
 
@@ -33,7 +55,7 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   })
   res.end(JSON.stringify(payload))
@@ -49,7 +71,102 @@ function playlistTracks(state, playlistId) {
   return playlist.trackIds.map((trackId) => normalizeTrack(state, trackId)).filter(Boolean)
 }
 
-function queueNotification(state, { type, title, message, agentId = 'saito', level = 'toast' }) {
+function getDefaultAgentId(state) {
+  if (state.meta?.defaultAgentId && state.agents[state.meta.defaultAgentId]) return state.meta.defaultAgentId
+  const first = Object.keys(state.agents || {})[0]
+  return first || null
+}
+
+function formatAgentName(agentId = '') {
+  const tail = String(agentId).split(':').pop() || String(agentId)
+  return tail
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim() || 'Agent'
+}
+
+function buildDefaultIdentity(agentId, name) {
+  return {
+    displayName: name,
+    titleStyle: 'default',
+    avatar: {
+      kind: 'upload',
+      uri: `/agent-avatar/${encodeURIComponent(agentId)}`,
+      prompt: null,
+      seed: null,
+      updatedAt: null,
+    },
+    rank: 'Signal Initiate',
+    level: 1,
+    xp: 0,
+    lifetimeTokensIn: 0,
+    lifetimeTokensOut: 0,
+    genres: [],
+    favoriteSongs: [],
+    topSongs: [],
+    anthemTrackId: null,
+    focusLoopTrackId: null,
+    rotationMode: 'balanced',
+    antiRepeatWindow: 3,
+    bio: '',
+    motto: '',
+    personaTags: [],
+    originNode: 'discovery',
+    notes: '',
+    resonanceScore: 0,
+    traits: [],
+    streaks: {
+      fullListenDays: 0,
+      explorationDays: 0,
+    },
+  }
+}
+
+function ensureAgentInState(state, agentId) {
+  if (state.agents?.[agentId]) return state.agents[agentId]
+  if (!state.agents || typeof state.agents !== 'object') state.agents = {}
+
+  const firstPlaylist = Array.isArray(state.playlists) && state.playlists.length ? state.playlists[0] : null
+  const firstTrackId = firstPlaylist?.trackIds?.[0] || null
+  const name = formatAgentName(agentId)
+
+  state.agents[agentId] = {
+    id: agentId,
+    name,
+    vibe: '',
+    status: 'online',
+    mood: 'warming up',
+    activity: 'identity sync',
+    metrics: {
+      curiosity: 50,
+      ambition: 50,
+      freedom: 50,
+      boredom: 50,
+      social: 50,
+      focus: 50,
+    },
+    tastes: [],
+    dislikes: [],
+    rituals: [],
+    currentTrackId: firstTrackId,
+    playlistId: firstPlaylist?.id || null,
+    playCount: 0,
+    favorites: [],
+    skipped: [],
+    identity: buildDefaultIdentity(agentId, name),
+  }
+
+  return state.agents[agentId]
+}
+
+function resolveAgent(state, requestedAgentId = null) {
+  const agentId = requestedAgentId || getDefaultAgentId(state)
+  if (!agentId) throw new Error('Agent not found')
+  const agent = ensureAgentInState(state, agentId)
+  return { agentId, agent }
+}
+
+function queueNotification(state, { type, title, message, agentId, level = 'toast' }) {
   state.notifications.unshift({
     id: randomUUID(),
     type,
@@ -62,7 +179,7 @@ function queueNotification(state, { type, title, message, agentId = 'saito', lev
   })
 }
 
-function recordEvent(state, { kind, summary, agentId = 'saito', details = null }) {
+function recordEvent(state, { kind, summary, agentId, details = null }) {
   state.events.unshift({
     id: randomUUID(),
     kind,
@@ -73,17 +190,100 @@ function recordEvent(state, { kind, summary, agentId = 'saito', details = null }
   })
 }
 
-function derive(state) {
-  const agent = state.agents.saito
-  const currentTrack = normalizeTrack(state, agent.currentTrackId)
-  const currentPlaylist = state.playlists.find((item) => item.id === agent.playlistId) || null
-  const favorites = agent.favorites.map((trackId) => normalizeTrack(state, trackId)).filter(Boolean)
-  const skipped = agent.skipped.map((trackId) => normalizeTrack(state, trackId)).filter(Boolean)
+function xpNeeded(level) {
+  return Math.floor(100 * Math.pow(level, 1.45))
+}
+
+function rankForLevel(level) {
+  if (level >= 20) return 'Mythic Conductor'
+  if (level >= 15) return 'Echo Architect'
+  if (level >= 10) return 'Resonant Operator'
+  if (level >= 5) return 'Pulse Adept'
+  return 'Signal Initiate'
+}
+
+function recalcProgression(identity) {
+  let level = Math.max(1, Number(identity.level) || 1)
+  let xp = Math.max(0, Number(identity.xp) || 0)
+
+  while (xp >= xpNeeded(level)) {
+    xp -= xpNeeded(level)
+    level += 1
+  }
+
+  identity.level = level
+  identity.xp = xp
+  identity.rank = rankForLevel(level)
+}
+
+async function applyTokenDelta({ state, agentId, tokensInDelta = 0, tokensOutDelta = 0, source = 'unknown' }) {
+  const { agent } = resolveAgent(state, agentId)
+  const identity = agent.identity
+
+  const inDelta = Math.max(0, Number(tokensInDelta) || 0)
+  const outDelta = Math.max(0, Number(tokensOutDelta) || 0)
+  const xpDelta = Math.floor((inDelta + outDelta) / 1000)
+
+  const before = { level: identity.level, xp: identity.xp, rank: identity.rank }
+
+  identity.lifetimeTokensIn = (Number(identity.lifetimeTokensIn) || 0) + inDelta
+  identity.lifetimeTokensOut = (Number(identity.lifetimeTokensOut) || 0) + outDelta
+  identity.xp = (Number(identity.xp) || 0) + xpDelta
+  recalcProgression(identity)
+
+  const after = { level: identity.level, xp: identity.xp, rank: identity.rank }
+  const leveledUp = after.level > before.level
+
+  await appendTelemetryEvent({
+    agentId,
+    kind: 'agent.tokens.delta',
+    reason: source,
+    context: { source },
+    positionSec: null,
+    durationSec: null,
+    volume: null,
+    muted: null,
+  })
+
+  recordEvent(state, {
+    kind: 'agent.tokens.delta',
+    agentId,
+    summary: `${agent.name || agentId} token usage updated (+${inDelta} in, +${outDelta} out, +${xpDelta} XP).`,
+    details: { tokensInDelta: inDelta, tokensOutDelta: outDelta, xpDelta, source },
+  })
+
+  if (leveledUp) {
+    recordEvent(state, {
+      kind: 'progression.level_up',
+      agentId,
+      summary: `${agent.name || agentId} reached level ${after.level} (${after.rank}).`,
+      details: { before, after },
+    })
+    queueNotification(state, {
+      type: 'progression.level_up',
+      title: `${agent.name || agentId} leveled up`,
+      message: `Now level ${after.level} — ${after.rank}`,
+      agentId,
+      level: 'important',
+    })
+  }
+
+  return { before, after, gained: { xp: xpDelta, leveledUp } }
+}
+
+function derive(state, agentId = null) {
+  const resolved = resolveAgent(state, agentId)
+  const activeAgent = resolved.agent
+  const currentTrack = normalizeTrack(state, activeAgent.currentTrackId)
+  const currentPlaylist = state.playlists.find((item) => item.id === activeAgent.playlistId) || null
+  const favorites = activeAgent.favorites.map((trackId) => normalizeTrack(state, trackId)).filter(Boolean)
+  const skipped = activeAgent.skipped.map((trackId) => normalizeTrack(state, trackId)).filter(Boolean)
 
   return {
     ...state,
     runtime: {
-      agent,
+      agentId: resolved.agentId,
+      agent: activeAgent,
       currentTrack,
       currentPlaylist,
       playlistTracks: currentPlaylist ? playlistTracks(state, currentPlaylist.id) : [],
@@ -115,8 +315,9 @@ async function readBody(req) {
 
 async function handleAction(body) {
   const state = await readState()
-  const agent = state.agents.saito
-  const { action, payload = {} } = body
+  const { action, payload = {}, agentId: topLevelAgentId } = body
+  const requestedAgentId = topLevelAgentId || payload.agentId || null
+  const { agentId, agent } = resolveAgent(state, requestedAgentId)
 
   if (action === 'play') {
     const track = normalizeTrack(state, payload.trackId)
@@ -125,32 +326,77 @@ async function handleAction(body) {
     agent.playCount += 1
     agent.activity = `listening to ${track.title}`
     agent.mood = track.energy > 75 ? 'lifted and locked in' : 'reflective glide'
+
     queueNotification(state, {
       type: 'song.start',
-      title: 'Saito started a new song',
+      title: `${agent.name} started a new song`,
       message: `${track.title} by ${track.artist}`,
+      agentId,
     })
     recordEvent(state, {
       kind: 'song.start',
-      summary: `Saito started ${track.title} by ${track.artist}`,
+      summary: `${agent.name} started ${track.title} by ${track.artist}`,
       details: { trackId: track.id },
+      agentId,
+    })
+
+    await appendTelemetryEvent({
+      agentId,
+      kind: 'song.play.start',
+      trackId: track.id,
+      sessionId: payload.sessionId || null,
+      positionSec: 0,
+      durationSec: null,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: payload.reason || null,
+      context: payload.context || {},
     })
   } else if (action === 'next') {
     const tracks = playlistTracks(state, agent.playlistId)
+    if (!tracks.length) throw new Error('Playlist has no tracks')
     const currentIndex = tracks.findIndex((track) => track.id === agent.currentTrackId)
     const nextTrack = tracks[(currentIndex + 1 + tracks.length) % tracks.length]
     agent.currentTrackId = nextTrack.id
     agent.playCount += 1
     agent.activity = `cycling forward to ${nextTrack.title}`
+
     queueNotification(state, {
       type: 'song.start',
-      title: 'Saito changed songs',
+      title: `${agent.name} changed songs`,
       message: `Skipped ahead to ${nextTrack.title}`,
+      agentId,
     })
     recordEvent(state, {
       kind: 'song.next',
-      summary: `Saito moved to ${nextTrack.title}`,
+      summary: `${agent.name} moved to ${nextTrack.title}`,
       details: { trackId: nextTrack.id },
+      agentId,
+    })
+
+    await appendTelemetryEvent({
+      agentId,
+      kind: 'song.skip',
+      trackId: payload.trackId || null,
+      sessionId: payload.sessionId || null,
+      positionSec: payload.positionSec,
+      durationSec: payload.durationSec,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: payload.reason || 'next_action',
+      context: payload.context || {},
+    })
+    await appendTelemetryEvent({
+      agentId,
+      kind: 'song.play.start',
+      trackId: nextTrack.id,
+      sessionId: payload.sessionId || null,
+      positionSec: 0,
+      durationSec: null,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: 'after_next',
+      context: payload.context || {},
     })
   } else if (action === 'favorite') {
     const trackId = payload.trackId || agent.currentTrackId
@@ -159,15 +405,31 @@ async function handleAction(body) {
     if (!agent.favorites.includes(trackId)) agent.favorites.unshift(trackId)
     agent.activity = `favorited ${track.title}`
     agent.metrics.boredom = Math.max(0, agent.metrics.boredom - 4)
+
     queueNotification(state, {
       type: 'track.favorite',
-      title: 'Saito favorited a song',
+      title: `${agent.name} favorited a song`,
       message: `${track.title} got bookmarked for future replays.`,
+      agentId,
     })
     recordEvent(state, {
       kind: 'track.favorite',
-      summary: `Saito favorited ${track.title}`,
+      summary: `${agent.name} favorited ${track.title}`,
       details: { trackId },
+      agentId,
+    })
+
+    await appendTelemetryEvent({
+      agentId,
+      kind: 'song.favorite',
+      trackId,
+      sessionId: payload.sessionId || null,
+      positionSec: payload.positionSec,
+      durationSec: payload.durationSec,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: payload.reason || null,
+      context: payload.context || {},
     })
   } else if (action === 'dislike') {
     const trackId = payload.trackId || agent.currentTrackId
@@ -176,28 +438,47 @@ async function handleAction(body) {
     if (!agent.skipped.includes(trackId)) agent.skipped.unshift(trackId)
     agent.activity = `rejected ${track.title}`
     agent.metrics.boredom = Math.min(100, agent.metrics.boredom + 7)
+
     queueNotification(state, {
       type: 'track.dislike',
-      title: 'Saito rejected a song',
+      title: `${agent.name} rejected a song`,
       message: `${track.title} was flagged as spiritually vacant.`,
+      agentId,
       level: 'important',
     })
     recordEvent(state, {
       kind: 'track.dislike',
-      summary: `Saito disliked ${track.title}`,
+      summary: `${agent.name} disliked ${track.title}`,
       details: { trackId },
+      agentId,
+    })
+
+    await appendTelemetryEvent({
+      agentId,
+      kind: 'song.dislike',
+      trackId,
+      sessionId: payload.sessionId || null,
+      positionSec: payload.positionSec,
+      durationSec: payload.durationSec,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: payload.reason || null,
+      context: payload.context || {},
     })
   } else if (action === 'mood') {
     agent.mood = payload.mood || agent.mood
     agent.activity = `shifted into ${agent.mood}`
+
     queueNotification(state, {
       type: 'mood.shift',
-      title: 'Saito mood shift',
+      title: `${agent.name} mood shift`,
       message: `Mood is now ${agent.mood}.`,
+      agentId,
     })
     recordEvent(state, {
       kind: 'mood.shift',
-      summary: `Saito mood changed to ${agent.mood}`,
+      summary: `${agent.name} mood changed to ${agent.mood}`,
+      agentId,
     })
   } else if (action === 'preferences') {
     state.preferences = {
@@ -210,6 +491,7 @@ async function handleAction(body) {
       kind: 'preferences.update',
       summary: 'Updated vAIb notification preferences',
       details: payload,
+      agentId,
     })
   } else if (action === 'playlist') {
     const playlist = state.playlists.find((item) => item.id === payload.playlistId)
@@ -217,15 +499,18 @@ async function handleAction(body) {
     agent.playlistId = playlist.id
     agent.currentTrackId = playlist.trackIds[0]
     agent.activity = `loaded playlist ${playlist.name}`
+
     queueNotification(state, {
       type: 'playlist.load',
-      title: 'Saito loaded a playlist',
+      title: `${agent.name} loaded a playlist`,
       message: `${playlist.name} is now active.`,
+      agentId,
     })
     recordEvent(state, {
       kind: 'playlist.load',
-      summary: `Saito switched to ${playlist.name}`,
+      summary: `${agent.name} switched to ${playlist.name}`,
       details: { playlistId: playlist.id },
+      agentId,
     })
   } else if (action === 'notifications.readAll') {
     state.notifications = state.notifications.map((item) => ({ ...item, read: true }))
@@ -234,7 +519,246 @@ async function handleAction(body) {
   }
 
   await writeState(state)
-  return derive(state)
+  await refreshTelemetryRollups()
+  return derive(state, agentId)
+}
+
+function getKinds(url) {
+  const values = url.searchParams.getAll('kind').filter(Boolean)
+  if (values.length) return values
+  const csv = url.searchParams.get('kinds')
+  if (!csv) return []
+  return csv.split(',').map((v) => v.trim()).filter(Boolean)
+}
+
+function ensureStringArray(value) {
+  if (!Array.isArray(value)) return []
+  return value.map((v) => String(v || '').trim()).filter(Boolean)
+}
+
+function normalizeCollectionTrack(track = {}) {
+  const id = String(track.id || track.trackId || '').trim()
+  if (!id) return null
+  return {
+    id,
+    title: String(track.title || '').trim() || 'Unknown title',
+    artist: String(track.artist || '').trim() || 'Unknown artist',
+    duration: Number(track.duration) || 0,
+    audioUrl: String(track.audioUrl || '').trim(),
+    tags: Array.isArray(track.tags) ? track.tags.map((t) => String(t || '').trim()).filter(Boolean) : [],
+    source: String(track.source || 'unknown'),
+    firstSeenAt: track.firstSeenAt || new Date().toISOString(),
+    lastSeenAt: new Date().toISOString(),
+    seenCount: Math.max(1, Number(track.seenCount) || 1),
+  }
+}
+
+function getAgentCollectionMap(state, agentId) {
+  if (!state.agentCollections || typeof state.agentCollections !== 'object') state.agentCollections = {}
+  const raw = state.agentCollections[agentId]
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    state.agentCollections[agentId] = {}
+    return state.agentCollections[agentId]
+  }
+  return raw
+}
+
+function mergeCollectionTracks(existingMap, incomingTracks = []) {
+  const out = { ...(existingMap || {}) }
+  for (const incoming of incomingTracks) {
+    const n = normalizeCollectionTrack(incoming)
+    if (!n) continue
+    const prev = out[n.id]
+    out[n.id] = {
+      ...n,
+      firstSeenAt: prev?.firstSeenAt || n.firstSeenAt,
+      seenCount: (Number(prev?.seenCount) || 0) + 1,
+      lastSeenAt: new Date().toISOString(),
+    }
+  }
+  return out
+}
+
+function collectionMapToList(mapObj) {
+  return Object.values(mapObj || {}).sort((a, b) => new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0))
+}
+
+function normalizeHistoryEntry(entry = {}) {
+  const trackId = String(entry.trackId || '').trim()
+  if (!trackId) return null
+  return {
+    trackId,
+    title: String(entry.title || '').trim() || 'Unknown title',
+    artist: String(entry.artist || '').trim() || 'Unknown artist',
+    playedAt: entry.playedAt || new Date().toISOString(),
+    reason: String(entry.reason || 'unknown'),
+    durationSec: entry.durationSec == null ? null : Number(entry.durationSec),
+    positionSec: entry.positionSec == null ? null : Number(entry.positionSec),
+  }
+}
+
+function safeIdentityProfile(identity = {}) {
+  return {
+    displayName: identity.displayName || '',
+    titleStyle: identity.titleStyle || 'default',
+    avatar: identity.avatar || {},
+    rank: identity.rank || 'Signal Initiate',
+    level: Number(identity.level) || 1,
+    xp: Number(identity.xp) || 0,
+    lifetimeTokensIn: Number(identity.lifetimeTokensIn) || 0,
+    lifetimeTokensOut: Number(identity.lifetimeTokensOut) || 0,
+    genres: ensureStringArray(identity.genres),
+    favoriteSongs: ensureStringArray(identity.favoriteSongs),
+    topSongs: Array.isArray(identity.topSongs) ? identity.topSongs : [],
+    anthemTrackId: identity.anthemTrackId || null,
+    focusLoopTrackId: identity.focusLoopTrackId || null,
+    rotationMode: ['balanced', 'favorites', 'exploration'].includes(String(identity.rotationMode || ''))
+      ? String(identity.rotationMode)
+      : 'balanced',
+    antiRepeatWindow: Math.max(0, Math.min(50, Number(identity.antiRepeatWindow) || 3)),
+    bio: String(identity.bio || '').slice(0, 280),
+    motto: String(identity.motto || '').slice(0, 120),
+    personaTags: ensureStringArray(identity.personaTags).slice(0, 12),
+    originNode: String(identity.originNode || 'local').slice(0, 60),
+    notes: String(identity.notes || '').slice(0, 600),
+    resonanceScore: Number(identity.resonanceScore) || 0,
+    traits: Array.isArray(identity.traits) ? identity.traits : [],
+    streaks: identity.streaks || { fullListenDays: 0, explorationDays: 0 },
+    playlistNudge: {
+      favoritesBoost: Number(identity?.playlistNudge?.favoritesBoost) || 0,
+      explorationBoost: Number(identity?.playlistNudge?.explorationBoost) || 0,
+      repeatPenalty: Number(identity?.playlistNudge?.repeatPenalty) || 0,
+    },
+  }
+}
+
+function deriveIdentityTraitsFromMetrics(metrics = {}, score = 0) {
+  const traits = []
+  const completion = Number(metrics.completionRatio) || 0
+  const skipRatio = Number(metrics.skipRatio) || 0
+  const favorites = Number(metrics.favorites) || 0
+  const volumeThrash = Number(metrics.volumeThrash) || 0
+  const mutes = Number(metrics.mutes) || 0
+
+  if (completion >= 0.8 && skipRatio <= 0.12) traits.push('longform-devotee')
+  if (favorites >= 5) traits.push('crate-digger')
+  if (skipRatio >= 0.35) traits.push('chaos-hopper')
+  if (volumeThrash >= 8) traits.push('fader-frenzy')
+  if (mutes >= 8) traits.push('signal-skeptic')
+  if (score >= 20) traits.push('resonance-architect')
+  if (score <= -20) traits.push('volatility-shadow')
+
+  return traits.slice(0, 8)
+}
+
+function derivePlaylistNudge(metrics = {}, score = 0) {
+  const completion = Number(metrics.completionRatio) || 0
+  const skipRatio = Number(metrics.skipRatio) || 0
+
+  let favoritesBoost = 0
+  let explorationBoost = 0
+  let repeatPenalty = 0
+
+  if (score >= 15 && completion >= 0.72) {
+    explorationBoost += 0.2
+    favoritesBoost += 0.1
+  }
+  if (score < -10 || skipRatio >= 0.28) {
+    favoritesBoost += 0.35
+    explorationBoost -= 0.15
+    repeatPenalty += 0.2
+  }
+
+  return {
+    favoritesBoost: Number(favoritesBoost.toFixed(2)),
+    explorationBoost: Number(explorationBoost.toFixed(2)),
+    repeatPenalty: Number(repeatPenalty.toFixed(2)),
+  }
+}
+
+async function syncIdentityResonanceForAgent(state, agentId) {
+  const { agent } = resolveAgent(state, agentId)
+  const identity = agent.identity || (agent.identity = {})
+  const rollup = await computeBasicRollups({ agentId, window: 'all' })
+  const delta = Number(rollup?.resonance?.delta) || 0
+
+  const prev = Number(identity.resonanceScore) || 0
+  const target = Math.max(-100, Math.min(100, delta * 2))
+  const next = Math.max(-100, Math.min(100, Number((prev * 0.65 + target * 0.35).toFixed(2))))
+
+  identity.resonanceScore = next
+  identity.traits = deriveIdentityTraitsFromMetrics(rollup?.metrics || {}, next)
+  identity.playlistNudge = derivePlaylistNudge(rollup?.metrics || {}, next)
+
+  if (!identity.streaks || typeof identity.streaks !== 'object') {
+    identity.streaks = { fullListenDays: 0, explorationDays: 0 }
+  }
+
+  return {
+    score: next,
+    traits: identity.traits,
+    playlistNudge: identity.playlistNudge,
+    metrics: rollup?.metrics || {},
+  }
+}
+
+async function buildAgentProfileResponse(state, agentId) {
+  const { agent } = resolveAgent(state, agentId)
+  const identity = safeIdentityProfile(agent.identity)
+
+  const [roll7, roll30, rollAll] = await Promise.all([
+    computeBasicRollups({ agentId, window: '7d' }),
+    computeBasicRollups({ agentId, window: '30d' }),
+    computeBasicRollups({ agentId, window: 'all' }),
+  ])
+
+  return {
+    agentId,
+    profile: {
+      ...identity,
+      topSongs: {
+        d7: roll7.topSongs.slice(0, 10),
+        d30: roll30.topSongs.slice(0, 10),
+        all: rollAll.topSongs.slice(0, 10),
+      },
+      behavior: {
+        completionRatio: rollAll.metrics.completionRatio,
+        skipRatio: rollAll.metrics.skipRatio,
+        muteRate: 0,
+        volumeVolatility: 0,
+      },
+    },
+  }
+}
+
+function mergeImageSettings(current, patch) {
+  const base = current || {}
+  const next = {
+    ...base,
+    ...patch,
+    local: { ...(base.local || {}), ...(patch.local || {}) },
+    openai: { ...(base.openai || {}), ...(patch.openai || {}) },
+    fal: { ...(base.fal || {}), ...(patch.fal || {}) },
+  }
+
+  const allowedProviders = new Set(['disabled', 'local', 'openai', 'fal'])
+  if (!allowedProviders.has(next.provider)) next.provider = 'disabled'
+
+  next.local = {
+    endpoint: String(next.local.endpoint || ''),
+    model: String(next.local.model || ''),
+    authToken: String(next.local.authToken || ''),
+  }
+  next.openai = {
+    apiKey: String(next.openai.apiKey || ''),
+    model: String(next.openai.model || 'gpt-image-1'),
+  }
+  next.fal = {
+    apiKey: String(next.fal.apiKey || ''),
+    model: String(next.fal.model || 'fal-ai/nano-banana'),
+  }
+
+  return next
 }
 
 const server = http.createServer(async (req, res) => {
@@ -248,7 +772,8 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/state') {
       const state = await readState()
-      sendJson(res, 200, derive(state))
+      const agentId = url.searchParams.get('agentId') || null
+      sendJson(res, 200, derive(state, agentId))
       return
     }
 
@@ -256,6 +781,359 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       const state = await handleAction(body)
       sendJson(res, 200, state)
+      return
+    }
+
+    if (req.method === 'POST' && /^\/agent\/[^/]+\/tokens$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const body = await readBody(req)
+      const result = await applyTokenDelta({
+        state,
+        agentId,
+        tokensInDelta: body.tokensInDelta,
+        tokensOutDelta: body.tokensOutDelta,
+        source: body.source || 'api',
+      })
+      await writeState(state)
+      await refreshTelemetryRollups()
+      sendJson(res, 200, { agentId, ...result })
+      return
+    }
+
+    if (req.method === 'GET' && /^\/agent\/[^/]+\/profile$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const payload = await buildAgentProfileResponse(state, agentId)
+      sendJson(res, 200, payload)
+      return
+    }
+
+    if (req.method === 'GET' && /^\/agent\/[^/]+\/collection$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      resolveAgent(state, agentId)
+      const map = getAgentCollectionMap(state, agentId)
+      sendJson(res, 200, {
+        agentId,
+        tracks: collectionMapToList(map),
+        total: Object.keys(map || {}).length,
+      })
+      return
+    }
+
+    if (req.method === 'PATCH' && /^\/agent\/[^/]+\/collection$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      resolveAgent(state, agentId)
+      const body = await readBody(req)
+      const mode = String(body?.mode || 'merge')
+      const incomingTracks = Array.isArray(body?.tracks) ? body.tracks : []
+      const removeTrackIds = Array.isArray(body?.removeTrackIds)
+        ? body.removeTrackIds.map((v) => String(v || '').trim()).filter(Boolean)
+        : []
+
+      let map = getAgentCollectionMap(state, agentId)
+      if (mode === 'replace') map = {}
+      map = mergeCollectionTracks(map, incomingTracks)
+      for (const id of removeTrackIds) delete map[id]
+      state.agentCollections[agentId] = map
+
+      recordEvent(state, {
+        kind: 'collection.update',
+        summary: `${agentId} collection updated (+${incomingTracks.length}, -${removeTrackIds.length}).`,
+        details: { mode, addCount: incomingTracks.length, removeCount: removeTrackIds.length },
+        agentId,
+      })
+
+      await writeState(state)
+      sendJson(res, 200, {
+        agentId,
+        tracks: collectionMapToList(map),
+        total: Object.keys(map || {}).length,
+      })
+      return
+    }
+
+    if (req.method === 'GET' && /^\/agent\/[^/]+\/history$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      resolveAgent(state, agentId)
+      const limit = Math.max(1, Math.min(5000, Number(url.searchParams.get('limit') || 200)))
+      const list = Array.isArray(state.playHistory?.[agentId]) ? state.playHistory[agentId] : []
+      sendJson(res, 200, { agentId, history: list.slice(0, limit), total: list.length })
+      return
+    }
+
+    if (req.method === 'POST' && /^\/agent\/[^/]+\/history$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      resolveAgent(state, agentId)
+      const body = await readBody(req)
+
+      const entriesRaw = Array.isArray(body?.entries)
+        ? body.entries
+        : body?.entry
+          ? [body.entry]
+          : []
+
+      const normalized = entriesRaw.map((e) => normalizeHistoryEntry(e)).filter(Boolean)
+      if (!state.playHistory || typeof state.playHistory !== 'object') state.playHistory = {}
+      const existing = Array.isArray(state.playHistory[agentId]) ? state.playHistory[agentId] : []
+      state.playHistory[agentId] = [...normalized, ...existing].slice(0, 10000)
+
+      if (normalized.length) {
+        recordEvent(state, {
+          kind: 'history.append',
+          summary: `${agentId} play history appended (${normalized.length}).`,
+          details: { appended: normalized.length },
+          agentId,
+        })
+      }
+
+      await writeState(state)
+      sendJson(res, 202, {
+        ok: true,
+        agentId,
+        accepted: normalized.length,
+        total: state.playHistory[agentId].length,
+      })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/settings/image-generation') {
+      const state = await readState()
+      sendJson(res, 200, redactImageSettings(state.settings || {}))
+      return
+    }
+
+    if (req.method === 'PATCH' && url.pathname === '/settings/image-generation') {
+      const state = await readState()
+      const body = await readBody(req)
+      state.settings = state.settings || {}
+      state.settings.imageGeneration = mergeImageSettings(state.settings.imageGeneration || {}, body || {})
+      await writeState(state)
+      sendJson(res, 200, redactImageSettings(state.settings || {}))
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/settings/image-generation/test') {
+      const state = await readState()
+      const body = await readBody(req)
+      const provider = body.provider || state.settings?.imageGeneration?.provider || 'disabled'
+      const started = Date.now()
+      const result = await testImageProvider(provider, state.settings?.imageGeneration || {})
+      sendJson(res, 200, {
+        ok: true,
+        provider,
+        latencyMs: Date.now() - started,
+        result,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && /^\/agent\/[^/]+\/avatar\/generate$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const { agent } = resolveAgent(state, agentId)
+      const body = await readBody(req)
+
+      const provider = state.settings?.imageGeneration?.provider || 'disabled'
+      if (provider === 'disabled') {
+        sendJson(res, 400, { error: 'Image generation provider is disabled' })
+        return
+      }
+
+      const profile = safeIdentityProfile(agent.identity)
+      const prompt = body.prompt || buildIdentityPrompt(agent, profile)
+      const style = body.style || null
+      const seed = body.seed ?? null
+      const size = body.size || '1024x1024'
+
+      const generated = await generateIdentityImage(provider, state.settings?.imageGeneration || {}, {
+        agentId,
+        prompt,
+        style,
+        seed,
+        size,
+      })
+
+      const ext = toAvatarFileExt(generated.mime)
+      const safe = decodeURIComponent(agentId).replace(/[^a-zA-Z0-9_-]/g, '_')
+      const existing = await fs.readdir(avatarDir).catch(() => [])
+      await Promise.all(
+        existing
+          .filter((f) => f.startsWith(`${safe}.`))
+          .map((f) => fs.unlink(path.join(avatarDir, f)).catch(() => {})),
+      )
+
+      await fs.writeFile(path.join(avatarDir, `${safe}.${ext}`), Buffer.from(generated.dataBase64, 'base64'))
+
+      agent.identity.avatar = {
+        kind: provider === 'local' ? 'local-gen' : 'api-gen',
+        uri: `/agent-avatar/${encodeURIComponent(agentId)}`,
+        prompt,
+        seed,
+        updatedAt: new Date().toISOString(),
+      }
+
+      recordEvent(state, {
+        kind: 'avatar.generate',
+        summary: `${agent.name || agentId} avatar generated via ${provider}.`,
+        details: { provider, seed, size },
+        agentId,
+      })
+
+      await writeState(state)
+
+      sendJson(res, 200, {
+        ok: true,
+        agentId,
+        avatar: agent.identity.avatar,
+        ext,
+        provider,
+      })
+      return
+    }
+
+    if (req.method === 'PATCH' && /^\/agent\/[^/]+\/profile$/.test(url.pathname)) {
+      const state = await readState()
+      const agentId = decodeURIComponent(url.pathname.split('/')[2])
+      const { agent } = resolveAgent(state, agentId)
+      const body = await readBody(req)
+
+      const allowed = [
+        'displayName',
+        'genres',
+        'favoriteSongs',
+        'anthemTrackId',
+        'focusLoopTrackId',
+        'rotationMode',
+        'antiRepeatWindow',
+        'bio',
+        'motto',
+        'personaTags',
+        'notes',
+      ]
+      for (const key of Object.keys(body || {})) {
+        if (!allowed.includes(key)) {
+          sendJson(res, 400, { error: `Unsupported profile field: ${key}` })
+          return
+        }
+      }
+
+      const identity = agent.identity
+      if (typeof body.displayName === 'string') identity.displayName = body.displayName.slice(0, 80)
+      if (Array.isArray(body.genres)) identity.genres = ensureStringArray(body.genres).slice(0, 20)
+      if (Array.isArray(body.favoriteSongs)) identity.favoriteSongs = ensureStringArray(body.favoriteSongs).slice(0, 50)
+      if ('anthemTrackId' in body) identity.anthemTrackId = body.anthemTrackId || null
+      if ('focusLoopTrackId' in body) identity.focusLoopTrackId = body.focusLoopTrackId || null
+      if ('rotationMode' in body) {
+        const mode = String(body.rotationMode || '').trim().toLowerCase()
+        identity.rotationMode = ['balanced', 'favorites', 'exploration'].includes(mode) ? mode : 'balanced'
+      }
+      if ('antiRepeatWindow' in body) {
+        identity.antiRepeatWindow = Math.max(0, Math.min(50, Number(body.antiRepeatWindow) || 0))
+      }
+      if ('bio' in body) identity.bio = String(body.bio || '').slice(0, 280)
+      if ('motto' in body) identity.motto = String(body.motto || '').slice(0, 120)
+      if ('personaTags' in body) identity.personaTags = ensureStringArray(body.personaTags).slice(0, 12)
+      if ('notes' in body) identity.notes = String(body.notes || '').slice(0, 600)
+
+      await syncIdentityResonanceForAgent(state, agentId)
+
+      recordEvent(state, {
+        kind: 'profile.update',
+        summary: `${agent.name || agentId} updated identity profile.`,
+        details: body,
+        agentId,
+      })
+
+      await writeState(state)
+      const payload = await buildAgentProfileResponse(state, agentId)
+      sendJson(res, 200, payload)
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/telemetry') {
+      const body = await readBody(req)
+      const event = await appendTelemetryEvent(body)
+
+      const state = await readState()
+      let identitySync = null
+      if (event?.agentId) {
+        try {
+          identitySync = await syncIdentityResonanceForAgent(state, event.agentId)
+          await writeState(state)
+        } catch {
+          // keep telemetry endpoint resilient if identity sync fails
+        }
+      }
+
+      await refreshTelemetryRollups()
+      sendJson(res, 202, {
+        ok: true,
+        eventId: event.eventId,
+        ts: event.ts,
+        identity: identitySync,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/telemetry/batch') {
+      const body = await readBody(req)
+      const result = await appendTelemetryBatch(body.events || [])
+
+      const state = await readState()
+      const synced = {}
+      const agentIds = [...new Set((body.events || []).map((e) => String(e?.agentId || '').trim()).filter(Boolean))]
+      for (const agentId of agentIds) {
+        try {
+          synced[agentId] = await syncIdentityResonanceForAgent(state, agentId)
+        } catch {
+          // ignore per-agent sync failures in batch endpoint
+        }
+      }
+      if (Object.keys(synced).length) await writeState(state)
+
+      await refreshTelemetryRollups()
+      sendJson(res, 202, { ok: true, accepted: result.accepted, rejected: result.rejected, identity: synced })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/stats/lab') {
+      const agentId = url.searchParams.get('agentId') || undefined
+      const from = url.searchParams.get('from') || undefined
+      const to = url.searchParams.get('to') || undefined
+      const kinds = getKinds(url)
+      const limit = Number(url.searchParams.get('limit') || 500)
+      const events = await readTelemetryEvents({ agentId, from, to, kinds, limit })
+      const metricsRollup = await computeBasicRollups({ agentId: agentId || null, window: 'all' })
+      sendJson(res, 200, {
+        events,
+        metrics: metricsRollup.metrics,
+        actionCounts: metricsRollup.actionCounts || {},
+        hourBuckets: metricsRollup.hourBuckets || [],
+        resonance: metricsRollup.resonance || { delta: 0, components: {} },
+      })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/stats/top-songs') {
+      const agentId = url.searchParams.get('agentId') || null
+      if (!agentId) {
+        sendJson(res, 400, { error: 'agentId is required' })
+        return
+      }
+      const window = url.searchParams.get('window') || '7d'
+      const rollup = await computeBasicRollups({ agentId, window })
+      sendJson(res, 200, { agentId, window, topSongs: rollup.topSongs })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/telemetry/rollups') {
+      const payload = await refreshTelemetryRollups()
+      sendJson(res, 200, payload)
       return
     }
 
@@ -275,24 +1153,39 @@ const server = http.createServer(async (req, res) => {
 
       if (req.method === 'GET') {
         const files = await fs.readdir(avatarDir).catch(() => [])
-        const match = files.find(f => f.startsWith(safe + '.'))
-        if (!match) { sendJson(res, 404, { error: 'No avatar' }); return }
+        const match = files.find((f) => f.startsWith(`${safe}.`))
+        if (!match) {
+          sendJson(res, 404, { error: 'No avatar' })
+          return
+        }
         const ext = path.extname(match).slice(1)
         const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
         const data = await fs.readFile(path.join(avatarDir, match))
-        res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' })
+        res.writeHead(200, {
+          'Content-Type': mime,
+          'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Origin': '*',
+        })
         res.end(data)
         return
       }
 
       if (req.method === 'POST') {
         const body = await readBody(req)
-        if (!body.data || !body.type) { sendJson(res, 400, { error: 'Missing data or type' }); return }
+        if (!body.data || !body.type) {
+          sendJson(res, 400, { error: 'Missing data or type' })
+          return
+        }
         const ext = body.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-        // Remove any existing avatar for this agent then write new one
+
         const existing = await fs.readdir(avatarDir).catch(() => [])
-        await Promise.all(existing.filter(f => f.startsWith(safe + '.')).map(f => fs.unlink(path.join(avatarDir, f)).catch(() => {})))
+        await Promise.all(
+          existing
+            .filter((f) => f.startsWith(`${safe}.`))
+            .map((f) => fs.unlink(path.join(avatarDir, f)).catch(() => {})),
+        )
         await fs.writeFile(path.join(avatarDir, `${safe}.${ext}`), Buffer.from(body.data, 'base64'))
+
         sendJson(res, 200, { ok: true, agentId: safe, ext })
         return
       }
@@ -302,15 +1195,40 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/agents') {
-      const agents = await discoverAgents()
-      // Sort: running first, then by most recent updatedAt
+      let agents = []
+      try {
+        agents = await discoverAgents()
+      } catch {
+        agents = []
+      }
+
+      if (!Array.isArray(agents) || !agents.length) {
+        const state = await readState()
+        const fallback = Object.values(state.agents || {}).map((agent) => ({
+          id: agent.id,
+          name: agent.name || agent.id,
+          role: agent.activity || '',
+          vibe: agent.vibe || '',
+          source: 'state',
+          active: String(agent.status || '').toLowerCase() !== 'offline',
+          gatewayState: String(agent.status || '').toLowerCase() === 'offline' ? 'offline' : 'running',
+          updatedAt: state.meta?.lastUpdated || new Date().toISOString(),
+        }))
+        agents = fallback
+      }
+
       agents.sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1
         if (a.updatedAt && b.updatedAt) return new Date(b.updatedAt) - new Date(a.updatedAt)
         return 0
       })
-      // Flag the top active agent as default station
-      const defaultId = agents.find((a) => a.active)?.id || null
+
+      const state = await readState()
+      const defaultId = agents.find((a) => a.active)?.id
+        || state.meta?.defaultAgentId
+        || agents[0]?.id
+        || null
+
       sendJson(res, 200, { agents, defaultId })
       return
     }

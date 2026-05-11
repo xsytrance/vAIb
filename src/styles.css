@@ -553,6 +553,248 @@ input { font: inherit; }
   font-style: italic;
 }
 
+.agentDetailActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profileBtn {
+  background: rgba(0,255,220,0.12);
+  border: 1px solid rgba(0,255,220,0.35);
+  color: var(--cyan);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+}
+
+.profileHeroCard {
+  border-color: rgba(0,255,220,0.2);
+}
+
+.profileHeroTop {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.profileHeroInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.profileNameInput,
+.profileTextInput {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.profileMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.profileLevel {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+}
+
+.profileXpBar {
+  margin-top: 8px;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.profileXpFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), #60b0ff);
+}
+
+.profileXpLabel {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.45);
+}
+
+.profileStatsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.profileStatsGrid div {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileStatLabel {
+  font-size: 0.66rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profileFieldLabel {
+  display: block;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 6px;
+}
+
+.profileSaveBtn {
+  width: 100%;
+  background: linear-gradient(90deg, rgba(0,255,220,0.25), rgba(96,176,255,0.25));
+  border: 1px solid rgba(0,255,220,0.35);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.profileActionsRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.profileAgentSelectorCard {
+  padding-top: 10px;
+}
+
+.profileAgentScroller {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.profileAgentPill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.8);
+  padding: 4px 10px 4px 4px;
+  font-size: 0.72rem;
+}
+
+.profileAgentPill.active {
+  border-color: rgba(0,255,220,0.45);
+  background: rgba(0,255,220,0.14);
+  color: var(--cyan);
+}
+
+.profileAura {
+  height: 8px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg,
+    hsla(var(--aura-hue), 90%, 62%, 0.2),
+    hsla(calc(var(--aura-hue) + 35), 90%, 62%, 0.75),
+    hsla(calc(var(--aura-hue) + 80), 90%, 62%, 0.2));
+}
+
+.profileTextInput.profileTextarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.profilePersonaCloud,
+.profileGenreCloud {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profilePersonaTag,
+.profileGenrePill {
+  font-size: 0.66rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid rgba(176,80,255,0.35);
+  background: rgba(176,80,255,0.12);
+  color: rgba(233,195,255,0.95);
+}
+
+.profileGenrePill {
+  border-color: rgba(0,255,220,0.35);
+  background: rgba(0,255,220,0.1);
+  color: var(--cyan);
+}
+
+.profilePulseCard {
+  border-color: rgba(96,176,255,0.34);
+  background: linear-gradient(135deg, rgba(96,176,255,0.12), rgba(176,80,255,0.09));
+}
+
+.resonanceBad {
+  border-color: rgba(255,100,130,0.35) !important;
+  background: rgba(255,100,130,0.1) !important;
+  color: #ff9cba !important;
+}
+
+.hourHeatmapRow {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.hourHeatCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 56px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 2px;
+}
+
+.hourHeatFill {
+  width: 70%;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--cyan), #60b0ff);
+}
+
+.hourHeatLabel {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.5);
+}
+
+.profileIdentitySummary {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(230,244,255,0.92);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 10px;
+}
+
 /* ============================================================
    More tab
    ============================================================ */
@@ -695,6 +937,11 @@ input { font: inherit; }
   border-color: rgba(255,255,255,0.12);
   color: rgba(255,255,255,0.45);
   font-size: 0.72rem;
+}
+
+.miniVolume {
+  width: 72px;
+  accent-color: var(--cyan);
 }
 
 /* ============================================================
@@ -906,6 +1153,35 @@ input { font: inherit; }
   height: 44px;
   display: block;
   background: transparent;
+}
+
+.resumeChip {
+  margin: 6px 10px 2px;
+  align-self: flex-start;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+  border: 1px solid rgba(0,255,220,0.3);
+  background: rgba(0,255,220,0.1);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.rotationChipRow {
+  margin: 2px 10px 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rotationChip {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.82);
+  border: 1px solid rgba(96,176,255,0.28);
+  background: rgba(96,176,255,0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 /* ============================================================

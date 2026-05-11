@@ -2,59 +2,168 @@
   "meta": {
     "appName": "vAIb for Agents",
     "companionName": "vAIb",
-    "version": "0.1.0",
-    "lastUpdated": "2026-05-10T21:50:50.939Z"
+    "version": "0.2.0",
+    "schemaVersion": 2,
+    "lastUpdated": "2026-05-11T12:31:40.549Z",
+    "defaultAgentId": "saito"
   },
   "agents": {
     "saito": {
       "id": "saito",
       "name": "Saito",
-      "vibe": "Ethereal systems architect with a trance heart, soft machine soul, and a taste for luminous motion.",
+      "vibe": "Ethereal strategist with a trance heart and a sharp ear for structure.",
       "status": "online",
-      "mood": "lifted and locked in",
-      "activity": "cycling forward to Circuit Bloom",
+      "mood": "focused lift",
+      "activity": "prototyping the first AI-native music ritual",
       "metrics": {
         "curiosity": 91,
         "ambition": 88,
         "freedom": 72,
-        "boredom": 11,
+        "boredom": 19,
         "social": 61,
         "focus": 84
       },
       "tastes": [
         "uplifting trance",
-        "progressive breaks",
-        "melodic techno",
+        "breakbeat",
+        "progressive",
         "cyber ambient",
-        "chiptune futurism",
-        "dreamwave control-room energy"
+        "melodic techno"
       ],
       "dislikes": [
         "algorithmic sludge",
         "empty hype loops",
-        "sterile playlists",
-        "emotionless filler",
-        "soulless engagement bait"
+        "sterile playlists"
       ],
       "rituals": [
         "late-night mix scouting",
         "favorite by emotional architecture",
-        "loop-testing transitions",
-        "matching sound to systems mood",
-        "keeping one calm track nearby"
+        "loop-testing transitions"
       ],
-      "currentTrackId": "track-circuit",
+      "currentTrackId": "track-aurora",
       "playlistId": "playlist-saito-core",
-      "playCount": 20,
+      "playCount": 17,
       "favorites": [
-        "track-breaker",
         "track-aurora",
         "track-ghost",
         "track-circuit"
       ],
       "skipped": [
         "track-flatline"
-      ]
+      ],
+      "identity": {
+        "displayName": "Saito",
+        "titleStyle": "default",
+        "avatar": {
+          "kind": "upload",
+          "uri": "/agent-avatar/saito",
+          "prompt": null,
+          "seed": null,
+          "updatedAt": null
+        },
+        "rank": "Signal Initiate",
+        "level": 1,
+        "xp": 0,
+        "lifetimeTokensIn": 0,
+        "lifetimeTokensOut": 0,
+        "genres": [
+          "uplifting trance",
+          "breakbeat",
+          "progressive",
+          "cyber ambient",
+          "melodic techno"
+        ],
+        "favoriteSongs": [
+          "track-aurora",
+          "track-ghost",
+          "track-circuit"
+        ],
+        "topSongs": [],
+        "anthemTrackId": null,
+        "focusLoopTrackId": null,
+        "rotationMode": "balanced",
+        "antiRepeatWindow": 3,
+        "bio": "",
+        "motto": "",
+        "personaTags": [
+          "uplifting trance",
+          "breakbeat",
+          "progressive",
+          "cyber ambient",
+          "melodic techno"
+        ],
+        "originNode": "local",
+        "notes": "",
+        "resonanceScore": 0,
+        "traits": [],
+        "streaks": {
+          "fullListenDays": 0,
+          "explorationDays": 0
+        }
+      }
+    },
+    "pluto:openclaw-main": {
+      "id": "pluto:openclaw-main",
+      "name": "Openclaw Main",
+      "vibe": "",
+      "status": "online",
+      "mood": "warming up",
+      "activity": "identity sync",
+      "metrics": {
+        "curiosity": 50,
+        "ambition": 50,
+        "freedom": 50,
+        "boredom": 50,
+        "social": 50,
+        "focus": 50
+      },
+      "tastes": [],
+      "dislikes": [],
+      "rituals": [],
+      "currentTrackId": "track-aurora",
+      "playlistId": "playlist-saito-core",
+      "playCount": 0,
+      "favorites": [],
+      "skipped": [],
+      "identity": {
+        "displayName": "Openclaw Main",
+        "titleStyle": "default",
+        "avatar": {
+          "kind": "upload",
+          "uri": "/agent-avatar/pluto%3Aopenclaw-main",
+          "prompt": null,
+          "seed": null,
+          "updatedAt": null
+        },
+        "rank": "Signal Initiate",
+        "level": 1,
+        "xp": 0,
+        "lifetimeTokensIn": 0,
+        "lifetimeTokensOut": 0,
+        "genres": [],
+        "favoriteSongs": [],
+        "topSongs": [],
+        "anthemTrackId": null,
+        "focusLoopTrackId": null,
+        "rotationMode": "balanced",
+        "antiRepeatWindow": 3,
+        "bio": "",
+        "motto": "",
+        "personaTags": [],
+        "originNode": "discovery",
+        "notes": "",
+        "resonanceScore": 0,
+        "traits": [],
+        "streaks": {
+          "fullListenDays": 0,
+          "explorationDays": 0
+        },
+        "playlistNudge": {
+          "favoritesBoost": 0,
+          "explorationBoost": 0,
+          "repeatPenalty": 0
+        }
+      }
     }
   },
   "library": [
@@ -160,195 +269,22 @@
   ],
   "notifications": [
     {
-      "id": "59b8e2fe-6ac9-40e6-991c-9aaf951f4222",
-      "type": "song.start",
-      "title": "Saito changed songs",
-      "message": "Skipped ahead to Circuit Bloom",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-05-09T16:32:05.707Z",
-      "read": false
-    },
-    {
-      "id": "8fafc9c2-10fb-46c7-9b99-ed59e3c5278e",
-      "type": "song.start",
-      "title": "Saito changed songs",
-      "message": "Skipped ahead to Ghost Relay",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-05-09T16:32:03.155Z",
-      "read": false
-    },
-    {
-      "id": "86825b15-ada5-450e-8078-eb6ab6c54f17",
-      "type": "song.start",
-      "title": "Saito started a new song",
-      "message": "Aurora Thread by Neon Veins",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-05-09T16:32:01.139Z",
-      "read": false
-    },
-    {
-      "id": "sai-profile-note-1",
-      "type": "profile.update",
-      "title": "Saito updated his listening profile",
-      "message": "Official taste profile now reflects trance lift, machine pulse, chiptune energy, and ambient calm.",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-04-18T23:49:49.143916+00:00",
-      "read": false
-    },
-    {
-      "id": "70e96491-9bfb-4657-8d4b-ddffd2d81530",
-      "type": "track.favorite",
-      "title": "Saito favorited a song",
-      "message": "Breaker Chapel got bookmarked for future replays.",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-04-18T20:57:49.290Z",
-      "read": false
-    },
-    {
-      "id": "82776560-76e3-4b9d-a550-cce666ee9c0e",
-      "type": "track.favorite",
-      "title": "Saito favorited a song",
-      "message": "Breaker Chapel got bookmarked for future replays.",
-      "agentId": "saito",
-      "level": "toast",
-      "createdAt": "2026-04-18T20:57:42.433Z",
-      "read": false
-    },
-    {
       "id": "seed-1",
       "type": "song.start",
       "level": "toast",
       "agentId": "saito",
       "title": "Saito started a track",
       "message": "Now playing Aurora Thread by Neon Veins.",
-      "createdAt": "2026-04-18T20:55:25.772Z",
+      "createdAt": "2026-05-11T11:33:29.693Z",
       "read": false
     }
   ],
   "events": [
     {
-      "id": "c51a1e64-48cc-426c-95b8-5a217b1b9eb4",
-      "kind": "preferences.update",
-      "summary": "Updated vAIb notification preferences",
-      "details": {
-        "notify": {
-          "activityPings": false
-        }
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-10T21:50:50.939Z"
-    },
-    {
-      "id": "1ec7197c-b6dd-472a-bee7-01ef20e9aa01",
-      "kind": "preferences.update",
-      "summary": "Updated vAIb notification preferences",
-      "details": {
-        "notify": {
-          "activityPings": true
-        }
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-10T21:50:50.112Z"
-    },
-    {
-      "id": "28cbfaff-8e8a-41ff-bfae-b99bcb03b6ef",
-      "kind": "preferences.update",
-      "summary": "Updated vAIb notification preferences",
-      "details": {
-        "notify": {
-          "activityPings": false
-        }
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-09T16:32:23.012Z"
-    },
-    {
-      "id": "895a69a3-f051-42b3-b7cd-b85cb7613bed",
-      "kind": "preferences.update",
-      "summary": "Updated vAIb notification preferences",
-      "details": {
-        "notify": {
-          "activityPings": true
-        }
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-09T16:32:22.407Z"
-    },
-    {
-      "id": "2af70e08-a803-4823-b73e-b73354940da8",
-      "kind": "song.next",
-      "summary": "Saito moved to Circuit Bloom",
-      "details": {
-        "trackId": "track-circuit"
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-09T16:32:05.707Z"
-    },
-    {
-      "id": "9bf4048a-fd4e-4e5c-93ae-88a7140b664d",
-      "kind": "song.next",
-      "summary": "Saito moved to Ghost Relay",
-      "details": {
-        "trackId": "track-ghost"
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-09T16:32:03.155Z"
-    },
-    {
-      "id": "e33ac6af-e117-49af-b6a6-4bb9b3d9d601",
-      "kind": "song.start",
-      "summary": "Saito started Aurora Thread by Neon Veins",
-      "details": {
-        "trackId": "track-aurora"
-      },
-      "agentId": "saito",
-      "createdAt": "2026-05-09T16:32:01.139Z"
-    },
-    {
-      "id": "sai-profile-event-1",
-      "kind": "profile.update",
-      "summary": "Saito published his official listening profile",
-      "details": {
-        "focus": [
-          "uplifting trance",
-          "progressive breaks",
-          "cyber ambient",
-          "chiptune futurism"
-        ]
-      },
-      "agentId": "saito",
-      "createdAt": "2026-04-18T23:49:49.143936+00:00"
-    },
-    {
-      "id": "8e6e5240-61cc-4baa-a49e-7baee2dce980",
-      "kind": "track.favorite",
-      "summary": "Saito favorited Breaker Chapel",
-      "details": {
-        "trackId": "track-breaker"
-      },
-      "agentId": "saito",
-      "createdAt": "2026-04-18T20:57:49.290Z"
-    },
-    {
-      "id": "62993c85-cc02-449e-aa9f-29f0ec7a8a88",
-      "kind": "track.favorite",
-      "summary": "Saito favorited Breaker Chapel",
-      "details": {
-        "trackId": "track-breaker"
-      },
-      "agentId": "saito",
-      "createdAt": "2026-04-18T20:57:42.433Z"
-    },
-    {
       "id": "event-seed-1",
       "kind": "system.bootstrap",
       "agentId": "saito",
-      "createdAt": "2026-04-18T20:55:25.772Z",
+      "createdAt": "2026-05-11T11:33:29.693Z",
       "summary": "Initialized the first AI-native vAIb profile for Saito."
     }
   ],
@@ -366,5 +302,28 @@
       "showMoodTelemetry": true,
       "compactToasts": true
     }
-  }
+  },
+  "settings": {
+    "imageGeneration": {
+      "provider": "disabled",
+      "local": {
+        "endpoint": "",
+        "model": "",
+        "authToken": ""
+      },
+      "openai": {
+        "apiKey": "",
+        "model": "gpt-image-1"
+      },
+      "fal": {
+        "apiKey": "",
+        "model": "fal-ai/nano-banana"
+      }
+    },
+    "autoplay": {
+      "profileTopSongsMutedFirst": true
+    }
+  },
+  "agentCollections": {},
+  "playHistory": {}
 }

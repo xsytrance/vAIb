@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AtmosphereProvider, useAtmosphere } from './atmosphere/AtmosphereProvider'
 import { AgentProvider, useAgent } from './agent/AgentProvider'
 // NOTE: No Saito imports. All display is driven by backend discovery only.
@@ -29,11 +29,11 @@ async function loadTracks() {
   const d = await r.json()
   return d.tracks || []
 }
-async function sendAction(action, payload = {}) {
+async function sendAction(action, payload = {}, agentId = null) {
   const r = await fetch(`${API}/action`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, payload }),
+    body: JSON.stringify({ action, payload, agentId }),
   })
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Request failed')
   return r.json()
@@ -52,6 +52,113 @@ async function uploadAvatar(agentId, file) {
   if (!r.ok) throw new Error('Upload failed')
 }
 
+async function loadAgentProfile(agentId) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/profile`)
+  if (!r.ok) throw new Error('Failed to load agent profile')
+  return r.json()
+}
+
+async function saveAgentProfile(agentId, payload) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to save profile')
+  return r.json()
+}
+
+async function loadImageGenerationSettings() {
+  const r = await fetch(`${API}/settings/image-generation`)
+  if (!r.ok) throw new Error('Failed to load image settings')
+  return r.json()
+}
+
+async function saveImageGenerationSettings(payload) {
+  const r = await fetch(`${API}/settings/image-generation`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to save image settings')
+  return r.json()
+}
+
+async function testImageGenerationProvider(provider) {
+  const r = await fetch(`${API}/settings/image-generation/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Image provider test failed')
+  return r.json()
+}
+
+async function generateAvatar(agentId, payload = {}) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/avatar/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Avatar generation failed')
+  return r.json()
+}
+
+async function loadAgentCollection(agentId) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/collection`)
+  if (!r.ok) throw new Error('Failed to load agent collection')
+  return r.json()
+}
+
+async function saveAgentCollection(agentId, payload) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/collection`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to save collection')
+  return r.json()
+}
+
+async function loadAgentHistory(agentId, limit = 200) {
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/history?limit=${encodeURIComponent(limit)}`)
+  if (!r.ok) throw new Error('Failed to load agent history')
+  return r.json()
+}
+
+async function loadStatsLab(agentId, params = {}) {
+  const q = new URLSearchParams()
+  if (agentId) q.set('agentId', agentId)
+  if (params.from) q.set('from', params.from)
+  if (params.to) q.set('to', params.to)
+  if (Array.isArray(params.kinds) && params.kinds.length) q.set('kinds', params.kinds.join(','))
+  if (params.limit) q.set('limit', String(params.limit))
+  const r = await fetch(`${API}/stats/lab?${q.toString()}`)
+  if (!r.ok) throw new Error('Failed to load stats lab data')
+  return r.json()
+}
+
+async function appendAgentHistory(agentId, entries) {
+  const payload = Array.isArray(entries) ? { entries } : { entry: entries }
+  const r = await fetch(`${API}/agent/${encodeURIComponent(agentId)}/history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to append history')
+  return r.json()
+}
+
+async function appendTelemetry(payload) {
+  const r = await fetch(`${API}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to append telemetry')
+  return r.json()
+}
+
 // ============================================================
 // Utilities
 // ============================================================
@@ -60,13 +167,203 @@ function formatDuration(secs) {
   return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`
 }
 
+function nextLevelXp(level) {
+  return Math.floor(100 * Math.pow(Math.max(1, level || 1), 1.45))
+}
+
+function levelProgressPct(profile) {
+  const currentXp = Number(profile?.xp) || 0
+  const needed = nextLevelXp(profile?.level)
+  if (!needed) return 0
+  return Math.max(0, Math.min(100, (currentXp / needed) * 100))
+}
+
 function seededShuffle(arr, seed) {
   let h = 0
-  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
+  const safeSeed = String(seed || 'agent')
+  for (let i = 0; i < safeSeed.length; i++) h = (Math.imul(31, h) + safeSeed.charCodeAt(i)) | 0
   const rng = () => { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h >>> 0) / 0xffffffff }
   const r = [...arr]
-  for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1));[r[i], r[j]] = [r[j], r[i]] }
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[r[i], r[j]] = [r[j], r[i]]
+  }
   return r
+}
+
+function buildRotationQueue({ pool, mode = 'balanced', favorites = [], history = [], antiRepeatWindow = 3, seed = 'agent', playlistNudge = null }) {
+  const safePool = Array.isArray(pool) ? pool : []
+  const favoriteSet = new Set((favorites || []).map((v) => String(v || '').trim()).filter(Boolean))
+  const recentIds = new Set((history || []).slice(0, Math.max(0, antiRepeatWindow)).map((e) => String(e?.trackId || '').trim()).filter(Boolean))
+  const nudge = {
+    favoritesBoost: Number(playlistNudge?.favoritesBoost) || 0,
+    explorationBoost: Number(playlistNudge?.explorationBoost) || 0,
+    repeatPenalty: Number(playlistNudge?.repeatPenalty) || 0,
+  }
+
+  const base = seededShuffle(safePool, `${seed}:base`)
+  const notRecent = base.filter((t) => !recentIds.has(String(t?.id || '')))
+  const candidate = notRecent.length ? notRecent : base
+
+  if (mode === 'favorites') {
+    const fav = candidate.filter((t) => favoriteSet.has(String(t?.id || '')))
+    const non = candidate.filter((t) => !favoriteSet.has(String(t?.id || '')))
+    return [...fav, ...non]
+  }
+
+  if (mode === 'exploration') {
+    const non = candidate.filter((t) => !favoriteSet.has(String(t?.id || '')))
+    const fav = candidate.filter((t) => favoriteSet.has(String(t?.id || '')))
+    return [...non, ...fav]
+  }
+
+  // balanced + playlist nudge
+  const fav = candidate.filter((t) => favoriteSet.has(String(t?.id || '')))
+  const non = candidate.filter((t) => !favoriteSet.has(String(t?.id || '')))
+
+  const out = []
+  const favQ = [...fav]
+  const nonQ = [...non]
+
+  const favStepBase = 1 + (nudge.favoritesBoost > 0 ? Math.round(nudge.favoritesBoost * 2) : 0)
+  const nonStepBase = 1 + (nudge.explorationBoost > 0 ? Math.round(nudge.explorationBoost * 2) : 0)
+
+  while (favQ.length || nonQ.length) {
+    for (let i = 0; i < favStepBase && favQ.length; i++) out.push(favQ.shift())
+    for (let i = 0; i < nonStepBase && nonQ.length; i++) out.push(nonQ.shift())
+    if (!favQ.length && nonQ.length) out.push(nonQ.shift())
+    if (!nonQ.length && favQ.length) out.push(favQ.shift())
+  }
+
+  const repeatPenalty = Math.max(0, Math.min(1, nudge.repeatPenalty))
+  if (repeatPenalty > 0 && out.length > 2) {
+    const recent = new Set((history || []).slice(0, 6).map((h) => String(h?.trackId || '')).filter(Boolean))
+    const protectedTail = []
+    const front = []
+    for (const t of out) {
+      if (recent.has(String(t?.id || '')) && Math.random() < repeatPenalty) protectedTail.push(t)
+      else front.push(t)
+    }
+    const merged = [...front, ...protectedTail]
+    return merged.length ? merged : out
+  }
+
+  return out.length ? out : candidate
+}
+
+const PLAYBACK_RESUME_KEY = 'vaib_playback_resume_v1'
+const AGENT_COLLECTIONS_KEY = 'vaib_agent_collections_v1'
+const AGENT_PLAY_HISTORY_KEY = 'vaib_agent_play_history_v1'
+
+function loadPlaybackResume() {
+  try {
+    const raw = localStorage.getItem(PLAYBACK_RESUME_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function savePlaybackResume(snapshot) {
+  try {
+    localStorage.setItem(PLAYBACK_RESUME_KEY, JSON.stringify({ ...snapshot, savedAt: Date.now() }))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function normalizeTrackForCollection(t) {
+  if (!t) return null
+  return {
+    id: String(t.id),
+    title: t.title || 'Unknown title',
+    artist: t.artist || 'Unknown artist',
+    duration: Number(t.duration) || 0,
+    audioUrl: t.audioUrl || '',
+    tags: Array.isArray(t.tags) ? t.tags : [],
+    source: t.source || 'unknown',
+  }
+}
+
+function loadAgentCollections() {
+  try {
+    const raw = localStorage.getItem(AGENT_COLLECTIONS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function saveAgentCollections(collections) {
+  try {
+    localStorage.setItem(AGENT_COLLECTIONS_KEY, JSON.stringify(collections || {}))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function collectionArrayToMap(list = []) {
+  const map = {}
+  for (const t of list || []) {
+    const n = normalizeTrackForCollection(t)
+    if (!n?.id) continue
+    map[n.id] = {
+      ...n,
+      firstSeenAt: t.firstSeenAt || n.firstSeenAt || new Date().toISOString(),
+      lastSeenAt: t.lastSeenAt || n.lastSeenAt || new Date().toISOString(),
+      seenCount: Number(t.seenCount) || 1,
+    }
+  }
+  return map
+}
+
+function mergeAgentCollectionForAgent(existing, incomingTracks = []) {
+  const map = new Map()
+
+  const addTrack = (track) => {
+    const normalized = normalizeTrackForCollection(track)
+    if (!normalized?.id) return
+    const prev = map.get(normalized.id)
+    map.set(normalized.id, {
+      ...normalized,
+      firstSeenAt: prev?.firstSeenAt || normalized.firstSeenAt || new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(),
+      seenCount: (prev?.seenCount || 0) + 1,
+    })
+  }
+
+  Object.values(existing || {}).forEach(addTrack)
+  incomingTracks.forEach(addTrack)
+
+  const merged = {}
+  for (const [id, value] of map.entries()) merged[id] = value
+  return merged
+}
+
+function loadAgentPlayHistory() {
+  try {
+    const raw = localStorage.getItem(AGENT_PLAY_HISTORY_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function saveAgentPlayHistory(history) {
+  try {
+    localStorage.setItem(AGENT_PLAY_HISTORY_KEY, JSON.stringify(history || {}))
+  } catch {
+    // ignore storage errors
+  }
 }
 
 // ============================================================
@@ -415,7 +712,7 @@ function QueueTab({ agentTracks, trackIndex, playing, onPlayTrack }) {
 // ============================================================
 // Tab: Agents
 // ============================================================
-function AgentsTab({ agents }) {
+function AgentsTab({ agents, onOpenProfile }) {
   return (
     <div className="tabScreen">
       <ul className="agentDetailList">
@@ -433,9 +730,14 @@ function AgentsTab({ agents }) {
                 {agent.vibe && <p className="agentDetailVibe">{agent.vibe}</p>}
               </div>
             </div>
-            <span className={`statusPill ${agent.active ? 'online' : 'offline'}`} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-              {agent.gatewayState || 'offline'}
-            </span>
+            <div className="agentDetailActions">
+              <span className={`statusPill ${agent.active ? 'online' : 'offline'}`} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+                {agent.gatewayState || 'offline'}
+              </span>
+              <button type="button" className="profileBtn" onClick={() => onOpenProfile(agent.id)}>
+                Profile
+              </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -443,10 +745,732 @@ function AgentsTab({ agents }) {
   )
 }
 
+function AgentProfileTab({
+  profile,
+  collection = [],
+  history = [],
+  busy,
+  saveError,
+  onChange,
+  onSave,
+  onPlayTopSong,
+  onAddTrack,
+  onRemoveTrack,
+  onOpenAgent,
+  onTune,
+  allAgents = [],
+  selectedAgentId,
+  liveTrack,
+}) {
+  if (!profile) {
+    return (
+      <div className="tabScreen">
+        <div className="card profileAgentSelectorCard">
+          <div className="cardHeaderRow">
+            <span className="cardLabel">Agent Profiles</span>
+            <span className="eventTime">{allAgents.length} total</span>
+          </div>
+          <div className="profileAgentScroller">
+            {allAgents.map((agent) => (
+              <button
+                key={agent.id}
+                type="button"
+                className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''}`}
+                onClick={() => onOpenAgent?.(agent.id)}
+              >
+                <AgentAvatar agentId={agent.id} name={agent.name} size={28} />
+                <span>{agent.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="emptyScreen" style={{ minHeight: 120 }}>
+          <p>Select an agent to view identity profile.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const p = profile.profile
+  const progress = levelProgressPct(p)
+  const nextXp = nextLevelXp(p.level)
+  const topSongs = p.topSongs?.d7 || []
+  const auraHue = Math.abs(Array.from(String(profile.agentId || 'agent')).reduce((acc, ch) => (acc * 33 + ch.charCodeAt(0)) | 0, 17)) % 360
+  const persona = (p.personaTags || []).slice(0, 6)
+
+  const historyStats = useMemo(() => {
+    const entries = Array.isArray(history) ? history : []
+    if (!entries.length) {
+      return {
+        total: 0,
+        uniqueTracks: 0,
+        avgCompletion: 0,
+        skipRate: 0,
+        totalPlaytimeSec: 0,
+        peakHour: null,
+        topGenres: [],
+        behaviorLabel: 'Untrained Signal',
+      }
+    }
+
+    const trackSet = new Set()
+    const hourBuckets = Array.from({ length: 24 }, () => 0)
+    let completionSum = 0
+    let completionCount = 0
+    let skipCount = 0
+    let playtimeSum = 0
+    const genreCounts = new Map()
+
+    for (const entry of entries) {
+      const trackId = String(entry?.trackId || '')
+      if (trackId) trackSet.add(trackId)
+
+      const ts = new Date(entry?.playedAt || entry?.ts || Date.now())
+      const hour = Number.isFinite(ts.getTime()) ? ts.getHours() : null
+      if (hour !== null && hour >= 0 && hour <= 23) hourBuckets[hour] += 1
+
+      const completion = Number(entry?.completionRatio)
+      if (Number.isFinite(completion)) {
+        completionSum += Math.max(0, Math.min(1, completion))
+        completionCount += 1
+      }
+
+      const playSec = Number(entry?.playtimeSec)
+      if (Number.isFinite(playSec) && playSec > 0) playtimeSum += playSec
+
+      const reason = String(entry?.reason || '').toLowerCase()
+      if (reason.includes('skip')) skipCount += 1
+
+      const trackGenre = Array.isArray(entry?.tags) ? entry.tags : []
+      for (const g of trackGenre.slice(0, 2)) {
+        const key = String(g || '').trim().toLowerCase()
+        if (!key) continue
+        genreCounts.set(key, (genreCounts.get(key) || 0) + 1)
+      }
+    }
+
+    const avgCompletion = completionCount ? completionSum / completionCount : 0
+    const skipRate = entries.length ? skipCount / entries.length : 0
+    const peakHourIdx = hourBuckets.reduce((best, curr, idx) => (curr > hourBuckets[best] ? idx : best), 0)
+    const topGenres = Array.from(genreCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([genre]) => genre)
+
+    const behaviorLabel = avgCompletion > 0.85 && skipRate < 0.08
+      ? 'Steady Resonance'
+      : avgCompletion > 0.65 && skipRate < 0.2
+        ? 'Adaptive Listener'
+        : skipRate > 0.35
+          ? 'Chaotic Hopper'
+          : 'Pattern Seeker'
+
+    return {
+      total: entries.length,
+      uniqueTracks: trackSet.size,
+      avgCompletion,
+      skipRate,
+      totalPlaytimeSec: Math.round(playtimeSum),
+      peakHour: `${String(peakHourIdx).padStart(2, '0')}:00`,
+      topGenres,
+      behaviorLabel,
+    }
+  }, [history])
+
+  const identitySummary = useMemo(() => {
+    const displayName = p.displayName || profile.agentId
+    const tokensIn = Number(p.lifetimeTokensIn) || 0
+    const tokensOut = Number(p.lifetimeTokensOut) || 0
+    const hasTokens = tokensIn > 0 || tokensOut > 0
+
+    const genrePart = historyStats.topGenres.length
+      ? `${historyStats.topGenres.slice(0, 2).join(' / ')} specialist`
+      : 'genre profile still forming'
+
+    const stabilityPart = historyStats.skipRate <= 0.12
+      ? 'low skip volatility'
+      : historyStats.skipRate <= 0.28
+        ? 'moderate skip volatility'
+        : 'high skip volatility'
+
+    const completionPart = historyStats.avgCompletion >= 0.82
+      ? 'high completion discipline'
+      : historyStats.avgCompletion >= 0.62
+        ? 'balanced completion habits'
+        : 'fast-switch listening behavior'
+
+    const peakPart = historyStats.peakHour
+      ? `most active around ${historyStats.peakHour}`
+      : 'active window not established yet'
+
+    const tokenPart = hasTokens
+      ? `Token footprint ${tokensIn.toLocaleString()} in / ${tokensOut.toLocaleString()} out`
+      : 'Token footprint pending telemetry'
+
+    return `${displayName}: ${historyStats.behaviorLabel}. ${genrePart}, ${stabilityPart}, ${completionPart}; ${peakPart}. ${tokenPart}.`
+  }, [historyStats, p.displayName, p.lifetimeTokensIn, p.lifetimeTokensOut, profile.agentId])
+
+  return (
+    <div className="tabScreen">
+      <div className="card profileAgentSelectorCard">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Agent Profiles</span>
+          <span className="eventTime">{allAgents.length} total</span>
+        </div>
+        <div className="profileAgentScroller">
+          {allAgents.map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              className={`profileAgentPill ${selectedAgentId === agent.id ? 'active' : ''}`}
+              onClick={() => onOpenAgent?.(agent.id)}
+            >
+              <AgentAvatar agentId={agent.id} name={agent.name} size={28} />
+              <span>{agent.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card profileHeroCard" style={{ borderColor: `hsla(${auraHue}, 90%, 65%, 0.45)` }}>
+        <div className="profileAura" style={{ '--aura-hue': auraHue }} />
+        <div className="profileHeroTop">
+          <AgentAvatar agentId={profile.agentId} name={p.displayName || profile.agentId} size={72} uploadable />
+          <div className="profileHeroInfo">
+            <input
+              className="profileNameInput"
+              value={p.displayName || ''}
+              onChange={(e) => onChange({ displayName: e.target.value })}
+              placeholder="Stylized display name"
+            />
+            <div className="profileMetaRow">
+              <span className="agentBadge">{p.rank || 'Signal Initiate'}</span>
+              <span className="profileLevel">Level {p.level || 1}</span>
+            </div>
+            <div className="profileXpBar">
+              <div className="profileXpFill" style={{ width: `${progress}%` }} />
+            </div>
+            <span className="profileXpLabel">XP {p.xp || 0} / {nextXp}</span>
+          </div>
+        </div>
+        <p className="profileIdentitySummary">{identitySummary}</p>
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Identity Voice</span>
+        <label className="profileFieldLabel">Bio</label>
+        <textarea
+          className="profileTextInput profileTextarea"
+          value={p.bio || ''}
+          onChange={(e) => onChange({ bio: e.target.value })}
+          placeholder="Who this agent is in your universe"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Motto</label>
+        <input
+          className="profileTextInput"
+          value={p.motto || ''}
+          onChange={(e) => onChange({ motto: e.target.value })}
+          placeholder="One line mantra"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Persona Tags (comma separated)</label>
+        <input
+          className="profileTextInput"
+          value={(persona || []).join(', ')}
+          onChange={(e) => onChange({ personaTags: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+          placeholder="architect, night-owl, melodic"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Private Notes</label>
+        <textarea
+          className="profileTextInput profileTextarea"
+          value={p.notes || ''}
+          onChange={(e) => onChange({ notes: e.target.value })}
+          placeholder="What makes this agent unique for you"
+        />
+
+        {persona.length > 0 && (
+          <div className="profilePersonaCloud">
+            {persona.map((tag) => <span key={tag} className="profilePersonaTag">#{tag}</span>)}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Progression</span>
+        <div className="profileStatsGrid">
+          <div><span className="profileStatLabel">Tokens In</span><strong>{(p.lifetimeTokensIn || 0).toLocaleString()}</strong></div>
+          <div><span className="profileStatLabel">Tokens Out</span><strong>{(p.lifetimeTokensOut || 0).toLocaleString()}</strong></div>
+          <div><span className="profileStatLabel">Resonance</span><strong>{Number(p.resonanceScore || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Traits</span><strong>{(p.traits || []).length}</strong></div>
+        </div>
+      </div>
+
+      <div className="card profilePulseCard">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Live Pulse</span>
+          <span className="agentBadge">{historyStats.behaviorLabel}</span>
+        </div>
+        <div className="profileStatsGrid">
+          <div><span className="profileStatLabel">Events</span><strong>{historyStats.total.toLocaleString()}</strong></div>
+          <div><span className="profileStatLabel">Unique Tracks</span><strong>{historyStats.uniqueTracks.toLocaleString()}</strong></div>
+          <div><span className="profileStatLabel">Completion</span><strong>{Math.round(historyStats.avgCompletion * 100)}%</strong></div>
+          <div><span className="profileStatLabel">Skip Rate</span><strong>{Math.round(historyStats.skipRate * 100)}%</strong></div>
+          <div><span className="profileStatLabel">Playtime</span><strong>{formatDuration(historyStats.totalPlaytimeSec)}</strong></div>
+          <div><span className="profileStatLabel">Peak Hour</span><strong>{historyStats.peakHour || '--:--'}</strong></div>
+        </div>
+        {historyStats.topGenres.length ? (
+          <div className="profileGenreCloud">
+            {historyStats.topGenres.map((genre) => <span key={genre} className="profileGenrePill">{genre}</span>)}
+          </div>
+        ) : (
+          <p className="cardMuted" style={{ marginTop: 10 }}>No genre tags in telemetry yet.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Music DNA</span>
+        <label className="profileFieldLabel">Genres (comma separated)</label>
+        <input
+          className="profileTextInput"
+          value={(p.genres || []).join(', ')}
+          onChange={(e) => onChange({ genres: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+          placeholder="uplifting trance, breakbeat"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Favorite Songs (track IDs, comma separated)</label>
+        <input
+          className="profileTextInput"
+          value={(p.favoriteSongs || []).join(', ')}
+          onChange={(e) => onChange({ favoriteSongs: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
+          placeholder="track-aurora, track-circuit"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Rotation Mode</label>
+        <select
+          className="profileTextInput"
+          value={p.rotationMode || 'balanced'}
+          onChange={(e) => onChange({ rotationMode: e.target.value })}
+        >
+          <option value="balanced">balanced</option>
+          <option value="favorites">favorites-heavy</option>
+          <option value="exploration">exploration-heavy</option>
+        </select>
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Anti-repeat window (tracks)</label>
+        <input
+          className="profileTextInput"
+          type="number"
+          min="0"
+          max="50"
+          value={Number(p.antiRepeatWindow) || 0}
+          onChange={(e) => onChange({ antiRepeatWindow: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })}
+          placeholder="3"
+        />
+      </div>
+
+      <div className="card">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Top Songs (7d)</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="textBtn" onClick={() => onTune?.(profile.agentId)}>
+              Tune In
+            </button>
+            <button type="button" className="textBtn" onClick={onPlayTopSong}>Play Top Song</button>
+          </div>
+        </div>
+        {liveTrack ? <p className="cardMuted">Live now: {liveTrack.title} — {liveTrack.artist}</p> : null}
+        {topSongs.length ? (
+          <ul className="eventFeed">
+            {topSongs.slice(0, 5).map((song) => (
+              <li key={song.trackId} className="eventItem">
+                <span className="eventSummary">{song.trackId} · {song.playtimeSec || 0}s</span>
+                <span className="eventTime">{Math.round((song.completionRatio || 0) * 100)}%</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted">No top-song telemetry yet. Play a few tracks first.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Collection ({collection.length})</span>
+          <button type="button" className="textBtn" onClick={onAddTrack}>Add Track</button>
+        </div>
+        {collection.length ? (
+          <ul className="eventFeed">
+            {collection.slice(0, 30).map((track) => (
+              <li key={track.id} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span className="eventSummary">{track.title} — {track.artist}</span>
+                  <button type="button" className="textBtn" onClick={() => onRemoveTrack(track.id)}>Remove</button>
+                </div>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>{track.id}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted">No tracks in this agent collection yet.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Play History ({history.length})</span>
+        </div>
+        {history.length ? (
+          <ul className="eventFeed">
+            {history.slice(0, 20).map((item, idx) => (
+              <li key={`${item.trackId}-${item.playedAt}-${idx}`} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+                <span className="eventSummary">{item.title || item.trackId} — {item.artist || 'Unknown artist'}</span>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>
+                  {new Date(item.playedAt || Date.now()).toLocaleString()} · {item.reason || 'unknown'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted">No play history yet.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <button type="button" className="profileSaveBtn" disabled={busy} onClick={onSave}>
+          {busy ? 'Saving…' : 'Save Profile'}
+        </button>
+        {saveError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{saveError}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function HistoryLabTab({ agents, selectedAgentId, onSelectAgent, entries, onRefresh }) {
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [reasonFilter, setReasonFilter] = useState('all')
+  const [trackFilter, setTrackFilter] = useState('')
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsError, setStatsError] = useState('')
+  const [statsEvents, setStatsEvents] = useState([])
+  const [statsMetrics, setStatsMetrics] = useState(null)
+  const [statsActionCountsRaw, setStatsActionCountsRaw] = useState({})
+  const [statsHourBucketsRaw, setStatsHourBucketsRaw] = useState([])
+  const [statsResonance, setStatsResonance] = useState({ delta: 0, components: {} })
+
+  const reasonOptions = useMemo(() => {
+    const set = new Set(entries.map((e) => String(e.reason || 'unknown')))
+    return ['all', ...Array.from(set).sort()]
+  }, [entries])
+
+  const filtered = useMemo(() => {
+    return entries.filter((e) => {
+      const ts = new Date(e.playedAt || 0).getTime()
+      if (fromDate) {
+        const fromTs = new Date(`${fromDate}T00:00:00`).getTime()
+        if (!Number.isFinite(ts) || ts < fromTs) return false
+      }
+      if (toDate) {
+        const toTs = new Date(`${toDate}T23:59:59`).getTime()
+        if (!Number.isFinite(ts) || ts > toTs) return false
+      }
+      if (reasonFilter !== 'all' && String(e.reason || 'unknown') !== reasonFilter) return false
+      const tf = trackFilter.trim().toLowerCase()
+      if (tf) {
+        const hay = `${e.trackId || ''} ${e.title || ''} ${e.artist || ''}`.toLowerCase()
+        if (!hay.includes(tf)) return false
+      }
+      return true
+    })
+  }, [entries, fromDate, toDate, reasonFilter, trackFilter])
+
+  const countsByReason = useMemo(() => {
+    const acc = {}
+    for (const e of filtered) {
+      const r = String(e.reason || 'unknown')
+      acc[r] = (acc[r] || 0) + 1
+    }
+    return Object.entries(acc).sort((a, b) => b[1] - a[1])
+  }, [filtered])
+
+  const statsKinds = useMemo(
+    () => [
+      'song.play.start',
+      'song.play.end',
+      'song.pause',
+      'song.resume',
+      'song.skip',
+      'song.mute',
+      'song.unmute',
+      'song.volume.change',
+      'song.seek',
+      'song.favorite',
+      'song.dislike',
+    ],
+    []
+  )
+
+  const statsActionCounts = useMemo(() => {
+    const rawPairs = Object.entries(statsActionCountsRaw || {})
+    if (rawPairs.length) return rawPairs.sort((a, b) => b[1] - a[1])
+    const acc = {}
+    for (const e of statsEvents) {
+      const k = String(e.kind || 'unknown')
+      acc[k] = (acc[k] || 0) + 1
+    }
+    return Object.entries(acc).sort((a, b) => b[1] - a[1])
+  }, [statsEvents, statsActionCountsRaw])
+
+  const statsHourMap = useMemo(() => {
+    if (Array.isArray(statsHourBucketsRaw) && statsHourBucketsRaw.length === 24) {
+      return statsHourBucketsRaw.map((count, hour) => ({ hour, count: Number(count) || 0 }))
+    }
+    const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }))
+    for (const e of statsEvents) {
+      const ts = new Date(e.ts || 0)
+      const h = ts.getHours()
+      if (Number.isFinite(h) && h >= 0 && h <= 23) buckets[h].count += 1
+    }
+    return buckets
+  }, [statsEvents, statsHourBucketsRaw])
+
+  const statsRecentTracks = useMemo(() => {
+    const map = new Map()
+    for (const e of statsEvents) {
+      const id = String(e.trackId || '').trim()
+      if (!id) continue
+      const row = map.get(id) || { trackId: id, count: 0, kinds: new Set() }
+      row.count += 1
+      row.kinds.add(String(e.kind || 'unknown'))
+      map.set(id, row)
+    }
+    return Array.from(map.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+      .map((row) => ({ ...row, kinds: Array.from(row.kinds).slice(0, 3) }))
+  }, [statsEvents])
+
+  async function refreshStatsLab() {
+    if (!selectedAgentId) return
+    try {
+      setStatsLoading(true)
+      setStatsError('')
+      const payload = await loadStatsLab(selectedAgentId, {
+        from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
+        to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
+        kinds: statsKinds,
+        limit: 2000,
+      })
+      setStatsEvents(Array.isArray(payload?.events) ? payload.events : [])
+      setStatsMetrics(payload?.metrics || null)
+      setStatsActionCountsRaw(payload?.actionCounts && typeof payload.actionCounts === 'object' ? payload.actionCounts : {})
+      setStatsHourBucketsRaw(Array.isArray(payload?.hourBuckets) ? payload.hourBuckets : [])
+      setStatsResonance(payload?.resonance || { delta: 0, components: {} })
+    } catch (err) {
+      setStatsError(err.message || 'Failed to load stats lab data')
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshStatsLab()
+  }, [selectedAgentId, fromDate, toDate])
+
+  return (
+    <div className="tabScreen">
+      <div className="card">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">History Lab</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="textBtn" onClick={onRefresh}>Refresh History</button>
+            <button type="button" className="textBtn" onClick={refreshStatsLab} disabled={statsLoading}>Refresh Stats</button>
+          </div>
+        </div>
+        <label className="profileFieldLabel">Agent</label>
+        <select className="profileTextInput" value={selectedAgentId || ''} onChange={(e) => onSelectAgent(e.target.value)}>
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+
+        <div className="profileActionsRow" style={{ marginTop: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label className="profileFieldLabel">From</label>
+            <input className="profileTextInput" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="profileFieldLabel">To</label>
+            <input className="profileTextInput" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </div>
+        </div>
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Reason</label>
+        <select className="profileTextInput" value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}>
+          {reasonOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Track/Artist Filter</label>
+        <input
+          className="profileTextInput"
+          value={trackFilter}
+          onChange={(e) => setTrackFilter(e.target.value)}
+          placeholder="track id, title, artist"
+        />
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Summary</span>
+        <div className="profileStatsGrid" style={{ marginTop: 10 }}>
+          <div><span className="profileStatLabel">Visible events</span><strong>{filtered.length}</strong></div>
+          <div><span className="profileStatLabel">Reasons</span><strong>{countsByReason.length}</strong></div>
+          <div><span className="profileStatLabel">Telemetry events</span><strong>{statsEvents.length}</strong></div>
+          <div><span className="profileStatLabel">Starts / Ends</span><strong>{statsMetrics?.starts || 0} / {statsMetrics?.ends || 0}</strong></div>
+          <div><span className="profileStatLabel">Skip ratio</span><strong>{Math.round((statsMetrics?.skipRatio || 0) * 100)}%</strong></div>
+          <div><span className="profileStatLabel">Playtime</span><strong>{formatDuration(statsMetrics?.playtimeSec || 0)}</strong></div>
+          <div><span className="profileStatLabel">Mutes / Unmutes</span><strong>{statsMetrics?.mutes || 0} / {statsMetrics?.unmutes || 0}</strong></div>
+          <div><span className="profileStatLabel">Volume Thrash</span><strong>{statsMetrics?.volumeThrash || 0}</strong></div>
+          <div><span className="profileStatLabel">Peak Hour</span><strong>{statsMetrics?.peakHour || '--:--'}</strong></div>
+          <div><span className="profileStatLabel">Active Sessions</span><strong>{statsMetrics?.activeSessionCount || 0}</strong></div>
+        </div>
+        {countsByReason.length ? (
+          <ul className="eventFeed" style={{ marginTop: 8 }}>
+            {countsByReason.slice(0, 8).map(([reason, count]) => (
+              <li key={reason} className="eventItem">
+                <span className="eventSummary">{reason}</span>
+                <span className="eventTime">{count}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted" style={{ marginTop: 8 }}>No events for current filters.</p>
+        )}
+      </div>
+
+      <div className="card profilePulseCard">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Reward / Punish Engine</span>
+          <span className={`agentBadge ${statsResonance?.delta < 0 ? 'resonanceBad' : ''}`}>
+            Δ {Number(statsResonance?.delta || 0).toFixed(2)}
+          </span>
+        </div>
+        <div className="profileStatsGrid" style={{ marginTop: 4 }}>
+          <div><span className="profileStatLabel">Full Listen Bonus</span><strong>+{Number(statsResonance?.components?.fullListenBonus || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Favorites Bonus</span><strong>+{Number(statsResonance?.components?.favoriteBonus || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Diversity Bonus</span><strong>+{Number(statsResonance?.components?.diversityBonus || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Early Skip Penalty</span><strong>-{Number(statsResonance?.components?.earlySkipPenalty || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Mute Penalty</span><strong>-{Number(statsResonance?.components?.mutePenalty || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Volume Thrash Penalty</span><strong>-{Number(statsResonance?.components?.volumeThrashPenalty || 0).toFixed(1)}</strong></div>
+          <div><span className="profileStatLabel">Dislike Penalty</span><strong>-{Number(statsResonance?.components?.dislikePenalty || 0).toFixed(1)}</strong></div>
+        </div>
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Action Breakdown</span>
+        {statsError ? <p className="cardMuted" style={{ color: '#ff9cba' }}>{statsError}</p> : null}
+        {statsLoading ? <p className="cardMuted">Loading telemetry…</p> : null}
+        {!statsLoading && !statsError && statsActionCounts.length ? (
+          <ul className="eventFeed" style={{ marginTop: 8 }}>
+            {statsActionCounts.map(([kind, count]) => (
+              <li key={kind} className="eventItem">
+                <span className="eventSummary">{kind}</span>
+                <span className="eventTime">{count}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Hour Heatmap (event density)</span>
+        <div className="hourHeatmapRow">
+          {statsHourMap.map((row) => {
+            const max = Math.max(1, ...statsHourMap.map((x) => x.count))
+            const pct = row.count / max
+            return (
+              <div key={row.hour} className="hourHeatCell" title={`${String(row.hour).padStart(2, '0')}:00 — ${row.count}`}>
+                <div className="hourHeatFill" style={{ opacity: Math.max(0.08, pct), height: `${Math.max(8, Math.round(36 * pct))}px` }} />
+                <span className="hourHeatLabel">{String(row.hour).padStart(2, '0')}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Top Active Tracks (telemetry)</span>
+        {statsRecentTracks.length ? (
+          <ul className="eventFeed" style={{ marginTop: 8 }}>
+            {statsRecentTracks.map((row) => (
+              <li key={row.trackId} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+                <span className="eventSummary">{row.trackId} · {row.count} events</span>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>{row.kinds.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted" style={{ marginTop: 8 }}>No telemetry track activity yet.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <span className="cardLabel">Timeline</span>
+        {filtered.length ? (
+          <ul className="eventFeed" style={{ marginTop: 8 }}>
+            {filtered.slice(0, 200).map((e, idx) => (
+              <li key={`${e.trackId}-${e.playedAt}-${idx}`} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+                <span className="eventSummary">{e.title || e.trackId} — {e.artist || 'Unknown artist'}</span>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>
+                  {new Date(e.playedAt || Date.now()).toLocaleString()} · {e.reason || 'unknown'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted" style={{ marginTop: 8 }}>No history yet.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Telemetry Timeline</span>
+        </div>
+        {statsEvents.length ? (
+          <ul className="eventFeed" style={{ marginTop: 8 }}>
+            {statsEvents.slice(0, 250).map((e, idx) => (
+              <li key={`${e.eventId || e.ts}-${idx}`} className="eventItem" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+                <span className="eventSummary">{e.kind} · {e.trackId || 'no-track'} · v:{e.volume ?? '-'} {e.muted === true ? 'muted' : e.muted === false ? 'unmuted' : ''}</span>
+                <span className="eventTime" style={{ alignSelf: 'flex-start' }}>
+                  {new Date(e.ts || Date.now()).toLocaleString()} · {e.reason || 'n/a'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="cardMuted" style={{ marginTop: 8 }}>No telemetry yet for this agent/range.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ============================================================
 // Tab: More
 // ============================================================
-function MoreTab({ state, act, networkPanel }) {
+function MoreTab({
+  state,
+  act,
+  networkPanel,
+  imageSettings,
+  imageBusy,
+  imageError,
+  imageMessage,
+  onImageSettingsChange,
+  onSaveImageSettings,
+  onTestImageSettings,
+  onGenerateAvatar,
+  profileAgentId,
+}) {
   if (!state) return null
   return (
     <div className="tabScreen">
@@ -463,6 +1487,88 @@ function MoreTab({ state, act, networkPanel }) {
           ))}
         </div>
       </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Identity & Generation</span>
+
+        <label className="profileFieldLabel">Provider</label>
+        <select
+          className="profileTextInput"
+          value={imageSettings?.provider || 'disabled'}
+          onChange={(e) => onImageSettingsChange({ provider: e.target.value })}
+        >
+          <option value="disabled">disabled</option>
+          <option value="local">local</option>
+          <option value="openai">openai</option>
+          <option value="fal">fal</option>
+        </select>
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Local endpoint</label>
+        <input
+          className="profileTextInput"
+          value={imageSettings?.local?.endpoint || ''}
+          onChange={(e) => onImageSettingsChange({ local: { endpoint: e.target.value } })}
+          placeholder="http://127.0.0.1:8188"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Local model</label>
+        <input
+          className="profileTextInput"
+          value={imageSettings?.local?.model || ''}
+          onChange={(e) => onImageSettingsChange({ local: { model: e.target.value } })}
+          placeholder="sdxl"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>OpenAI API key</label>
+        <input
+          className="profileTextInput"
+          type="password"
+          value={imageSettings?.openai?.apiKey || ''}
+          onChange={(e) => onImageSettingsChange({ openai: { apiKey: e.target.value } })}
+          placeholder="sk-..."
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>OpenAI model</label>
+        <input
+          className="profileTextInput"
+          value={imageSettings?.openai?.model || 'gpt-image-1'}
+          onChange={(e) => onImageSettingsChange({ openai: { model: e.target.value } })}
+          placeholder="gpt-image-1"
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>FAL API key</label>
+        <input
+          className="profileTextInput"
+          type="password"
+          value={imageSettings?.fal?.apiKey || ''}
+          onChange={(e) => onImageSettingsChange({ fal: { apiKey: e.target.value } })}
+          placeholder="fal_..."
+        />
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>FAL model</label>
+        <input
+          className="profileTextInput"
+          value={imageSettings?.fal?.model || 'fal-ai/nano-banana'}
+          onChange={(e) => onImageSettingsChange({ fal: { model: e.target.value } })}
+          placeholder="fal-ai/nano-banana"
+        />
+
+        <div className="profileActionsRow">
+          <button type="button" className="profileBtn" disabled={imageBusy} onClick={onSaveImageSettings}>Save</button>
+          <button type="button" className="profileBtn" disabled={imageBusy} onClick={onTestImageSettings}>Test</button>
+          <button
+            type="button"
+            className="profileBtn"
+            disabled={imageBusy || !profileAgentId}
+            onClick={onGenerateAvatar}
+          >
+            Generate Avatar
+          </button>
+        </div>
+        {imageMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{imageMessage}</p> : null}
+        {imageError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{imageError}</p> : null}
+      </div>
+
       <div className="card" style={{ marginTop: 12 }}>
         {networkPanel}
       </div>
@@ -473,12 +1579,33 @@ function MoreTab({ state, act, networkPanel }) {
 // ============================================================
 // Mini Player (docked above tab bar)
 // ============================================================
-function MiniPlayer({ tunedAgent, track, playing, progress, duration, onToggle, onNext, onSeek }) {
+function MiniPlayer({
+  tunedAgent,
+  track,
+  playing,
+  progress,
+  duration,
+  onToggle,
+  onNext,
+  onSeek,
+  onToggleMute,
+  onVolumeChange,
+  muted,
+  volume,
+  resumeBanner,
+  rotationMode,
+  antiRepeatWindow,
+}) {
   if (!tunedAgent) return null
   const pct = duration ? (progress / duration) * 100 : 0
 
   return (
     <div className="miniPlayer">
+      {resumeBanner ? <div className="resumeChip">↺ {resumeBanner}</div> : null}
+      <div className="rotationChipRow">
+        <span className="rotationChip">mode: {rotationMode || 'balanced'}</span>
+        <span className="rotationChip">anti-repeat: {Number(antiRepeatWindow) || 0}</span>
+      </div>
       <div className="miniPlayerProgress" onClick={onSeek}>
         <div className="miniPlayerBar" style={{ width: `${pct}%` }} />
       </div>
@@ -489,6 +1616,16 @@ function MiniPlayer({ tunedAgent, track, playing, progress, duration, onToggle, 
         </div>
         <div className="miniPlayerControls">
           <span className="miniPlayerTime">{formatDuration(progress)}</span>
+          <button type="button" className="miniBtn ghost" onClick={onToggleMute}>{muted ? '🔇' : '🔊'}</button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            className="miniVolume"
+            value={Math.round((Number(volume) || 0) * 100)}
+            onChange={(e) => onVolumeChange?.(Number(e.target.value) / 100)}
+          />
           <button type="button" className="miniBtn" onClick={onToggle}>{playing ? '⏸' : '▶'}</button>
           <button type="button" className="miniBtn ghost" onClick={onNext}>⏭</button>
         </div>
@@ -505,6 +1642,8 @@ const TABS = [
   { id: 'stations', label: 'Stations', icon: 'stations' },
   { id: 'queue',    label: 'Queue',    icon: 'queue' },
   { id: 'agents',   label: 'Agents',   icon: 'agents' },
+  { id: 'profile',  label: 'Profile',  icon: 'agents' },
+  { id: 'history',  label: 'History',  icon: 'queue' },
   { id: 'more',     label: 'More',     icon: 'more' },
 ]
 
@@ -568,10 +1707,29 @@ function AppContent() {
   const [agents, setAgents] = useState([])
   const [tunedAgent, setTunedAgent] = useState(null)
   const [tracks, setTracks] = useState([])
+  const [agentCollections, setAgentCollections] = useState(() => loadAgentCollections())
+  const [agentPlayHistory, setAgentPlayHistory] = useState(() => loadAgentPlayHistory())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [apiHealthy, setApiHealthy] = useState(false)
+  const [profileAgentId, setProfileAgentId] = useState(null)
+  const [profileData, setProfileData] = useState(null)
+  const [profileDraft, setProfileDraft] = useState(null)
+  const [profileCollection, setProfileCollection] = useState([])
+  const [profileHistory, setProfileHistory] = useState([])
+  const [historyAgentId, setHistoryAgentId] = useState(null)
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [profileSaveError, setProfileSaveError] = useState('')
+  const [imageSettings, setImageSettings] = useState(null)
+  const [imageBusy, setImageBusy] = useState(false)
+  const [imageError, setImageError] = useState('')
+  const [imageMessage, setImageMessage] = useState('')
+  const [resumeBanner, setResumeBanner] = useState('')
+  const [muted, setMuted] = useState(false)
+  const [volume, setVolume] = useState(0.85)
+
+  const sessionIdRef = useRef(`sess_${Math.random().toString(36).slice(2, 10)}`)
 
   // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
@@ -582,19 +1740,96 @@ function AppContent() {
   const analyserRef = useRef(null)
   const [analyser, setAnalyser] = useState(null)
   const autoPlayRef = useRef(false)
+  const musicAutoStartedRef = useRef(false)
+  const audioStartedRef = useRef(false)
+  const resumeRef = useRef(loadPlaybackResume())
+  const pendingSeekRef = useRef(0)
+  const lastPersistSecondRef = useRef(-1)
 
   // ---- Atmosphere ----
   const { ri, parameters } = useAtmosphere()
 
-  // Computed per-agent track list
+  const agentTrackPool = useMemo(() => {
+    if (!tunedAgent?.id) return []
+    const ownCollection = Object.values(agentCollections?.[tunedAgent.id] || {})
+      .map((t) => normalizeTrackForCollection(t))
+      .filter(Boolean)
+    if (ownCollection.length) return ownCollection
+    return (tracks || []).map((t) => normalizeTrackForCollection(t)).filter(Boolean)
+  }, [tracks, agentCollections, tunedAgent?.id])
+
+  const tunedIdentity = useMemo(() => {
+    if (!tunedAgent?.id) return null
+    if (profileAgentId === tunedAgent.id && profileDraft?.profile) return profileDraft.profile
+    return state?.agents?.[tunedAgent.id]?.identity || null
+  }, [tunedAgent?.id, profileAgentId, profileDraft?.profile, state?.agents])
+
+  const profileRotationMode = tunedIdentity?.rotationMode || 'balanced'
+  const profileAntiRepeatWindow = Number(tunedIdentity?.antiRepeatWindow) || 3
+
+  // Computed per-agent track list (each agent rotates their own collection)
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    el.volume = Math.max(0, Math.min(1, Number(volume) || 0))
+    el.muted = Boolean(muted)
+  }, [volume, muted])
+
+  function emitTelemetry(kind, payload = {}) {
+    if (!tunedAgent?.id) return
+    const context = {
+      tab,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      ...(payload.context || {}),
+    }
+    appendTelemetry({
+      agentId: tunedAgent.id,
+      kind,
+      trackId: payload.trackId ?? currentTrack?.id ?? null,
+      sessionId: sessionIdRef.current,
+      positionSec: payload.positionSec,
+      durationSec: payload.durationSec,
+      volume: payload.volume,
+      muted: payload.muted,
+      reason: payload.reason || null,
+      context,
+    }).catch(() => {})
+  }
+
   const agentTracks = useMemo(
-    () => tunedAgent && tracks.length ? seededShuffle(tracks, tunedAgent.id) : [],
-    [tracks, tunedAgent?.id]
+    () => tunedAgent && agentTrackPool.length
+      ? buildRotationQueue({
+          pool: agentTrackPool,
+          mode: profileRotationMode,
+          favorites: tunedIdentity?.favoriteSongs || [],
+          history: agentPlayHistory?.[tunedAgent.id] || [],
+          antiRepeatWindow: profileAntiRepeatWindow,
+          seed: tunedAgent.id,
+          playlistNudge: tunedIdentity?.playlistNudge || null,
+        })
+      : [],
+    [agentTrackPool, tunedAgent?.id, profileRotationMode, profileAntiRepeatWindow, tunedIdentity?.favoriteSongs, tunedIdentity?.playlistNudge, agentPlayHistory]
   )
+
+  useEffect(() => {
+    saveAgentCollections(agentCollections)
+  }, [agentCollections])
+
+  useEffect(() => {
+    saveAgentPlayHistory(agentPlayHistory)
+  }, [agentPlayHistory])
+
+  useEffect(() => {
+    if (!profileAgentId) return
+    setProfileCollection(Object.values(agentCollections?.[profileAgentId] || {}))
+    setProfileHistory(Array.isArray(agentPlayHistory?.[profileAgentId]) ? agentPlayHistory[profileAgentId] : [])
+  }, [profileAgentId, agentCollections, agentPlayHistory])
 
   // Reset player when agent changes
   useEffect(() => {
     setTrackIndex(0); setProgress(0); setDuration(0); setPlaying(false)
+    pendingSeekRef.current = 0
+    lastPersistSecondRef.current = -1
   }, [tunedAgent?.id])
 
   // Audio element wiring
@@ -604,20 +1839,57 @@ function AppContent() {
     const el = audioRef.current
     if (!el || !currentTrack) return
     el.src = currentTrack.audioUrl
+    if (!musicAutoStartedRef.current) {
+      musicAutoStartedRef.current = true
+      setPlaying(true)
+      autoPlayRef.current = true
+    }
     // Auto-play: use the audio element directly — no AudioContext here.
     // AudioContext (analyser) requires a user gesture; audio element playback does not
     // when setMediaPlaybackRequiresUserGesture(false) is set in Android.
     if (playing || autoPlayRef.current) {
-      el.play().then(() => { setPlaying(true); autoPlayRef.current = false }).catch(() => {})
+      el.play().then(() => {
+        setPlaying(true)
+        autoPlayRef.current = false
+      }).catch(() => {
+        // On desktop browsers autoplay may be blocked; keep playing=true so next gesture resumes.
+      })
     }
   }, [trackIndex, currentTrack])
 
   useEffect(() => {
     const el = audioRef.current
     if (!el) return
-    const onTime = () => setProgress(el.currentTime)
-    const onMeta = () => setDuration(el.duration)
-    const onEnd = () => { setTrackIndex(i => (i + 1) % agentTracks.length); setPlaying(true) }
+    const onTime = () => {
+      setProgress(el.currentTime)
+      if (!tunedAgent || !currentTrack) return
+      const sec = Math.floor(el.currentTime || 0)
+      if (sec === lastPersistSecondRef.current) return
+      lastPersistSecondRef.current = sec
+      savePlaybackResume({
+        agentId: tunedAgent.id,
+        trackId: currentTrack.id,
+        positionSec: sec,
+        playing: !el.paused,
+      })
+    }
+    const onMeta = () => {
+      setDuration(el.duration)
+      if (pendingSeekRef.current > 0 && Number.isFinite(el.duration)) {
+        const safeSeek = Math.max(0, Math.min(pendingSeekRef.current, Math.max(0, el.duration - 1)))
+        el.currentTime = safeSeek
+        setProgress(safeSeek)
+        pendingSeekRef.current = 0
+      }
+      emitTelemetry('song.play.start', {
+        positionSec: Math.floor(el.currentTime || 0),
+        durationSec: Math.floor(el.duration || 0),
+        volume,
+        muted,
+        reason: 'track_loaded',
+      })
+    }
+    const onEnd = () => { nextTrack('track_ended') }
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('loadedmetadata', onMeta)
     el.addEventListener('ended', onEnd)
@@ -626,7 +1898,7 @@ function AppContent() {
       el.removeEventListener('loadedmetadata', onMeta)
       el.removeEventListener('ended', onEnd)
     }
-  }, [agentTracks])
+  }, [agentTracks, tunedAgent?.id, currentTrack?.id, volume, muted, tab])
 
   // Analyser init — call only after a user gesture; AudioContext needs it
   const initAnalyser = useCallback(() => {
@@ -656,51 +1928,523 @@ function AppContent() {
   // Player controls
   function tuneAndPlay(agent) {
     autoPlayRef.current = true
+    pendingSeekRef.current = 0
     setTunedAgent(agent)
+    savePlaybackResume({
+      agentId: agent.id,
+      trackId: null,
+      positionSec: 0,
+      playing: true,
+    })
   }
 
   function togglePlay() {
     const el = audioRef.current; if (!el) return
     initAnalyser() // safe to call; no-ops if already initialized or gesture not yet given
-    if (playing) { el.pause(); setPlaying(false) }
-    else { el.play().catch(() => {}); setPlaying(true) }
+    if (playing) {
+      el.pause()
+      setPlaying(false)
+      emitTelemetry('song.pause', {
+        positionSec: Math.floor(el.currentTime || 0),
+        durationSec: Math.floor(el.duration || duration || 0),
+        volume,
+        muted,
+        reason: 'user_toggle',
+      })
+    } else {
+      el.play().catch(() => {})
+      setPlaying(true)
+      emitTelemetry('song.resume', {
+        positionSec: Math.floor(el.currentTime || 0),
+        durationSec: Math.floor(el.duration || duration || 0),
+        volume,
+        muted,
+        reason: 'user_toggle',
+      })
+    }
   }
-  function nextTrack() {
-    setTrackIndex(i => (i + 1) % agentTracks.length)
+  function nextTrack(reason = 'next_button') {
+    if (!agentTracks.length) return
+    if (tunedAgent && currentTrack) {
+      const el = audioRef.current
+      const nowPos = Math.floor(el?.currentTime || progress || 0)
+      const dur = Math.floor(el?.duration || duration || currentTrack.duration || 0)
+      const completionRatio = dur > 0 ? Math.max(0, Math.min(1, nowPos / dur)) : null
+
+      const entry = {
+        trackId: currentTrack.id,
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        playedAt: new Date().toISOString(),
+        reason,
+        durationSec: dur || null,
+        positionSec: nowPos,
+        completionRatio,
+      }
+      setAgentPlayHistory((prev) => {
+        const next = { ...(prev || {}) }
+        const list = Array.isArray(next[tunedAgent.id]) ? [...next[tunedAgent.id]] : []
+        list.unshift(entry)
+        next[tunedAgent.id] = list.slice(0, 5000)
+        return next
+      })
+      if (profileAgentId === tunedAgent.id) {
+        setProfileHistory((prev) => [entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 200))
+      }
+      appendAgentHistory(tunedAgent.id, entry).catch(() => {})
+
+      emitTelemetry(reason === 'track_ended' ? 'song.play.end' : 'song.skip', {
+        trackId: currentTrack.id,
+        positionSec: nowPos,
+        durationSec: dur || null,
+        volume,
+        muted,
+        reason,
+      })
+    }
+
+    const nextIdx = (trackIndex + 1) % agentTracks.length
+    setTrackIndex(nextIdx)
     setPlaying(true)
   }
   function seekFromEvent(e) {
     const el = audioRef.current; if (!el || !duration) return
     const rect = e.currentTarget.getBoundingClientRect()
-    el.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+    const toSec = ((e.clientX - rect.left) / rect.width) * duration
+    const fromSec = Math.floor(el.currentTime || 0)
+    el.currentTime = toSec
+    emitTelemetry('song.seek', {
+      positionSec: Math.floor(toSec),
+      durationSec: Math.floor(duration || 0),
+      volume,
+      muted,
+      reason: 'progress_bar',
+      context: { fromSec, toSec: Math.floor(toSec) },
+    })
   }
   function playTrack(i) {
-    initAnalyser(); setTrackIndex(i); setPlaying(true)
+    initAnalyser()
+    pendingSeekRef.current = 0
+    if (tunedAgent && currentTrack) {
+      const el = audioRef.current
+      const nowPos = Math.floor(el?.currentTime || progress || 0)
+      const dur = Math.floor(el?.duration || duration || currentTrack.duration || 0)
+      const completionRatio = dur > 0 ? Math.max(0, Math.min(1, nowPos / dur)) : null
+
+      const entry = {
+        trackId: currentTrack.id,
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        playedAt: new Date().toISOString(),
+        reason: 'manual_select',
+        durationSec: dur || null,
+        positionSec: nowPos,
+        completionRatio,
+      }
+      setAgentPlayHistory((prev) => {
+        const next = { ...(prev || {}) }
+        const list = Array.isArray(next[tunedAgent.id]) ? [...next[tunedAgent.id]] : []
+        list.unshift(entry)
+        next[tunedAgent.id] = list.slice(0, 5000)
+        return next
+      })
+      if (profileAgentId === tunedAgent.id) {
+        setProfileHistory((prev) => [entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 200))
+      }
+      appendAgentHistory(tunedAgent.id, entry).catch(() => {})
+      emitTelemetry('song.skip', {
+        trackId: currentTrack.id,
+        positionSec: nowPos,
+        durationSec: dur || null,
+        volume,
+        muted,
+        reason: 'manual_select',
+      })
+    }
+
+    setTrackIndex(i)
+    setPlaying(true)
+    autoPlayRef.current = true
+  }
+
+  function onVolumeChange(nextVolume) {
+    const v = Math.max(0, Math.min(1, Number(nextVolume) || 0))
+    setVolume(v)
+    const el = audioRef.current
+    if (el) el.volume = v
+    emitTelemetry('song.volume.change', {
+      positionSec: Math.floor(el?.currentTime || progress || 0),
+      durationSec: Math.floor(el?.duration || duration || 0),
+      volume: v,
+      muted,
+      reason: 'ui_slider',
+    })
+  }
+
+  function onToggleMute() {
+    const nextMuted = !muted
+    setMuted(nextMuted)
+    const el = audioRef.current
+    if (el) el.muted = nextMuted
+    emitTelemetry(nextMuted ? 'song.mute' : 'song.unmute', {
+      positionSec: Math.floor(el?.currentTime || progress || 0),
+      durationSec: Math.floor(el?.duration || duration || 0),
+      volume,
+      muted: nextMuted,
+      reason: 'ui_toggle',
+    })
+  }
+
+  async function openProfile(agentId) {
+    try {
+      setProfileAgentId(agentId)
+      setProfileSaveError('')
+      setProfileBusy(true)
+      const [payload, collectionPayload, historyPayload] = await Promise.all([
+        loadAgentProfile(agentId),
+        loadAgentCollection(agentId).catch(() => ({ tracks: [] })),
+        loadAgentHistory(agentId, 200).catch(() => ({ history: [] })),
+      ])
+      setProfileData(payload)
+      setProfileDraft(payload)
+      setProfileCollection(Array.isArray(collectionPayload?.tracks) ? collectionPayload.tracks : [])
+      setProfileHistory(Array.isArray(historyPayload?.history) ? historyPayload.history : [])
+      setHistoryAgentId(agentId)
+      setTab('profile')
+
+      const profilePool = (Array.isArray(collectionPayload?.tracks) && collectionPayload.tracks.length
+        ? collectionPayload.tracks
+        : tracks)
+
+      const topTrackId = payload?.profile?.topSongs?.d7?.[0]?.trackId
+        || payload?.profile?.topSongs?.all?.[0]?.trackId
+        || payload?.profile?.favoriteSongs?.[0]
+        || profilePool?.[0]?.id
+        || null
+      const profileAgent = agents.find((a) => a.id === agentId) || null
+      if (profileAgent && tunedAgent?.id !== agentId) setTunedAgent(profileAgent)
+      if (profilePool?.length) {
+        const profileTracks = seededShuffle(profilePool, agentId)
+        const idx = topTrackId ? profileTracks.findIndex((t) => t.id === topTrackId) : 0
+        pendingSeekRef.current = 0
+        setTrackIndex(idx >= 0 ? idx : 0)
+        setPlaying(true)
+        autoPlayRef.current = true
+      }
+    } catch (err) {
+      setProfileSaveError(err.message || 'Failed to load profile')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  function updateProfileDraft(patch) {
+    setProfileDraft((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          ...patch,
+        },
+      }
+    })
+  }
+
+  async function saveProfile() {
+    if (!profileAgentId || !profileDraft?.profile) return
+    try {
+      setProfileBusy(true)
+      setProfileSaveError('')
+      const payload = {
+        displayName: profileDraft.profile.displayName,
+        genres: profileDraft.profile.genres,
+        favoriteSongs: profileDraft.profile.favoriteSongs,
+        anthemTrackId: profileDraft.profile.anthemTrackId,
+        focusLoopTrackId: profileDraft.profile.focusLoopTrackId,
+        rotationMode: profileDraft.profile.rotationMode,
+        antiRepeatWindow: profileDraft.profile.antiRepeatWindow,
+        bio: profileDraft.profile.bio,
+        motto: profileDraft.profile.motto,
+        personaTags: profileDraft.profile.personaTags,
+        notes: profileDraft.profile.notes,
+      }
+      const saved = await saveAgentProfile(profileAgentId, payload)
+      setProfileData(saved)
+      setProfileDraft(saved)
+
+      const mergedCollection = await saveAgentCollection(profileAgentId, {
+        mode: 'merge',
+        tracks: profileCollection,
+      })
+      setProfileCollection(Array.isArray(mergedCollection?.tracks) ? mergedCollection.tracks : [])
+      setAgentCollections((prev) => ({
+        ...(prev || {}),
+        [profileAgentId]: collectionArrayToMap(mergedCollection?.tracks || []),
+      }))
+    } catch (err) {
+      setProfileSaveError(err.message || 'Failed to save profile')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  function onImageSettingsChange(patch) {
+    setImageSettings((prev) => {
+      const base = prev || {
+        provider: 'disabled',
+        local: { endpoint: '', model: '' },
+        openai: { apiKey: '', model: 'gpt-image-1' },
+        fal: { apiKey: '', model: 'fal-ai/nano-banana' },
+      }
+      return {
+        ...base,
+        ...patch,
+        local: { ...(base.local || {}), ...(patch.local || {}) },
+        openai: { ...(base.openai || {}), ...(patch.openai || {}) },
+        fal: { ...(base.fal || {}), ...(patch.fal || {}) },
+      }
+    })
+  }
+
+  async function saveImageSettingsAction() {
+    try {
+      setImageBusy(true)
+      setImageError('')
+      setImageMessage('')
+      const saved = await saveImageGenerationSettings(imageSettings || {})
+      setImageSettings(saved)
+      setImageMessage('Image settings saved.')
+    } catch (err) {
+      setImageError(err.message || 'Failed to save image settings')
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
+  async function testImageSettingsAction() {
+    try {
+      setImageBusy(true)
+      setImageError('')
+      setImageMessage('')
+      if (imageSettings) await saveImageGenerationSettings(imageSettings)
+      const test = await testImageGenerationProvider(imageSettings?.provider || 'disabled')
+      setImageMessage(`Provider test ok (${test.provider}) in ${test.latencyMs}ms`)
+    } catch (err) {
+      setImageError(err.message || 'Provider test failed')
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
+  async function generateAvatarAction() {
+    if (!profileAgentId) {
+      setImageError('Open a profile first to pick an agent.')
+      return
+    }
+    try {
+      setImageBusy(true)
+      setImageError('')
+      setImageMessage('')
+      if (imageSettings) await saveImageGenerationSettings(imageSettings)
+      await generateAvatar(profileAgentId)
+      setImageMessage(`Avatar generated for ${profileAgentId}.`)
+      await openProfile(profileAgentId)
+    } catch (err) {
+      setImageError(err.message || 'Avatar generation failed')
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
+  function playProfileTopSong() {
+    if (!profileDraft?.profile || !profileAgentId) return
+    const profilePool = profileCollection?.length ? profileCollection : tracks
+    if (!profilePool.length) return
+
+    const topTrackId = profileDraft.profile.topSongs?.d7?.[0]?.trackId
+      || profileDraft.profile.topSongs?.all?.[0]?.trackId
+      || profileDraft.profile.favoriteSongs?.[0]
+      || profileCollection?.[0]?.id
+      || null
+
+    const profileAgent = agents.find((a) => a.id === profileAgentId) || null
+    if (profileAgent && tunedAgent?.id !== profileAgentId) setTunedAgent(profileAgent)
+
+    const profileTracks = seededShuffle(profilePool, profileAgentId)
+    const idx = topTrackId ? profileTracks.findIndex((t) => t.id === topTrackId) : 0
+    pendingSeekRef.current = 0
+    setTrackIndex(idx >= 0 ? idx : 0)
+    setPlaying(true)
+    autoPlayRef.current = true
+  }
+
+  async function addTrackToProfileCollection() {
+    if (!profileAgentId) return
+    const id = prompt('Track ID (required)')
+    if (!id) return
+    const title = prompt('Track title', id) || id
+    const artist = prompt('Artist', 'Unknown artist') || 'Unknown artist'
+    const audioUrl = prompt('Audio URL (optional)', '') || ''
+    const tagsCsv = prompt('Tags (comma separated)', '') || ''
+    const durationRaw = prompt('Duration in seconds (optional)', '') || ''
+    const duration = Number(durationRaw)
+
+    const track = {
+      id: String(id).trim(),
+      title: String(title).trim(),
+      artist: String(artist).trim(),
+      audioUrl: String(audioUrl).trim(),
+      tags: tagsCsv.split(',').map((v) => v.trim()).filter(Boolean),
+      duration: Number.isFinite(duration) ? duration : 0,
+      source: 'manual',
+    }
+
+    try {
+      setProfileBusy(true)
+      setProfileSaveError('')
+      const saved = await saveAgentCollection(profileAgentId, { mode: 'merge', tracks: [track] })
+      const savedTracks = Array.isArray(saved?.tracks) ? saved.tracks : []
+      setProfileCollection(savedTracks)
+      setAgentCollections((prev) => ({
+        ...(prev || {}),
+        [profileAgentId]: collectionArrayToMap(savedTracks),
+      }))
+    } catch (err) {
+      setProfileSaveError(err.message || 'Failed to add track')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  async function removeTrackFromProfileCollection(trackId) {
+    if (!profileAgentId || !trackId) return
+    try {
+      setProfileBusy(true)
+      setProfileSaveError('')
+      const saved = await saveAgentCollection(profileAgentId, { removeTrackIds: [trackId] })
+      const savedTracks = Array.isArray(saved?.tracks) ? saved.tracks : []
+      setProfileCollection(savedTracks)
+      setAgentCollections((prev) => ({
+        ...(prev || {}),
+        [profileAgentId]: collectionArrayToMap(savedTracks),
+      }))
+    } catch (err) {
+      setProfileSaveError(err.message || 'Failed to remove track')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  async function refreshHistoryForAgent(agentId = historyAgentId || tunedAgent?.id || profileAgentId) {
+    if (!agentId) return
+    try {
+      const payload = await loadAgentHistory(agentId, 500)
+      const entries = Array.isArray(payload?.history) ? payload.history : []
+      setAgentPlayHistory((prev) => ({ ...(prev || {}), [agentId]: entries }))
+      if (profileAgentId === agentId) setProfileHistory(entries)
+    } catch {
+      // keep UI stable on transient failures
+    }
   }
 
   // Actions
   async function act(action, payload = {}) {
-    try { setBusy(action); const next = await sendAction(action, payload); setState(next) }
-    catch (err) { setError(err.message) }
-    finally { setBusy('') }
+    try {
+      setBusy(action)
+      const next = await sendAction(action, payload, tunedAgent?.id || state?.runtime?.agentId || null)
+      setState(next)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy('')
+    }
   }
 
   // Initial data load
   useEffect(() => {
     let mounted = true
-    Promise.all([loadState(), loadAgents(), loadTracks(), checkHealth()])
-      .then(([stateData, agentData, trackList, healthy]) => {
+    Promise.all([
+      loadState(),
+      loadAgents(),
+      loadTracks(),
+      checkHealth(),
+      loadImageGenerationSettings().catch(() => null),
+    ])
+      .then(([stateData, agentData, trackList, healthy, imgSettings]) => {
         if (!mounted) return
+
+        // Guard: /agents can be empty on some backends; fallback to state.agents
+        let agentList = Array.isArray(agentData?.agents) ? agentData.agents : []
+        const defaultFromAgents = agentData?.defaultId || null
+        if (!agentList.length) {
+          const fromState = Object.values(stateData?.agents || {}).map((agent) => ({
+            id: agent.id,
+            name: agent.name || agent.id,
+            role: agent.activity || '',
+            vibe: agent.vibe || '',
+            source: 'state',
+            active: String(agent.status || '').toLowerCase() !== 'offline',
+            gatewayState: String(agent.status || '').toLowerCase() === 'offline' ? 'offline' : 'running',
+            updatedAt: stateData?.meta?.lastUpdated || new Date().toISOString(),
+          }))
+          if (fromState.length) agentList = fromState
+        }
+
         setState(stateData)
-        const agentList = agentData.agents || []
         setAgents(agentList)
-        const def = agentList.find(a => a.id === agentData.defaultId) || agentList[0] || null
-        setTunedAgent(def)
+        setHistoryAgentId((prev) => prev || agentList[0]?.id || null)
+
+        const resume = resumeRef.current
+        let tuned = agentList.find((a) => a.id === defaultFromAgents)
+          || agentList.find((a) => a.id === stateData?.meta?.defaultAgentId)
+          || agentList[0]
+          || null
+        if (resume?.agentId) {
+          const resumedAgent = agentList.find((a) => a.id === resume.agentId)
+          if (resumedAgent) tuned = resumedAgent
+        }
+        setTunedAgent(tuned)
+
         setTracks(trackList)
+        setAgentCollections((prev) => {
+          const next = { ...(prev || {}), ...(stateData?.agentCollections || {}) }
+          const now = new Date().toISOString()
+          const normalizedBase = (trackList || []).map((t) => normalizeTrackForCollection(t)).filter(Boolean)
+
+          ;(agentList || []).forEach((agent) => {
+            const existing = next[agent.id] || {}
+            next[agent.id] = mergeAgentCollectionForAgent(existing, normalizedBase)
+            // touch for freshness without deleting anything
+            Object.values(next[agent.id]).forEach((item) => {
+              if (!item.firstSeenAt) item.firstSeenAt = now
+              item.lastSeenAt = now
+            })
+          })
+
+          return next
+        })
         setApiHealthy(healthy)
+        setImageSettings(imgSettings)
+        setAgentPlayHistory((prev) => ({ ...(prev || {}), ...(stateData?.playHistory || {}) }))
         setLoading(false)
-        // Trigger auto-play — works on Android WebView (gesture not required)
-        if (trackList.length) autoPlayRef.current = true
+
+        if (resume && tuned && trackList.length) {
+          const resumedTracks = seededShuffle(trackList, tuned.id)
+          const resumedIdx = resume.trackId ? resumedTracks.findIndex((t) => t.id === resume.trackId) : -1
+          setTrackIndex(resumedIdx >= 0 ? resumedIdx : 0)
+          pendingSeekRef.current = Math.max(0, Number(resume.positionSec) || 0)
+          setProgress(pendingSeekRef.current)
+          autoPlayRef.current = true
+          setPlaying(Boolean(resume.playing ?? true))
+          setResumeBanner(`Resumed ${tuned.name} at ${formatDuration(pendingSeekRef.current)}`)
+          setTimeout(() => setResumeBanner(''), 4500)
+          return
+        }
+
+        // Trigger immediate auto-play on open.
+        autoPlayRef.current = true
+        setPlaying(true)
       })
       .catch(err => { if (mounted) { setError(err.message); setLoading(false) } })
     return () => { mounted = false }
@@ -715,6 +2459,34 @@ function AppContent() {
     return () => clearInterval(t)
   }, [])
 
+  // Persist playback state on app/page interruptions (background, close, refresh)
+  useEffect(() => {
+    function persistNow() {
+      const el = audioRef.current
+      if (!el || !tunedAgent || !currentTrack) return
+      savePlaybackResume({
+        agentId: tunedAgent.id,
+        trackId: currentTrack.id,
+        positionSec: Math.floor(el.currentTime || 0),
+        playing: !el.paused,
+      })
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') persistNow()
+    }
+
+    window.addEventListener('pagehide', persistNow)
+    window.addEventListener('beforeunload', persistNow)
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      window.removeEventListener('pagehide', persistNow)
+      window.removeEventListener('beforeunload', persistNow)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [tunedAgent, currentTrack])
+
   // ---- Render ----
   if (loading) return (
     <>
@@ -726,6 +2498,10 @@ function AppContent() {
   const events = state?.events || []
   const notifications = state?.notifications || []
   const activeCount = agents.filter(a => a.active).length
+  const currentHistoryAgentId = historyAgentId || tunedAgent?.id || agents[0]?.id || ''
+  const historyEntries = Array.isArray(agentPlayHistory?.[currentHistoryAgentId])
+    ? agentPlayHistory[currentHistoryAgentId]
+    : []
 
   return (
     <>
@@ -764,9 +2540,56 @@ function AppContent() {
           {tab === 'queue' && (
             <QueueTab agentTracks={agentTracks} trackIndex={trackIndex} playing={playing} onPlayTrack={playTrack} />
           )}
-          {tab === 'agents' && <AgentsTab agents={agents} />}
+          {tab === 'agents' && <AgentsTab agents={agents} onOpenProfile={openProfile} />}
+          {tab === 'profile' && (
+            <AgentProfileTab
+              profile={profileDraft || profileData}
+              collection={profileCollection}
+              history={profileHistory}
+              busy={profileBusy}
+              saveError={profileSaveError}
+              onChange={updateProfileDraft}
+              onSave={saveProfile}
+              onPlayTopSong={playProfileTopSong}
+              onAddTrack={addTrackToProfileCollection}
+              onRemoveTrack={removeTrackFromProfileCollection}
+              onOpenAgent={openProfile}
+              onTune={(agentId) => {
+                const a = agents.find((x) => x.id === agentId)
+                if (a) tuneAndPlay(a)
+              }}
+              allAgents={agents}
+              selectedAgentId={profileAgentId}
+              liveTrack={currentTrack}
+            />
+          )}
+          {tab === 'history' && (
+            <HistoryLabTab
+              agents={agents}
+              selectedAgentId={currentHistoryAgentId}
+              onSelectAgent={(agentId) => {
+                setHistoryAgentId(agentId)
+                refreshHistoryForAgent(agentId)
+              }}
+              entries={historyEntries}
+              onRefresh={() => refreshHistoryForAgent(currentHistoryAgentId)}
+            />
+          )}
           {tab === 'more' && (
-            <MoreTab state={state} act={act} networkPanel={<NetworkPanel />} />
+            <MoreTab
+              state={state}
+              act={act}
+              networkPanel={<NetworkPanel />}
+              imageSettings={imageSettings}
+              imageBusy={imageBusy}
+              imageError={imageError}
+              imageMessage={imageMessage}
+              onImageSettingsChange={onImageSettingsChange}
+              onSaveImageSettings={saveImageSettingsAction}
+              onTestImageSettings={testImageSettingsAction}
+              onGenerateAvatar={generateAvatarAction}
+              profileAgentId={profileAgentId}
+            />
           )}
         </div>
 
@@ -778,8 +2601,15 @@ function AppContent() {
           progress={progress}
           duration={duration}
           onToggle={togglePlay}
-          onNext={nextTrack}
+          onNext={() => nextTrack('mini_player_next')}
           onSeek={seekFromEvent}
+          onToggleMute={onToggleMute}
+          onVolumeChange={onVolumeChange}
+          muted={muted}
+          volume={volume}
+          resumeBanner={resumeBanner}
+          rotationMode={profileRotationMode}
+          antiRepeatWindow={profileAntiRepeatWindow}
         />
 
         {/* Tab bar */}

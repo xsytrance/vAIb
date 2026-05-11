@@ -1,0 +1,15 @@
+[Unit]
+Description=vAIb X API Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/vaibx-api
+Environment=VAIB_PORT=4014
+ExecStart=/usr/bin/node %h/vaibx-api/server/api.mjs
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

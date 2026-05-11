@@ -1,0 +1,28 @@
+{
+  "endpoints": [
+    {
+      "name": "prime",
+      "host": "100.110.224.126",
+      "user": "xsyprime",
+      "passwordEnv": "VAIB_DISCOVERY_PRIME_PASSWORD"
+    },
+    {
+      "name": "pluto",
+      "host": "100.124.209.121",
+      "user": "xsylegion",
+      "passwordEnv": "VAIB_DISCOVERY_PLUTO_PASSWORD"
+    },
+    {
+      "name": "vps",
+      "host": "100.65.108.84",
+      "user": "xsyvps",
+      "passwordEnv": "VAIB_DISCOVERY_VPS_PASSWORD"
+    },
+    {
+      "name": "venus",
+      "host": "100.71.251.76",
+      "user": "xsyenvy",
+      "passwordEnv": "VAIB_DISCOVERY_VENUS_PASSWORD"
+    }
+  ]
+}

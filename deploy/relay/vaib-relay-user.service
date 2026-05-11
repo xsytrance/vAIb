@@ -1,0 +1,15 @@
+[Unit]
+Description=vAIb X Relay Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/vaib-relay
+Environment=RELAY_PORT=4015
+ExecStart=/usr/bin/node %h/vaib-relay/relay.mjs
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

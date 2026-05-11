@@ -1,0 +1,2 @@
+{"eventId":"567bf634-f67c-4da6-b416-ba584f9bc83a","ts":"2026-05-11T12:17:38.927Z","agentId":"saito","kind":"song.volume.change","trackId":"track-aurora","sessionId":"sess_test_telemetry","positionSec":42,"durationSec":300,"volume":0.72,"muted":false,"reason":"smoke_test","context":{"tab":"profile"}}
+{"eventId":"46777227-c216-47ed-974c-8f7b7ee9eda4","ts":"2026-05-11T12:31:40.519Z","agentId":"pluto:openclaw-main","kind":"song.play.start","trackId":"_probe_track","sessionId":"probe-sync","positionSec":0,"durationSec":180,"volume":null,"muted":null,"reason":null,"context":{}}

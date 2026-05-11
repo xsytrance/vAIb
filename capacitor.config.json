@@ -1,6 +1,6 @@
 {
-  "appId": "com.vaib.app",
-  "appName": "vAIb",
+  "appId": "com.vaibx.app",
+  "appName": "vAIb X",
   "webDir": "dist",
   "android": {
     "allowMixedContent": true,

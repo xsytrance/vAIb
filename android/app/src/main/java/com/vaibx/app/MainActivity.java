@@ -1,4 +1,4 @@
-package com.vaib.app;
+package com.vaibx.app;
 
 import android.os.Bundle;
 import android.webkit.WebView;

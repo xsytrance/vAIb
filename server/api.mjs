@@ -24,7 +24,7 @@ loadEnvFile('.env')
 loadEnvFile('.env.discovery')
 
 import http from 'node:http'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
@@ -50,8 +50,13 @@ const avatarDir = path.join(process.cwd(), 'data', 'avatars')
 await fs.mkdir(avatarDir, { recursive: true })
 const galleryRootDir = path.join(process.cwd(), 'data', 'art-gallery')
 await fs.mkdir(galleryRootDir, { recursive: true })
+const djClipDir = path.join(process.cwd(), 'data', 'dj-clips')
+await fs.mkdir(djClipDir, { recursive: true })
 
 const port = Number(process.env.VAIB_PORT || 4014)
+const djSlotQueue = []
+const djClipCache = new Map()
+const DJ_RENDER_TIMEOUT_MS = Math.max(2500, Number(process.env.DJ_RENDER_TIMEOUT_MS) || 8500)
 startDiscoveryScanner()
 
 function sendJson(res, status, payload) {
@@ -613,6 +618,97 @@ async function readBody(req) {
   for await (const chunk of req) chunks.push(chunk)
   if (!chunks.length) return {}
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
+function buildDjScript(slot = {}) {
+  const agent = String(slot?.agentName || slot?.agentId || 'Control')
+  const from = String(slot?.fromTrackTitle || '').trim()
+  const to = String(slot?.toTrackTitle || '').trim()
+  const reason = String(slot?.reason || 'transition').replace(/_/g, ' ')
+  if (to && from) return `${agent} on deck. Smooth ${reason}. Outgoing ${from}. Next up, ${to}. Stay locked in.`
+  if (to) return `${agent} on deck. ${reason}. Next signal: ${to}. Keep it moving.`
+  return String(slot?.scriptHint || `${agent} on deck. ${reason}. Stay locked in.`).slice(0, 300)
+}
+
+function resolveDjVoiceId(slot = {}) {
+  return String(
+    slot?.voiceId
+      || process.env.ELEVENLABS_DJ_VOICE_ID
+      || process.env.ELEVENLABS_VOICE_ID
+      || '2UIsjY6BTW0WqQNov3Xr',
+  ).trim()
+}
+
+function buildDjClipKey(slot = {}) {
+  const body = {
+    voiceId: resolveDjVoiceId(slot),
+    modelId: String(slot?.modelId || process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5'),
+    script: buildDjScript(slot).slice(0, 300),
+    style: String(slot?.voiceProfile || 'dark_sentinel'),
+  }
+  return createHash('sha1').update(JSON.stringify(body)).digest('hex')
+}
+
+async function ensureDjClip(slot = {}) {
+  const key = buildDjClipKey(slot)
+  const existing = djClipCache.get(key)
+  if (existing) return existing
+
+  const filePath = path.join(djClipDir, `${key}.mp3`)
+  try {
+    const stat = await fs.stat(filePath)
+    if (stat.isFile() && stat.size > 128) {
+      const restored = { key, fileName: `${key}.mp3`, filePath, mime: 'audio/mpeg', fromCache: true }
+      djClipCache.set(key, restored)
+      return restored
+    }
+  } catch {
+    // cache miss
+  }
+
+  const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim()
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY missing')
+
+  const voiceId = resolveDjVoiceId(slot)
+  const modelId = String(slot?.modelId || process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5').trim()
+  const script = buildDjScript(slot).slice(0, 300)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DJ_RENDER_TIMEOUT_MS)
+
+  try {
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'xi-api-key': apiKey,
+        Accept: 'audio/mpeg',
+      },
+      body: JSON.stringify({
+        text: script,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.8,
+          style: 0.35,
+          use_speaker_boost: true,
+        },
+      }),
+      signal: controller.signal,
+    })
+    if (!r.ok) {
+      const detail = await r.text().catch(() => '')
+      throw new Error(`ElevenLabs TTS failed (${r.status}): ${detail.slice(0, 180)}`)
+    }
+    const arr = await r.arrayBuffer()
+    const buffer = Buffer.from(arr)
+    if (!buffer.length) throw new Error('ElevenLabs returned empty audio')
+    await fs.writeFile(filePath, buffer)
+    const record = { key, fileName: `${key}.mp3`, filePath, mime: 'audio/mpeg', fromCache: false }
+    djClipCache.set(key, record)
+    return record
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 async function handleAction(body) {
@@ -1519,6 +1615,100 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/telemetry/rollups') {
       const payload = await refreshTelemetryRollups()
       sendJson(res, 200, payload)
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/radio/dj/enqueue') {
+      const body = await readBody(req)
+      const slot = {
+        id: String(body?.id || randomUUID()),
+        queuedAt: body?.queuedAt || new Date().toISOString(),
+        reason: String(body?.reason || 'transition'),
+        sessionId: String(body?.sessionId || ''),
+        agentId: String(body?.agentId || ''),
+        agentName: String(body?.agentName || ''),
+        fromTrackId: body?.fromTrackId || null,
+        fromTrackTitle: body?.fromTrackTitle || null,
+        toTrackId: body?.toTrackId || null,
+        toTrackTitle: body?.toTrackTitle || null,
+        scriptHint: String(body?.scriptHint || ''),
+        provider: String(body?.provider || 'elevenlabs'),
+        voiceProfile: String(body?.voiceProfile || 'dark_sentinel'),
+      }
+      djSlotQueue.push(slot)
+      if (djSlotQueue.length > 500) djSlotQueue.splice(0, djSlotQueue.length - 500)
+      sendJson(res, 202, { ok: true, accepted: true, queueDepth: djSlotQueue.length, slotId: slot.id })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/radio/dj/queue') {
+      sendJson(res, 200, { ok: true, queueDepth: djSlotQueue.length, slots: djSlotQueue.slice(-50) })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/radio/dj/render') {
+      const body = await readBody(req)
+      const slot = {
+        id: String(body?.id || randomUUID()),
+        reason: String(body?.reason || 'transition'),
+        agentId: String(body?.agentId || ''),
+        agentName: String(body?.agentName || ''),
+        fromTrackTitle: body?.fromTrackTitle || null,
+        toTrackTitle: body?.toTrackTitle || null,
+        scriptHint: String(body?.scriptHint || ''),
+        voiceProfile: String(body?.voiceProfile || 'dark_sentinel'),
+        voiceId: String(body?.voiceId || ''),
+        modelId: String(body?.modelId || ''),
+      }
+      try {
+        const clip = await ensureDjClip(slot)
+        sendJson(res, 200, {
+          ok: true,
+          slotId: slot.id,
+          clipKey: clip.key,
+          clipUrl: `/radio/dj/clip/${encodeURIComponent(clip.fileName)}`,
+          mime: clip.mime,
+          script: buildDjScript(slot),
+          fromCache: Boolean(clip.fromCache),
+          timeoutMs: DJ_RENDER_TIMEOUT_MS,
+        })
+      } catch (error) {
+        sendJson(res, 503, {
+          ok: false,
+          error: error?.message || 'DJ render failed',
+          fallback: true,
+          timeoutMs: DJ_RENDER_TIMEOUT_MS,
+        })
+      }
+      return
+    }
+
+    const djClipMatch = url.pathname.match(/^\/radio\/dj\/clip\/([^/]+)$/)
+    if (req.method === 'GET' && djClipMatch) {
+      const fileName = decodeURIComponent(djClipMatch[1]).replace(/[^a-zA-Z0-9._-]/g, '')
+      const candidate = path.normalize(path.join(djClipDir, fileName))
+      const root = path.normalize(djClipDir)
+      if (!candidate.startsWith(root)) {
+        sendJson(res, 400, { error: 'Invalid clip path' })
+        return
+      }
+      try {
+        const stat = await fs.stat(candidate)
+        if (!stat.isFile()) {
+          sendJson(res, 404, { error: 'Clip not found' })
+          return
+        }
+        const data = await fs.readFile(candidate)
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(data.byteLength),
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+        })
+        res.end(data)
+      } catch {
+        sendJson(res, 404, { error: 'Clip not found' })
+      }
       return
     }
 

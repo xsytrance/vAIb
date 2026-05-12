@@ -218,6 +218,26 @@ async function appendTelemetry(payload) {
   return r.json()
 }
 
+async function enqueueDjSlot(payload) {
+  const r = await fetch(`${API}/radio/dj/enqueue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to enqueue DJ slot')
+  return r.json()
+}
+
+async function renderDjClip(payload) {
+  const r = await fetch(`${API}/radio/dj/render`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to render DJ clip')
+  return r.json()
+}
+
 // ============================================================
 // Utilities
 // ============================================================
@@ -315,6 +335,10 @@ const AGENT_COLLECTIONS_KEY = 'vaib_agent_collections_v1'
 const AGENT_PLAY_HISTORY_KEY = 'vaib_agent_play_history_v1'
 const PINNED_PROFILE_AGENT_KEY = 'vaib_pinned_profile_agent_v1'
 const MOTION_MODE_KEY = 'vaib_motion_mode_v1'
+const RADIO_MODE_KEY = 'vaib_radio_mode_v1'
+const RADIO_LISTENER_AGENT_IDS_KEY = 'vaib_radio_listener_agents_v1'
+const RADIO_DJ_ENABLED_KEY = 'vaib_radio_dj_enabled_v1'
+const RADIO_DJ_QUEUE_KEY = 'vaib_radio_dj_queue_v1'
 
 function loadPinnedProfileAgent() {
   try {
@@ -345,6 +369,75 @@ function loadMotionMode() {
 function saveMotionMode(mode = 'medium') {
   try {
     localStorage.setItem(MOTION_MODE_KEY, mode)
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadRadioMode() {
+  try {
+    const mode = localStorage.getItem(RADIO_MODE_KEY) || 'on_air'
+    return mode === 'listener' ? 'listener' : 'on_air'
+  } catch {
+    return 'on_air'
+  }
+}
+
+function saveRadioMode(mode = 'on_air') {
+  try {
+    localStorage.setItem(RADIO_MODE_KEY, mode === 'listener' ? 'listener' : 'on_air')
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadListenerAgentIds() {
+  try {
+    const raw = localStorage.getItem(RADIO_LISTENER_AGENT_IDS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.map((v) => String(v || '')).filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
+
+function saveListenerAgentIds(ids = []) {
+  try {
+    localStorage.setItem(RADIO_LISTENER_AGENT_IDS_KEY, JSON.stringify(Array.isArray(ids) ? ids : []))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadDjEnabled() {
+  try {
+    return localStorage.getItem(RADIO_DJ_ENABLED_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+function saveDjEnabled(enabled = true) {
+  try {
+    localStorage.setItem(RADIO_DJ_ENABLED_KEY, enabled ? '1' : '0')
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadDjQueue() {
+  try {
+    const raw = localStorage.getItem(RADIO_DJ_QUEUE_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.slice(0, 100) : []
+  } catch {
+    return []
+  }
+}
+
+function saveDjQueue(queue = []) {
+  try {
+    localStorage.setItem(RADIO_DJ_QUEUE_KEY, JSON.stringify(Array.isArray(queue) ? queue.slice(0, 100) : []))
   } catch {
     // ignore storage errors
   }
@@ -2083,6 +2176,17 @@ function MiniPlayer({
   resumeBanner,
   rotationMode,
   antiRepeatWindow,
+  radioMode,
+  onRadioModeChange,
+  listenerAgents = [],
+  listenerAgentIds = [],
+  onToggleListenerAgent,
+  apiHealthy,
+  djEnabled,
+  onToggleDj,
+  djQueueDepth = 0,
+  djDispatchState = 'idle',
+  djNowPlaying = '',
 }) {
   if (!tunedAgent) return null
   const pct = duration ? (progress / duration) * 100 : 0
@@ -2093,7 +2197,38 @@ function MiniPlayer({
       <div className="rotationChipRow">
         <span className="rotationChip">mode: {rotationMode || 'balanced'}</span>
         <span className="rotationChip">anti-repeat: {Number(antiRepeatWindow) || 0}</span>
+        <span className="rotationChip">radio: {radioMode === 'listener' ? 'listener' : 'on-air'}</span>
+        <span className="rotationChip">health: {apiHealthy ? 'healthy' : 'degraded'}</span>
+        <span className="rotationChip">dj: {djEnabled ? `armed · q${Math.max(0, Number(djQueueDepth) || 0)}` : 'off'}</span>
+        <span className="rotationChip">dj-dispatch: {djDispatchState}</span>
+        {djNowPlaying ? <span className="rotationChip">🎙 {djNowPlaying.slice(0, 64)}</span> : null}
       </div>
+      <div className="rotationChipRow" style={{ marginTop: 4 }}>
+        <button type="button" className="miniBtn ghost" onClick={() => onRadioModeChange?.(radioMode === 'listener' ? 'on_air' : 'listener')}>
+          {radioMode === 'listener' ? '🎧 Listener mode' : '📡 On-air mode'}
+        </button>
+        <button type="button" className="miniBtn ghost" onClick={() => onToggleDj?.()}>
+          {djEnabled ? '🎙 DJ armed' : '🎙 DJ off'}
+        </button>
+      </div>
+      {radioMode === 'listener' && listenerAgents.length ? (
+        <div className="rotationChipRow" style={{ flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+          {listenerAgents.slice(0, 8).map((agent) => {
+            const selected = listenerAgentIds.includes(agent.id)
+            return (
+              <button
+                key={agent.id}
+                type="button"
+                className="miniBtn ghost"
+                onClick={() => onToggleListenerAgent?.(agent.id)}
+                style={{ opacity: selected ? 1 : 0.55 }}
+              >
+                {selected ? '✓' : '○'} {agent.name}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
       <div className="miniPlayerProgress" onClick={onSeek}>
         <div className="miniPlayerBar" style={{ width: `${pct}%` }} />
       </div>
@@ -2232,6 +2367,12 @@ function AppContent() {
   })
   const [pinnedProfileAgentId, setPinnedProfileAgentId] = useState(() => loadPinnedProfileAgent())
   const [motionMode, setMotionMode] = useState(() => loadMotionMode())
+  const [radioMode, setRadioMode] = useState(() => loadRadioMode())
+  const [listenerAgentIds, setListenerAgentIds] = useState(() => loadListenerAgentIds())
+  const [djEnabled, setDjEnabled] = useState(() => loadDjEnabled())
+  const [djQueue, setDjQueue] = useState(() => loadDjQueue())
+  const [djDispatchState, setDjDispatchState] = useState('idle')
+  const [djNowPlaying, setDjNowPlaying] = useState('')
   const [starReason, setStarReason] = useState('')
   const [resumeBanner, setResumeBanner] = useState('')
   const [muted, setMuted] = useState(false)
@@ -2242,6 +2383,25 @@ function AppContent() {
 
   const starAgentMeta = useMemo(() => computeStarAgent(agents, agentPlayHistory), [agents, agentPlayHistory])
   const starAgentId = starAgentMeta?.agent?.id || ''
+
+  const selectableAgents = useMemo(
+    () => (agents || []).filter((a) => a?.id),
+    [agents],
+  )
+
+  const effectiveListenerAgentIds = useMemo(() => {
+    const valid = new Set(selectableAgents.map((a) => a.id))
+    const ids = (listenerAgentIds || []).filter((id) => valid.has(id))
+    return ids.length ? ids : selectableAgents.filter((a) => a.active).map((a) => a.id)
+  }, [listenerAgentIds, selectableAgents])
+
+  const effectiveRadioAgents = useMemo(() => {
+    if (radioMode === 'listener') {
+      const allow = new Set(effectiveListenerAgentIds)
+      return selectableAgents.filter((a) => allow.has(a.id))
+    }
+    return selectableAgents.filter((a) => a.active)
+  }, [radioMode, effectiveListenerAgentIds, selectableAgents])
 
   // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
@@ -2257,6 +2417,9 @@ function AppContent() {
   const resumeRef = useRef(loadPlaybackResume())
   const pendingSeekRef = useRef(0)
   const lastPersistSecondRef = useRef(-1)
+  const lastAirtimeSwitchRef = useRef(0)
+  const agentRotationCursorRef = useRef(0)
+  const djInterludeActiveRef = useRef(false)
 
   // ---- Atmosphere ----
   const { ri, parameters } = useAtmosphere()
@@ -2340,6 +2503,43 @@ function AppContent() {
   }, [motionMode])
 
   useEffect(() => {
+    saveRadioMode(radioMode)
+  }, [radioMode])
+
+  useEffect(() => {
+    saveListenerAgentIds(listenerAgentIds)
+  }, [listenerAgentIds])
+
+  useEffect(() => {
+    saveDjEnabled(djEnabled)
+  }, [djEnabled])
+
+  useEffect(() => {
+    saveDjQueue(djQueue)
+  }, [djQueue])
+
+  useEffect(() => {
+    if (!apiHealthy || !djEnabled || !djQueue.length) return
+    let cancelled = false
+    const dispatch = async () => {
+      const slot = djQueue[0]
+      if (!slot) return
+      setDjDispatchState('dispatching')
+      try {
+        await enqueueDjSlot(slot)
+        if (cancelled) return
+        setDjQueue((prev) => prev.slice(1))
+        setDjDispatchState('ok')
+      } catch {
+        if (cancelled) return
+        setDjDispatchState('offline_fallback')
+      }
+    }
+    dispatch()
+    return () => { cancelled = true }
+  }, [apiHealthy, djEnabled, djQueue])
+
+  useEffect(() => {
     if (!profileAgentId) return
     setProfileCollection(Object.values(agentCollections?.[profileAgentId] || {}))
     setProfileHistory(Array.isArray(agentPlayHistory?.[profileAgentId]) ? agentPlayHistory[profileAgentId] : [])
@@ -2357,6 +2557,13 @@ function AppContent() {
       : starAgentId
     if (preferred) openProfile(preferred)
   }, [agents, profileAgentId, pinnedProfileAgentId, starAgentId])
+
+  useEffect(() => {
+    if (!effectiveRadioAgents.length) return
+    if (tunedAgent && effectiveRadioAgents.some((a) => a.id === tunedAgent.id)) return
+    const next = effectiveRadioAgents[0]
+    if (next) tuneToAgentById(next.id)
+  }, [effectiveRadioAgents, tunedAgent?.id, tuneToAgentById])
 
   useEffect(() => {
     if (motionMode !== 'dynamic') return
@@ -2451,6 +2658,43 @@ function AppContent() {
     }
   }, [agentTracks, tunedAgent?.id, currentTrack?.id, volume, muted, tab])
 
+  useEffect(() => {
+    const t = setInterval(() => {
+      const el = audioRef.current
+      if (!el) return
+
+      // Always-on: if healthy and we have content, keep radio alive.
+      if (apiHealthy && tunedAgent && currentTrack && !playing) {
+        autoPlayRef.current = true
+        setPlaying(true)
+        el.play().catch(() => {})
+      }
+
+      // Airtime slicing for ON AIR mode.
+      if (radioMode !== 'on_air' || !apiHealthy || !tunedAgent || !currentTrack) return
+      if (effectiveRadioAgents.length <= 1) return
+      const now = Date.now()
+      if (now - lastAirtimeSwitchRef.current < 12000) return
+
+      const currentSec = Number(el.currentTime || progress || 0)
+      const sliceSec = computeAirtimeSliceSec(tunedAgent)
+      if (currentSec >= sliceSec) {
+        lastAirtimeSwitchRef.current = now
+        nextTrack('airtime_slice')
+      }
+    }, 3000)
+    return () => clearInterval(t)
+  }, [
+    apiHealthy,
+    tunedAgent,
+    currentTrack,
+    playing,
+    progress,
+    radioMode,
+    effectiveRadioAgents.length,
+    computeAirtimeSliceSec,
+  ])
+
   // Analyser init — call only after a user gesture; AudioContext needs it
   const initAnalyser = useCallback(() => {
     if (analyserRef.current || !audioRef.current) return
@@ -2475,6 +2719,37 @@ function AppContent() {
   }, [ri, parameters])
 
   useEffect(() => () => { if (audioStartedRef.current) stopAudioAtmosphere() }, [])
+
+  const tuneToAgentById = useCallback((agentId) => {
+    const pick = (agents || []).find((a) => a.id === agentId)
+    if (!pick) return false
+    autoPlayRef.current = true
+    pendingSeekRef.current = 0
+    setTunedAgent(pick)
+    setPlaying(true)
+    return true
+  }, [agents])
+
+  const computeAirtimeSliceSec = useCallback((agent) => {
+    if (!agent) return 75
+    const historyLen = Array.isArray(agentPlayHistory?.[agent.id]) ? agentPlayHistory[agent.id].length : 0
+    const recencyMs = Date.parse(agent?.updatedAt || agent?.lastSeenAt || '')
+    const freshBonus = Number.isFinite(recencyMs) && (Date.now() - recencyMs) < 10 * 60 * 1000 ? 20 : 0
+    const activeBonus = agent?.active ? 25 : 0
+    const historyBonus = Math.min(20, Math.floor(historyLen / 20))
+    return Math.max(35, Math.min(140, 50 + freshBonus + activeBonus + historyBonus))
+  }, [agentPlayHistory])
+
+  const rotateToNextRadioAgent = useCallback(() => {
+    const list = effectiveRadioAgents
+    if (!list.length) return false
+    const currentIdx = list.findIndex((a) => a.id === tunedAgent?.id)
+    const nextIdx = currentIdx >= 0
+      ? (currentIdx + 1) % list.length
+      : (agentRotationCursorRef.current % list.length)
+    agentRotationCursorRef.current = (nextIdx + 1) % list.length
+    return tuneToAgentById(list[nextIdx].id)
+  }, [effectiveRadioAgents, tunedAgent?.id, tuneToAgentById])
 
   // Player controls
   function tuneAndPlay(agent) {
@@ -2514,6 +2789,109 @@ function AppContent() {
       })
     }
   }
+
+  function queueDjSlot(reason = 'transition', nextTrackMeta = null) {
+    if (!djEnabled || !tunedAgent) return null
+    const slot = {
+      id: `dj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      queuedAt: new Date().toISOString(),
+      sessionId: sessionIdRef.current,
+      reason,
+      agentId: tunedAgent.id,
+      agentName: tunedAgent.name || tunedAgent.id,
+      fromTrackId: currentTrack?.id || null,
+      fromTrackTitle: currentTrack?.title || null,
+      toTrackId: nextTrackMeta?.id || null,
+      toTrackTitle: nextTrackMeta?.title || null,
+      scriptHint: `${tunedAgent.name || tunedAgent.id} transition: ${reason.replace(/_/g, ' ')}`,
+      provider: 'elevenlabs',
+      voiceProfile: 'dark_sentinel',
+    }
+    setDjQueue((prev) => [...(Array.isArray(prev) ? prev : []), slot].slice(-100))
+    return slot
+  }
+
+  async function playDjInterlude(slot, onDone) {
+    if (!djEnabled || !slot || djInterludeActiveRef.current) {
+      onDone?.()
+      return
+    }
+
+    djInterludeActiveRef.current = true
+    const script = String(slot.scriptHint || '').trim() || `${slot.agentName || 'Station'} transition.`
+    setDjNowPlaying(script)
+    setDjDispatchState('rendering')
+
+    const el = audioRef.current
+    const originalVolume = Number(el?.volume ?? volume)
+    if (el) {
+      try {
+        el.volume = Math.max(0.12, originalVolume * 0.25)
+        el.pause()
+      } catch {
+        // no-op
+      }
+    }
+
+    let done = false
+    let clipAudio = null
+    let hardTimeout = null
+    const finish = (state = 'ok') => {
+      if (done) return
+      done = true
+      if (hardTimeout) clearTimeout(hardTimeout)
+      if (clipAudio) {
+        clipAudio.onended = null
+        clipAudio.onerror = null
+      }
+      if (el) {
+        try { el.volume = originalVolume } catch {}
+      }
+      setDjNowPlaying('')
+      setDjDispatchState(state)
+      djInterludeActiveRef.current = false
+      onDone?.()
+    }
+
+    hardTimeout = setTimeout(() => finish('timeout_fallback'), 9000)
+
+    try {
+      const rendered = await renderDjClip(slot)
+      if (!rendered?.clipUrl) throw new Error('DJ clip URL missing')
+
+      clipAudio = new Audio(rendered.clipUrl)
+      clipAudio.preload = 'auto'
+      clipAudio.volume = Math.max(0.1, Math.min(1, (Number(volume) || 0.85) * 0.95))
+      clipAudio.onended = () => finish('ok')
+      clipAudio.onerror = () => finish('offline_fallback')
+
+      setDjDispatchState(rendered?.fromCache ? 'clip_cache_playout' : 'clip_playout')
+      await clipAudio.play()
+      return
+    } catch {
+      // continue to local fallback
+    }
+
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+    if (synth && typeof window !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function') {
+      try {
+        synth.cancel()
+        const utt = new window.SpeechSynthesisUtterance(script)
+        utt.rate = 1
+        utt.pitch = 0.8
+        utt.volume = 0.85
+        utt.onend = () => finish('offline_fallback')
+        utt.onerror = () => finish('offline_fallback')
+        synth.speak(utt)
+        return
+      } catch {
+        // fallback below
+      }
+    }
+
+    setTimeout(() => finish('offline_fallback'), 1800)
+  }
+
   function nextTrack(reason = 'next_button') {
     if (!agentTracks.length) return
     if (tunedAgent && currentTrack) {
@@ -2554,9 +2932,29 @@ function AppContent() {
       })
     }
 
+    const shouldRotateAgent = radioMode === 'on_air' && reason !== 'manual_select' && effectiveRadioAgents.length > 1
+    if (shouldRotateAgent) {
+      const slot = queueDjSlot(reason, { id: null, title: 'agent rotation' })
+      playDjInterlude(slot, () => {
+        const rotated = rotateToNextRadioAgent()
+        if (rotated) {
+          setTrackIndex(0)
+          setPlaying(true)
+          return
+        }
+        const fallbackIdx = (trackIndex + 1) % agentTracks.length
+        setTrackIndex(fallbackIdx)
+        setPlaying(true)
+      })
+      return
+    }
+
     const nextIdx = (trackIndex + 1) % agentTracks.length
-    setTrackIndex(nextIdx)
-    setPlaying(true)
+    const slot = queueDjSlot(reason, agentTracks[nextIdx] || null)
+    playDjInterlude(slot, () => {
+      setTrackIndex(nextIdx)
+      setPlaying(true)
+    })
   }
   function seekFromEvent(e) {
     const el = audioRef.current; if (!el || !duration) return
@@ -2643,6 +3041,17 @@ function AppContent() {
       volume,
       muted: nextMuted,
       reason: 'ui_toggle',
+    })
+  }
+
+  function toggleListenerAgent(agentId) {
+    setListenerAgentIds((prev) => {
+      const safe = Array.isArray(prev) ? prev : []
+      if (safe.includes(agentId)) {
+        const trimmed = safe.filter((id) => id !== agentId)
+        return trimmed.length ? trimmed : [agentId]
+      }
+      return [...safe, agentId]
     })
   }
 
@@ -3453,6 +3862,17 @@ function AppContent() {
           resumeBanner={resumeBanner}
           rotationMode={profileRotationMode}
           antiRepeatWindow={profileAntiRepeatWindow}
+          radioMode={radioMode}
+          onRadioModeChange={setRadioMode}
+          listenerAgents={selectableAgents}
+          listenerAgentIds={effectiveListenerAgentIds}
+          onToggleListenerAgent={toggleListenerAgent}
+          apiHealthy={apiHealthy}
+          djEnabled={djEnabled}
+          onToggleDj={() => setDjEnabled((v) => !v)}
+          djQueueDepth={djQueue.length}
+          djDispatchState={djDispatchState}
+          djNowPlaying={djNowPlaying}
         />
 
         {/* Tab bar */}

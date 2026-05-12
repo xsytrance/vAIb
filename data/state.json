@@ -4,7 +4,7 @@
     "companionName": "vAIb",
     "version": "0.2.0",
     "schemaVersion": 2,
-    "lastUpdated": "2026-05-11T22:58:02.607Z",
+    "lastUpdated": "2026-05-12T09:49:33.757Z",
     "defaultAgentId": "saito"
   },
   "agents": {
@@ -102,9 +102,9 @@
         }
       }
     },
-    "pluto:openclaw-main": {
-      "id": "pluto:openclaw-main",
-      "name": "Openclaw Main",
+    "supersort": {
+      "id": "supersort",
+      "name": "Supersort",
       "vibe": "",
       "status": "online",
       "mood": "warming up",
@@ -126,11 +126,11 @@
       "favorites": [],
       "skipped": [],
       "identity": {
-        "displayName": "Openclaw Main",
+        "displayName": "Supersort",
         "titleStyle": "default",
         "avatar": {
           "kind": "upload",
-          "uri": "/agent-avatar/pluto%3Aopenclaw-main",
+          "uri": "/agent-avatar/supersort",
           "prompt": null,
           "seed": null,
           "updatedAt": null
@@ -152,7 +152,7 @@
         "personaTags": [],
         "originNode": "discovery",
         "notes": "",
-        "resonanceScore": -6.98,
+        "resonanceScore": -19.75,
         "traits": [
           "chaos-hopper"
         ],
@@ -167,9 +167,9 @@
         }
       }
     },
-    "pluto:openclaw-picasso": {
-      "id": "pluto:openclaw-picasso",
-      "name": "Openclaw Picasso",
+    "dazzler": {
+      "id": "dazzler",
+      "name": "Dazzler",
       "vibe": "",
       "status": "online",
       "mood": "warming up",
@@ -191,11 +191,11 @@
       "favorites": [],
       "skipped": [],
       "identity": {
-        "displayName": "Openclaw Picasso",
+        "displayName": "Dazzler",
         "titleStyle": "default",
         "avatar": {
           "kind": "upload",
-          "uri": "/agent-avatar/pluto%3Aopenclaw-picasso",
+          "uri": "/agent-avatar/dazzler",
           "prompt": null,
           "seed": null,
           "updatedAt": null
@@ -217,142 +217,18 @@
         "personaTags": [],
         "originNode": "discovery",
         "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
+        "resonanceScore": -6.51,
+        "traits": [
+          "chaos-hopper"
+        ],
         "streaks": {
           "fullListenDays": 0,
           "explorationDays": 0
         },
         "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "ninja": {
-      "id": "ninja",
-      "name": "Ninja",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Ninja",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/ninja",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": null
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
-        }
-      }
-    },
-    "vps:tyler6": {
-      "id": "vps:tyler6",
-      "name": "Tyler6",
-      "vibe": "",
-      "status": "online",
-      "mood": "warming up",
-      "activity": "identity sync",
-      "metrics": {
-        "curiosity": 50,
-        "ambition": 50,
-        "freedom": 50,
-        "boredom": 50,
-        "social": 50,
-        "focus": 50
-      },
-      "tastes": [],
-      "dislikes": [],
-      "rituals": [],
-      "currentTrackId": "track-aurora",
-      "playlistId": "playlist-saito-core",
-      "playCount": 0,
-      "favorites": [],
-      "skipped": [],
-      "identity": {
-        "displayName": "Tyler6",
-        "titleStyle": "default",
-        "avatar": {
-          "kind": "upload",
-          "uri": "/agent-avatar/vps%3Atyler6",
-          "prompt": null,
-          "seed": null,
-          "updatedAt": "2026-05-11T22:58:02.606Z"
-        },
-        "rank": "Signal Initiate",
-        "level": 1,
-        "xp": 0,
-        "lifetimeTokensIn": 0,
-        "lifetimeTokensOut": 0,
-        "genres": [],
-        "favoriteSongs": [],
-        "topSongs": [],
-        "anthemTrackId": null,
-        "focusLoopTrackId": null,
-        "rotationMode": "balanced",
-        "antiRepeatWindow": 3,
-        "bio": "",
-        "motto": "",
-        "personaTags": [],
-        "originNode": "discovery",
-        "notes": "",
-        "resonanceScore": 0,
-        "traits": [],
-        "streaks": {
-          "fullListenDays": 0,
-          "explorationDays": 0
-        },
-        "playlistNudge": {
-          "favoritesBoost": 0,
-          "explorationBoost": 0,
-          "repeatPenalty": 0
+          "favoritesBoost": 0.35,
+          "explorationBoost": -0.15,
+          "repeatPenalty": 0.2
         }
       }
     }
@@ -466,55 +342,66 @@
       "agentId": "saito",
       "title": "Saito started a track",
       "message": "Now playing Aurora Thread by Neon Veins.",
-      "createdAt": "2026-05-11T17:17:56.357Z",
+      "createdAt": "2026-05-12T09:40:38.471Z",
       "read": false
     }
   ],
   "events": [
     {
-      "id": "42bfb803-dc33-4f7a-9981-f962b12ec190",
-      "kind": "gallery.ingest",
-      "summary": "Tyler6 gallery ingested avatar 20260511-225802-107128-avatar.jpg",
-      "details": {
-        "source": "avatar-upload",
-        "relPath": "2026/05/20260511-225802-107128-avatar.jpg",
-        "mime": "image/jpeg",
-        "tags": [
-          "avatar",
-          "profile-photo",
-          "manual-upload"
-        ]
-      },
-      "agentId": "vps:tyler6",
-      "createdAt": "2026-05-11T22:58:02.607Z"
-    },
-    {
-      "id": "64b3aed7-71ae-4771-972c-163a9cf9141d",
-      "kind": "avatar.upload",
-      "summary": "Tyler6 updated avatar.",
-      "details": {
-        "ext": "jpg",
-        "source": "manual_upload",
-        "galleryRelPath": "2026/05/20260511-225802-107128-avatar.jpg"
-      },
-      "agentId": "vps:tyler6",
-      "createdAt": "2026-05-11T22:58:02.607Z"
-    },
-    {
-      "id": "495efacc-eb68-4c54-817c-ee2fa5e0c2fc",
+      "id": "7373ea77-29e2-49ef-8183-9f013a4081b6",
       "kind": "history.append",
-      "summary": "pluto:openclaw-main play history appended (1).",
+      "summary": "dazzler play history appended (1).",
       "details": {
         "appended": 1
       },
-      "agentId": "pluto:openclaw-main",
-      "createdAt": "2026-05-11T17:46:03.364Z"
+      "agentId": "dazzler",
+      "createdAt": "2026-05-12T09:49:32.029Z"
+    },
+    {
+      "id": "07369708-dc6f-49d2-bdee-69636deea181",
+      "kind": "history.append",
+      "summary": "dazzler play history appended (1).",
+      "details": {
+        "appended": 1
+      },
+      "agentId": "dazzler",
+      "createdAt": "2026-05-12T09:46:56.118Z"
+    },
+    {
+      "id": "01c08d5d-1c23-4aeb-bc18-7df88eb8e8dc",
+      "kind": "history.append",
+      "summary": "dazzler play history appended (1).",
+      "details": {
+        "appended": 1
+      },
+      "agentId": "dazzler",
+      "createdAt": "2026-05-12T09:46:54.185Z"
+    },
+    {
+      "id": "6c8345cc-7578-4d3c-b4b6-1f1316769b16",
+      "kind": "history.append",
+      "summary": "supersort play history appended (1).",
+      "details": {
+        "appended": 1
+      },
+      "agentId": "supersort",
+      "createdAt": "2026-05-12T09:42:10.301Z"
+    },
+    {
+      "id": "1c990663-4746-4ae9-bedc-2c4dd80b2992",
+      "kind": "history.append",
+      "summary": "supersort play history appended (1).",
+      "details": {
+        "appended": 1
+      },
+      "agentId": "supersort",
+      "createdAt": "2026-05-12T09:42:09.182Z"
     },
     {
       "id": "event-seed-1",
       "kind": "system.bootstrap",
       "agentId": "saito",
-      "createdAt": "2026-05-11T17:17:56.357Z",
+      "createdAt": "2026-05-12T09:40:38.471Z",
       "summary": "Initialized the first AI-native vAIb profile for Saito."
     }
   ],
@@ -556,15 +443,53 @@
   },
   "agentCollections": {},
   "playHistory": {
-    "pluto:openclaw-main": [
+    "supersort": [
       {
-        "trackId": "1393688",
-        "title": "Dark Room Full of Lonely People",
-        "artist": "Dutilleul",
-        "playedAt": "2026-05-11T17:46:03.120Z",
+        "trackId": "1937430",
+        "title": "Colorful Creation",
+        "artist": "Decision Space",
+        "playedAt": "2026-05-12T09:42:10.095Z",
         "reason": "manual_select",
-        "durationSec": 240,
-        "positionSec": 12
+        "durationSec": 120,
+        "positionSec": 0
+      },
+      {
+        "trackId": "1418676",
+        "title": "Round The Twist",
+        "artist": "The Aluminium Tough",
+        "playedAt": "2026-05-12T09:42:08.975Z",
+        "reason": "manual_select",
+        "durationSec": 120,
+        "positionSec": 0
+      }
+    ],
+    "dazzler": [
+      {
+        "trackId": "1100125",
+        "title": "Depth Narcosis",
+        "artist": "Kognitif",
+        "playedAt": "2026-05-12T09:49:31.743Z",
+        "reason": "manual_select",
+        "durationSec": 243,
+        "positionSec": 153
+      },
+      {
+        "trackId": "108580",
+        "title": "Dirty angel",
+        "artist": "The Phase",
+        "playedAt": "2026-05-12T09:46:55.895Z",
+        "reason": "manual_select",
+        "durationSec": 222,
+        "positionSec": 0
+      },
+      {
+        "trackId": "20236",
+        "title": "Ambiphonic",
+        "artist": "Zeropage",
+        "playedAt": "2026-05-12T09:46:53.923Z",
+        "reason": "manual_select",
+        "durationSec": 306,
+        "positionSec": 2
       }
     ]
   }

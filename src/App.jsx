@@ -7,6 +7,7 @@ import { AgentProvider, useAgent } from './agent/AgentProvider'
 // NOTE: No Saito imports. All display is driven by backend discovery only.
 import AtmosphereCanvas from './visual/AtmosphereCanvas'
 import Visualizer from './visual/Visualizer'
+import MusicNoteOverlay from './visual/MusicNoteOverlay'
 import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from './audio/AudioAtmosphere'
 
 // ============================================================
@@ -3290,6 +3291,7 @@ function AppContent() {
   return (
     <>
       <AtmosphereCanvas />
+      <MusicNoteOverlay analyser={analyser} tunedAgent={tunedAgent} />
       <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" style={{ display: 'none' }} />
 
       <div className="appShell" onClick={handleGesture} data-motion={motionMode}>
@@ -3306,6 +3308,28 @@ function AppContent() {
             />
             <span className="vaibWordmark">vAIb</span>
           </div>
+
+          {/* Quick agent switch pills */}
+          <div className="agentQuickSwitch">
+            {agents.filter(a => a.active).slice(0, 8).map(agent => {
+              const active = agent.id === tunedAgent?.id
+              return (
+                <div
+                  key={agent.id}
+                  className={`agentPill${active ? ' agentPillActive' : ''}`}
+                  onClick={() => tuneAndPlay(agent)}
+                  title={agent.name}
+                  role="button"
+                  aria-label={`Tune to ${agent.name}`}
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter') tuneAndPlay(agent) }}
+                >
+                  <AgentAvatar agentId={agent.id} name={agent.name} size={24} className="agentPillAvatar" />
+                </div>
+              )
+            })}
+          </div>
+
           <div className="vaibHeaderRight">
             {error && <span className="headerError">⚠</span>}
             <span className="headerStat">{activeCount} online</span>

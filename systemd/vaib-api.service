@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/xsyprime/.openclaw/workspace/vAIb-X
+WorkingDirectory=/home/xsyprime/projects/vaiB-x
 ExecStart=/usr/bin/env node server/api.mjs
 Restart=always
 RestartSec=3

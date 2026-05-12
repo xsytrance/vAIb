@@ -22,3 +22,8 @@ pnpm-debug.log*
 
 # runtime data
 /data/art-gallery/
+/data/state.json
+/data/telemetry-rollups.json
+/data/telemetry.ndjson
+vaibx_confirm.png
+vaibx_confirm2.png

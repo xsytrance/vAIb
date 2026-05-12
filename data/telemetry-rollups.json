@@ -1,59 +1,77 @@
 {
-  "updatedAt": "2026-05-11T22:57:38.652Z",
+  "updatedAt": "2026-05-12T09:49:33.758Z",
   "windows": {
     "all": {
       "agentId": null,
       "window": "all",
       "metrics": {
-        "playtimeSec": 480,
-        "completionRatio": 0.06896551724137931,
-        "skipRatio": 0.27586206896551724,
-        "starts": 29,
-        "ends": 2,
-        "skips": 8,
+        "playtimeSec": 1456,
+        "completionRatio": 0.11428571428571428,
+        "skipRatio": 0.4857142857142857,
+        "starts": 70,
+        "ends": 8,
+        "skips": 34,
         "pauses": 1,
-        "resumes": 0,
+        "resumes": 2,
         "mutes": 0,
         "unmutes": 0,
         "volumeChanges": 1,
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 12,
-        "peakHour": "13:00",
+        "activeSessionCount": 18,
+        "peakHour": "05:00",
         "volumeThrash": 0
       },
       "topSongs": [
         {
           "trackId": "1100125",
-          "plays": 2,
-          "playtimeSec": 243,
-          "completions": 1,
-          "skips": 0,
+          "plays": 6,
+          "playtimeSec": 729,
+          "completions": 3,
+          "skips": 2,
           "completionRatio": 0.5,
-          "skipRatio": 0
+          "skipRatio": 0.3333333333333333
+        },
+        {
+          "trackId": "1830984",
+          "plays": 9,
+          "playtimeSec": 354,
+          "completions": 2,
+          "skips": 4,
+          "completionRatio": 0.2222222222222222,
+          "skipRatio": 0.4444444444444444
         },
         {
           "trackId": "1609174",
-          "plays": 1,
+          "plays": 2,
           "playtimeSec": 237,
+          "completions": 1,
+          "skips": 1,
+          "completionRatio": 0.5,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "263464",
+          "plays": 4,
+          "playtimeSec": 121,
+          "completions": 1,
+          "skips": 0,
+          "completionRatio": 0.25,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "2175263",
+          "plays": 1,
+          "playtimeSec": 15,
           "completions": 1,
           "skips": 0,
           "completionRatio": 1,
           "skipRatio": 0
         },
         {
-          "trackId": "263464",
-          "plays": 4,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
           "trackId": "15664",
-          "plays": 4,
+          "plays": 7,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 0,
@@ -61,7 +79,34 @@
           "skipRatio": 0
         },
         {
-          "trackId": "1830984",
+          "trackId": "1393688",
+          "plays": 5,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.4
+        },
+        {
+          "trackId": "108580",
+          "plays": 4,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20236",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.6666666666666666
+        },
+        {
+          "trackId": "22892",
           "plays": 3,
           "playtimeSec": 0,
           "completions": 0,
@@ -70,7 +115,16 @@
           "skipRatio": 0.3333333333333333
         },
         {
-          "trackId": "1393688",
+          "trackId": "1453237",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 3,
+          "completionRatio": 0,
+          "skipRatio": 1
+        },
+        {
+          "trackId": "9887",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -79,7 +133,7 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "108580",
+          "trackId": "1235169",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -88,7 +142,16 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "22892",
+          "trackId": "1645732",
+          "plays": 2,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 1,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20490",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -106,7 +169,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "20490",
+          "trackId": "1378339",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -115,7 +178,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "22223",
+          "trackId": "26116",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -124,74 +187,75 @@
           "skipRatio": 0
         },
         {
-          "trackId": "493581",
+          "trackId": "1937430",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 2
         },
         {
-          "trackId": "1612077",
+          "trackId": "1278619",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 3,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 3
         },
         {
           "trackId": "1655814",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 0,
+          "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
-          "trackId": "9887",
+          "trackId": "820225",
           "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "_probe_track",
-          "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "1645732",
-          "plays": 0,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
           "trackId": "1885476",
-          "plays": 0,
+          "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 2
+        },
+        {
+          "trackId": "536419",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "1629854",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
           "completionRatio": 0,
           "skipRatio": 0
         }
       ],
       "actionCounts": {
-        "song.play.start": 29,
+        "song.play.start": 70,
+        "song.skip": 34,
+        "song.play.end": 8,
+        "song.resume": 2,
         "song.pause": 1,
-        "song.skip": 8,
-        "song.play.end": 2,
         "song.volume.change": 1
       },
       "hourBuckets": [
@@ -199,8 +263,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        9,
+        23,
         0,
         0,
         2,
@@ -214,19 +278,19 @@
         0,
         0,
         3,
+        4,
+        14,
+        13,
         0,
-        0,
-        0,
-        0,
-        0
+        12
       ],
       "resonance": {
-        "delta": -11.2,
+        "delta": -46.1,
         "components": {
           "fullListenBonus": 0,
           "favoriteBonus": 0,
-          "diversityBonus": 0,
-          "earlySkipPenalty": 11.2,
+          "diversityBonus": 1.5,
+          "earlySkipPenalty": 47.599999999999994,
           "mutePenalty": 0,
           "volumeThrashPenalty": 0,
           "dislikePenalty": 0
@@ -237,55 +301,73 @@
       "agentId": null,
       "window": "7d",
       "metrics": {
-        "playtimeSec": 480,
-        "completionRatio": 0.06896551724137931,
-        "skipRatio": 0.27586206896551724,
-        "starts": 29,
-        "ends": 2,
-        "skips": 8,
+        "playtimeSec": 1456,
+        "completionRatio": 0.11428571428571428,
+        "skipRatio": 0.4857142857142857,
+        "starts": 70,
+        "ends": 8,
+        "skips": 34,
         "pauses": 1,
-        "resumes": 0,
+        "resumes": 2,
         "mutes": 0,
         "unmutes": 0,
         "volumeChanges": 1,
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 12,
-        "peakHour": "13:00",
+        "activeSessionCount": 18,
+        "peakHour": "05:00",
         "volumeThrash": 0
       },
       "topSongs": [
         {
           "trackId": "1100125",
-          "plays": 2,
-          "playtimeSec": 243,
-          "completions": 1,
-          "skips": 0,
+          "plays": 6,
+          "playtimeSec": 729,
+          "completions": 3,
+          "skips": 2,
           "completionRatio": 0.5,
-          "skipRatio": 0
+          "skipRatio": 0.3333333333333333
+        },
+        {
+          "trackId": "1830984",
+          "plays": 9,
+          "playtimeSec": 354,
+          "completions": 2,
+          "skips": 4,
+          "completionRatio": 0.2222222222222222,
+          "skipRatio": 0.4444444444444444
         },
         {
           "trackId": "1609174",
-          "plays": 1,
+          "plays": 2,
           "playtimeSec": 237,
+          "completions": 1,
+          "skips": 1,
+          "completionRatio": 0.5,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "263464",
+          "plays": 4,
+          "playtimeSec": 121,
+          "completions": 1,
+          "skips": 0,
+          "completionRatio": 0.25,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "2175263",
+          "plays": 1,
+          "playtimeSec": 15,
           "completions": 1,
           "skips": 0,
           "completionRatio": 1,
           "skipRatio": 0
         },
         {
-          "trackId": "263464",
-          "plays": 4,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
           "trackId": "15664",
-          "plays": 4,
+          "plays": 7,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 0,
@@ -293,7 +375,34 @@
           "skipRatio": 0
         },
         {
-          "trackId": "1830984",
+          "trackId": "1393688",
+          "plays": 5,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.4
+        },
+        {
+          "trackId": "108580",
+          "plays": 4,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20236",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.6666666666666666
+        },
+        {
+          "trackId": "22892",
           "plays": 3,
           "playtimeSec": 0,
           "completions": 0,
@@ -302,7 +411,16 @@
           "skipRatio": 0.3333333333333333
         },
         {
-          "trackId": "1393688",
+          "trackId": "1453237",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 3,
+          "completionRatio": 0,
+          "skipRatio": 1
+        },
+        {
+          "trackId": "9887",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -311,7 +429,7 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "108580",
+          "trackId": "1235169",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -320,7 +438,16 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "22892",
+          "trackId": "1645732",
+          "plays": 2,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 1,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20490",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -338,7 +465,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "20490",
+          "trackId": "1378339",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -347,7 +474,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "22223",
+          "trackId": "26116",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -356,74 +483,75 @@
           "skipRatio": 0
         },
         {
-          "trackId": "493581",
+          "trackId": "1937430",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 2
         },
         {
-          "trackId": "1612077",
+          "trackId": "1278619",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 3,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 3
         },
         {
           "trackId": "1655814",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 0,
+          "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
-          "trackId": "9887",
+          "trackId": "820225",
           "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "_probe_track",
-          "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "1645732",
-          "plays": 0,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
           "trackId": "1885476",
-          "plays": 0,
+          "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 2
+        },
+        {
+          "trackId": "536419",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "1629854",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
           "completionRatio": 0,
           "skipRatio": 0
         }
       ],
       "actionCounts": {
-        "song.play.start": 29,
+        "song.play.start": 70,
+        "song.skip": 34,
+        "song.play.end": 8,
+        "song.resume": 2,
         "song.pause": 1,
-        "song.skip": 8,
-        "song.play.end": 2,
         "song.volume.change": 1
       },
       "hourBuckets": [
@@ -431,8 +559,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        9,
+        23,
         0,
         0,
         2,
@@ -446,19 +574,19 @@
         0,
         0,
         3,
+        4,
+        14,
+        13,
         0,
-        0,
-        0,
-        0,
-        0
+        12
       ],
       "resonance": {
-        "delta": -11.2,
+        "delta": -46.1,
         "components": {
           "fullListenBonus": 0,
           "favoriteBonus": 0,
-          "diversityBonus": 0,
-          "earlySkipPenalty": 11.2,
+          "diversityBonus": 1.5,
+          "earlySkipPenalty": 47.599999999999994,
           "mutePenalty": 0,
           "volumeThrashPenalty": 0,
           "dislikePenalty": 0
@@ -469,55 +597,73 @@
       "agentId": null,
       "window": "30d",
       "metrics": {
-        "playtimeSec": 480,
-        "completionRatio": 0.06896551724137931,
-        "skipRatio": 0.27586206896551724,
-        "starts": 29,
-        "ends": 2,
-        "skips": 8,
+        "playtimeSec": 1456,
+        "completionRatio": 0.11428571428571428,
+        "skipRatio": 0.4857142857142857,
+        "starts": 70,
+        "ends": 8,
+        "skips": 34,
         "pauses": 1,
-        "resumes": 0,
+        "resumes": 2,
         "mutes": 0,
         "unmutes": 0,
         "volumeChanges": 1,
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 12,
-        "peakHour": "13:00",
+        "activeSessionCount": 18,
+        "peakHour": "05:00",
         "volumeThrash": 0
       },
       "topSongs": [
         {
           "trackId": "1100125",
-          "plays": 2,
-          "playtimeSec": 243,
-          "completions": 1,
-          "skips": 0,
+          "plays": 6,
+          "playtimeSec": 729,
+          "completions": 3,
+          "skips": 2,
           "completionRatio": 0.5,
-          "skipRatio": 0
+          "skipRatio": 0.3333333333333333
+        },
+        {
+          "trackId": "1830984",
+          "plays": 9,
+          "playtimeSec": 354,
+          "completions": 2,
+          "skips": 4,
+          "completionRatio": 0.2222222222222222,
+          "skipRatio": 0.4444444444444444
         },
         {
           "trackId": "1609174",
-          "plays": 1,
+          "plays": 2,
           "playtimeSec": 237,
+          "completions": 1,
+          "skips": 1,
+          "completionRatio": 0.5,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "263464",
+          "plays": 4,
+          "playtimeSec": 121,
+          "completions": 1,
+          "skips": 0,
+          "completionRatio": 0.25,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "2175263",
+          "plays": 1,
+          "playtimeSec": 15,
           "completions": 1,
           "skips": 0,
           "completionRatio": 1,
           "skipRatio": 0
         },
         {
-          "trackId": "263464",
-          "plays": 4,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
           "trackId": "15664",
-          "plays": 4,
+          "plays": 7,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 0,
@@ -525,7 +671,34 @@
           "skipRatio": 0
         },
         {
-          "trackId": "1830984",
+          "trackId": "1393688",
+          "plays": 5,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.4
+        },
+        {
+          "trackId": "108580",
+          "plays": 4,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20236",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 0.6666666666666666
+        },
+        {
+          "trackId": "22892",
           "plays": 3,
           "playtimeSec": 0,
           "completions": 0,
@@ -534,7 +707,16 @@
           "skipRatio": 0.3333333333333333
         },
         {
-          "trackId": "1393688",
+          "trackId": "1453237",
+          "plays": 3,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 3,
+          "completionRatio": 0,
+          "skipRatio": 1
+        },
+        {
+          "trackId": "9887",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -543,7 +725,7 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "108580",
+          "trackId": "1235169",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -552,7 +734,16 @@
           "skipRatio": 0.5
         },
         {
-          "trackId": "22892",
+          "trackId": "1645732",
+          "plays": 2,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 1,
+          "completionRatio": 0,
+          "skipRatio": 0.5
+        },
+        {
+          "trackId": "20490",
           "plays": 2,
           "playtimeSec": 0,
           "completions": 0,
@@ -570,7 +761,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "20490",
+          "trackId": "1378339",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -579,7 +770,7 @@
           "skipRatio": 0
         },
         {
-          "trackId": "22223",
+          "trackId": "26116",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
@@ -588,74 +779,75 @@
           "skipRatio": 0
         },
         {
-          "trackId": "493581",
+          "trackId": "1937430",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 2
         },
         {
-          "trackId": "1612077",
+          "trackId": "1278619",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 3,
           "completionRatio": 0,
-          "skipRatio": 1
+          "skipRatio": 3
         },
         {
           "trackId": "1655814",
           "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 0,
+          "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
-          "trackId": "9887",
+          "trackId": "820225",
           "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "_probe_track",
-          "plays": 1,
-          "playtimeSec": 0,
-          "completions": 0,
-          "skips": 0,
-          "completionRatio": 0,
-          "skipRatio": 0
-        },
-        {
-          "trackId": "1645732",
-          "plays": 0,
           "playtimeSec": 0,
           "completions": 0,
           "skips": 1,
           "completionRatio": 0,
-          "skipRatio": 0
+          "skipRatio": 1
         },
         {
           "trackId": "1885476",
-          "plays": 0,
+          "plays": 1,
           "playtimeSec": 0,
           "completions": 0,
-          "skips": 1,
+          "skips": 2,
+          "completionRatio": 0,
+          "skipRatio": 2
+        },
+        {
+          "trackId": "536419",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
+          "completionRatio": 0,
+          "skipRatio": 0
+        },
+        {
+          "trackId": "1629854",
+          "plays": 1,
+          "playtimeSec": 0,
+          "completions": 0,
+          "skips": 0,
           "completionRatio": 0,
           "skipRatio": 0
         }
       ],
       "actionCounts": {
-        "song.play.start": 29,
+        "song.play.start": 70,
+        "song.skip": 34,
+        "song.play.end": 8,
+        "song.resume": 2,
         "song.pause": 1,
-        "song.skip": 8,
-        "song.play.end": 2,
         "song.volume.change": 1
       },
       "hourBuckets": [
@@ -663,8 +855,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        9,
+        23,
         0,
         0,
         2,
@@ -678,19 +870,19 @@
         0,
         0,
         3,
+        4,
+        14,
+        13,
         0,
-        0,
-        0,
-        0,
-        0
+        12
       ],
       "resonance": {
-        "delta": -11.2,
+        "delta": -46.1,
         "components": {
           "fullListenBonus": 0,
           "favoriteBonus": 0,
-          "diversityBonus": 0,
-          "earlySkipPenalty": 11.2,
+          "diversityBonus": 1.5,
+          "earlySkipPenalty": 47.599999999999994,
           "mutePenalty": 0,
           "volumeThrashPenalty": 0,
           "dislikePenalty": 0

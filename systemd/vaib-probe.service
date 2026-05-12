@@ -4,5 +4,5 @@ After=vaib-api.service vaib-ui.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/xsyprime/.openclaw/workspace/vAIb-X
-ExecStart=/usr/bin/env bash /home/xsyprime/.openclaw/workspace/vAIb-X/scripts/vaib-ensure-up.sh
+WorkingDirectory=/home/xsyprime/projects/vaiB-x
+ExecStart=/usr/bin/env bash /home/xsyprime/projects/vaiB-x/scripts/vaib-ensure-up.sh

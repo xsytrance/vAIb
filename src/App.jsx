@@ -2451,6 +2451,8 @@ function AppContent() {
   const [resumeBanner, setResumeBanner] = useState('')
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(0.85)
+  const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false)
+  const [profileSwitcherQuery, setProfileSwitcherQuery] = useState('')
 
   const sessionIdRef = useRef(`sess_${Math.random().toString(36).slice(2, 10)}`)
   const lastUpdateCheckRef = useRef(0)
@@ -2477,6 +2479,27 @@ function AppContent() {
     return selectableAgents.filter((a) => a.active)
   }, [radioMode, effectiveListenerAgentIds, selectableAgents])
 
+  const headerAgents = useMemo(() => {
+    return [...(agents || [])]
+      .filter((a) => a?.id)
+      .sort((a, b) => {
+        if (Boolean(b.active) !== Boolean(a.active)) return Number(b.active) - Number(a.active)
+        return String(a.name || a.id).localeCompare(String(b.name || b.id))
+      })
+      .slice(0, 24)
+  }, [agents])
+
+  const headerFilteredAgents = useMemo(() => {
+    const q = profileSwitcherQuery.trim().toLowerCase()
+    if (!q) return headerAgents
+    return headerAgents.filter((a) => {
+      const name = String(a.name || '').toLowerCase()
+      const role = String(a.role || '').toLowerCase()
+      const id = String(a.id || '').toLowerCase()
+      return name.includes(q) || role.includes(q) || id.includes(q)
+    })
+  }, [headerAgents, profileSwitcherQuery])
+
   // ---- Player ----
   const [trackIndex, setTrackIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
@@ -2494,6 +2517,7 @@ function AppContent() {
   const lastAirtimeSwitchRef = useRef(0)
   const agentRotationCursorRef = useRef(0)
   const djInterludeActiveRef = useRef(false)
+  const profileSwitcherRef = useRef(null)
 
   // ---- Atmosphere ----
   const { ri, parameters } = useAtmosphere()
@@ -2631,6 +2655,30 @@ function AppContent() {
       : starAgentId
     if (preferred) openProfile(preferred)
   }, [agents, profileAgentId, pinnedProfileAgentId, starAgentId])
+
+  useEffect(() => {
+    if (!profileSwitcherOpen) return
+    const onPointerDown = (event) => {
+      const host = profileSwitcherRef.current
+      if (!host) return
+      if (!host.contains(event.target)) {
+        setProfileSwitcherOpen(false)
+        setProfileSwitcherQuery('')
+      }
+    }
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setProfileSwitcherOpen(false)
+        setProfileSwitcherQuery('')
+      }
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [profileSwitcherOpen])
 
   const tuneToAgentById = useCallback((agentId) => {
     const pick = (agents || []).find((a) => a.id === agentId)
@@ -3829,25 +3877,64 @@ function AppContent() {
             <span className="vaibWordmark">vAIb</span>
           </div>
 
-          {/* Quick agent switch pills */}
-          <div className="agentQuickSwitch">
-            {agents.filter(a => a.active).slice(0, 8).map(agent => {
-              const active = agent.id === tunedAgent?.id
-              return (
-                <div
-                  key={agent.id}
-                  className={`agentPill${active ? ' agentPillActive' : ''}`}
-                  onClick={() => tuneAndPlay(agent)}
-                  title={agent.name}
-                  role="button"
-                  aria-label={`Tune to ${agent.name}`}
-                  tabIndex={0}
-                  onKeyDown={e => { if (e.key === 'Enter') tuneAndPlay(agent) }}
-                >
-                  <AgentAvatar agentId={agent.id} name={agent.name} size={24} className="agentPillAvatar" />
+          <div className="profileSwitcher" ref={profileSwitcherRef}>
+            <button
+              type="button"
+              className={`profileSwitcherTrigger${profileSwitcherOpen ? ' open' : ''}`}
+              aria-haspopup="listbox"
+              aria-expanded={profileSwitcherOpen}
+              aria-label="Change tuned profile"
+              onClick={() => setProfileSwitcherOpen((v) => !v)}
+            >
+              <AgentAvatar agentId={tunedAgent?.id || 'none'} name={tunedAgent?.name || 'No profile'} size={24} className="profileSwitcherAvatar" />
+              <span className="profileSwitcherMeta">
+                <span className="profileSwitcherLabel">Profile</span>
+                <span className="profileSwitcherName">{tunedAgent?.name || 'No active profile'}</span>
+              </span>
+              <span className="profileSwitcherChevron" aria-hidden>▾</span>
+            </button>
+
+            {profileSwitcherOpen && (
+              <div className="profileSwitcherMenu" role="dialog" aria-label="Profile selector">
+                <input
+                  className="profileSwitcherSearch"
+                  type="search"
+                  placeholder="Search name, role, or id"
+                  value={profileSwitcherQuery}
+                  onChange={(e) => setProfileSwitcherQuery(e.target.value)}
+                  autoFocus
+                />
+                <div className="profileSwitcherList" role="listbox" aria-label="Profiles">
+                  {headerFilteredAgents.map((agent) => {
+                    const active = agent.id === tunedAgent?.id
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        className={`profileSwitcherOption${active ? ' active' : ''}`}
+                        onClick={() => {
+                          tuneAndPlay(agent)
+                          setProfileSwitcherOpen(false)
+                          setProfileSwitcherQuery('')
+                        }}
+                      >
+                        <AgentAvatar agentId={agent.id} name={agent.name} size={22} className="profileSwitcherOptionAvatar" />
+                        <span className="profileSwitcherOptionMain">
+                          <span className="profileSwitcherOptionName">{agent.name}</span>
+                          <span className="profileSwitcherOptionSub">{agent.role || agent.id}</span>
+                        </span>
+                        <span className={`profileSwitcherDot ${agent.active ? 'online' : 'offline'}`} aria-hidden />
+                      </button>
+                    )
+                  })}
+                  {!headerFilteredAgents.length && (
+                    <div className="profileSwitcherEmpty">No matching profiles.</div>
+                  )}
                 </div>
-              )
-            })}
+              </div>
+            )}
           </div>
 
           <div className="vaibHeaderRight">

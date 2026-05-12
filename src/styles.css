@@ -98,47 +98,155 @@ input { font: inherit; }
 
 .headerError { color: #ff9cba; font-size: 1rem; }
 
-/* Agent quick switch pills */
-.agentQuickSwitch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-width: 200px;
-  padding: 2px 0;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  flex-shrink: 0;
+/* Profile switcher */
+.profileSwitcher {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+  margin: 0 10px;
 }
-.agentQuickSwitch::-webkit-scrollbar { display: none; }
 
-.agentPill {
-  cursor: pointer;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.05);
-  border: 1.5px solid rgba(255,255,255,0.1);
-  transition: all 0.2s ease;
-  flex-shrink: 0;
+.profileSwitcherTrigger {
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 160, 255, 0.2);
+  background: rgba(10, 18, 32, 0.72);
+  color: #edf5ff;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 180ms ease, background 180ms ease;
 }
-.agentPill:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.25);
+.profileSwitcherTrigger:hover,
+.profileSwitcherTrigger.open {
+  border-color: rgba(0, 255, 220, 0.45);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(0,255,220,0.14);
+  background: rgba(9, 18, 34, 0.94);
 }
-.agentPillActive {
-  border-color: var(--cyan);
-  background: rgba(0,255,220,0.15);
-  box-shadow: 0 0 12px rgba(0,255,220,0.3), inset 0 0 0 1px rgba(0,255,220,0.2);
+
+.profileSwitcherAvatar { flex-shrink: 0; }
+
+.profileSwitcherMeta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
-.agentPillAvatar {
-  width: 22px !important;
-  height: 22px !important;
+.profileSwitcherLabel {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
 }
-.agentPillAvatar .avatarInitials {
-  font-size: 0.48rem !important;
+.profileSwitcherName {
+  font-size: 0.84rem;
+  color: #f4f8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profileSwitcherChevron {
+  margin-left: auto;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+}
+
+.profileSwitcherMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(124, 160, 255, 0.24);
+  background: rgba(7, 14, 28, 0.96);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+  z-index: 30;
+  padding: 8px;
+}
+
+.profileSwitcherSearch {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #edf5ff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+  outline: none;
+}
+.profileSwitcherSearch:focus {
+  border-color: rgba(0,255,220,0.42);
+  box-shadow: 0 0 0 2px rgba(0,255,220,0.14);
+}
+
+.profileSwitcherList {
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+
+.profileSwitcherOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #eaf3ff;
+}
+.profileSwitcherOption:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.1);
+}
+.profileSwitcherOption.active {
+  background: rgba(0,255,220,0.1);
+  border-color: rgba(0,255,220,0.34);
+}
+
+.profileSwitcherOptionMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.profileSwitcherOptionName {
+  font-size: 0.8rem;
+  color: #f7fbff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profileSwitcherOptionSub {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileSwitcherDot {
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.profileSwitcherDot.online { background: #8effcb; box-shadow: 0 0 8px rgba(142,255,203,0.55); }
+.profileSwitcherDot.offline { background: #ff9cba; opacity: 0.8; }
+
+.profileSwitcherEmpty {
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  padding: 10px 8px;
 }
 
 /* ============================================================

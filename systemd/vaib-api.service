@@ -1,0 +1,15 @@
+[Unit]
+Description=vAIb-X backend API (port 4014)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/xsyprime/.openclaw/workspace/vAIb-X
+ExecStart=/usr/bin/env node server/api.mjs
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target

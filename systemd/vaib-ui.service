@@ -1,0 +1,15 @@
+[Unit]
+Description=vAIb-X frontend UI (port 4013)
+After=network-online.target vaib-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/xsyprime/.openclaw/workspace/vAIb-X
+ExecStart=/usr/bin/env npm run dev -- --host 0.0.0.0 --port 4013
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target

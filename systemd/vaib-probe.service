@@ -1,0 +1,8 @@
+[Unit]
+Description=vAIb-X lightweight probe + auto-restart guard
+After=vaib-api.service vaib-ui.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/xsyprime/.openclaw/workspace/vAIb-X
+ExecStart=/usr/bin/env bash /home/xsyprime/.openclaw/workspace/vAIb-X/scripts/vaib-ensure-up.sh

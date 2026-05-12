@@ -76,6 +76,27 @@ async function warmMusicCache() {
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to warm music cache')
   return r.json()
 }
+
+async function clearMusicCache() {
+  const r = await fetch(`${API}/music/cache/clear`, { method: 'POST' })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to clear music cache')
+  return r.json()
+}
+
+function isOnWifiConnection() {
+  try {
+    const conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection
+    if (!conn) return true
+    const type = String(conn.type || '').toLowerCase()
+    if (type === 'wifi' || type === 'ethernet') return true
+    if (type === 'cellular') return false
+    const effective = String(conn.effectiveType || '').toLowerCase()
+    if (effective.includes('2g') || effective.includes('3g') || effective.includes('4g') || effective.includes('5g')) return false
+    return true
+  } catch {
+    return true
+  }
+}
 async function sendAction(action, payload = {}, agentId = null) {
   const r = await fetch(`${API}/action`, {
     method: 'POST',
@@ -2036,6 +2057,7 @@ function MoreTab({
   onMusicSettingsChange,
   onSaveMusicSettings,
   onWarmMusicCache,
+  onClearMusicCache,
 }) {
   if (!state) return null
   return (
@@ -2277,6 +2299,15 @@ function MoreTab({
           />
         </label>
 
+        <label className="prefItem" style={{ marginTop: 8 }}>
+          <span>Wi‑Fi only playback</span>
+          <input
+            type="checkbox"
+            checked={Boolean(musicSettings?.wifiOnly)}
+            onChange={(e) => onMusicSettingsChange?.({ wifiOnly: e.target.checked })}
+          />
+        </label>
+
         <label className="profileFieldLabel" style={{ marginTop: 10 }}>Cache limit (GB, default 5)</label>
         <input
           className="profileTextInput"
@@ -2297,6 +2328,7 @@ function MoreTab({
         <div className="profileActionsRow">
           <button type="button" className="profileBtn" disabled={musicBusy} onClick={onSaveMusicSettings}>Save music settings</button>
           <button type="button" className="profileBtn" disabled={musicBusy} onClick={onWarmMusicCache}>Cache all now</button>
+          <button type="button" className="profileBtn" disabled={musicBusy} onClick={onClearMusicCache}>Clear cache</button>
         </div>
 
         {musicMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{musicMessage}</p> : null}
@@ -2504,7 +2536,7 @@ function AppContent() {
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState('')
   const [imageMessage, setImageMessage] = useState('')
-  const [musicSettings, setMusicSettings] = useState({ cacheEnabled: true, cacheMaxBytes: 5 * 1024 * 1024 * 1024, alwaysPlay: true })
+  const [musicSettings, setMusicSettings] = useState({ cacheEnabled: true, cacheMaxBytes: 5 * 1024 * 1024 * 1024, alwaysPlay: true, wifiOnly: false })
   const [musicCacheStats, setMusicCacheStats] = useState({ count: 0, bytes: 0 })
   const [musicBusy, setMusicBusy] = useState(false)
   const [musicError, setMusicError] = useState('')
@@ -2829,6 +2861,12 @@ function AppContent() {
     // AudioContext (analyser) requires a user gesture; audio element playback does not
     // when setMediaPlaybackRequiresUserGesture(false) is set in Android.
     if (playing || autoPlayRef.current) {
+      if (musicSettings?.wifiOnly && !isOnWifiConnection()) {
+        setPlaying(false)
+        autoPlayRef.current = false
+        setMusicError('Wi‑Fi only mode is enabled. Connect to Wi‑Fi to auto-play music.')
+        return
+      }
       el.play().then(() => {
         setPlaying(true)
         autoPlayRef.current = false
@@ -2837,7 +2875,7 @@ function AppContent() {
         setMusicError(`Playback blocked: ${err?.message || 'unknown error'}`)
       })
     }
-  }, [trackIndex, currentTrack, musicSettings?.alwaysPlay, playing])
+  }, [trackIndex, currentTrack, musicSettings?.alwaysPlay, musicSettings?.wifiOnly, playing])
 
   useEffect(() => {
     const el = audioRef.current
@@ -3001,8 +3039,13 @@ function AppContent() {
         reason: 'user_toggle',
       })
     } else {
+      if (musicSettings?.wifiOnly && !isOnWifiConnection()) {
+        setMusicError('Wi‑Fi only mode is enabled. Connect to Wi‑Fi to play music.')
+        return
+      }
       el.play().catch(() => {})
       setPlaying(true)
+      setMusicError('')
       emitTelemetry('song.resume', {
         positionSec: Math.floor(el.currentTime || 0),
         durationSec: Math.floor(el.duration || duration || 0),
@@ -3473,6 +3516,21 @@ function AppContent() {
       setMusicMessage(`Cache warmed: ${payload?.warmed || 0}/${payload?.total || 0} tracks.`)
     } catch (err) {
       setMusicError(err.message || 'Failed to warm music cache')
+    } finally {
+      setMusicBusy(false)
+    }
+  }
+
+  async function clearMusicCacheAction() {
+    try {
+      setMusicBusy(true)
+      setMusicError('')
+      setMusicMessage('')
+      const payload = await clearMusicCache()
+      setMusicCacheStats(payload?.cache || { count: 0, bytes: 0 })
+      setMusicMessage('Music cache cleared.')
+    } catch (err) {
+      setMusicError(err.message || 'Failed to clear music cache')
     } finally {
       setMusicBusy(false)
     }
@@ -4167,6 +4225,7 @@ function AppContent() {
               onMusicSettingsChange={(patch) => setMusicSettings((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
               onSaveMusicSettings={saveMusicSettingsAction}
               onWarmMusicCache={warmMusicCacheAction}
+              onClearMusicCache={clearMusicCacheAction}
             />
           )}
         </div>

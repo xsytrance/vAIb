@@ -381,6 +381,7 @@ function normalizeMusicSettings(raw = {}) {
   return {
     cacheEnabled: raw?.cacheEnabled !== false,
     cacheMaxBytes: maxBytes,
+    wifiOnly: Boolean(raw?.wifiOnly),
     // Hard requirement: station should always auto-play.
     alwaysPlay: true,
   }
@@ -440,6 +441,23 @@ async function evictMusicCache(maxBytes = DEFAULT_MUSIC_CACHE_MAX_BYTES) {
     await fs.unlink(row.full).catch(() => {})
     total -= row.size
   }
+}
+
+async function clearMusicCacheFiles() {
+  const files = await fs.readdir(musicCacheDir).catch(() => [])
+  let removed = 0
+  for (const file of files) {
+    const full = path.join(musicCacheDir, file)
+    try {
+      const stat = await fs.stat(full)
+      if (!stat.isFile()) continue
+      await fs.unlink(full)
+      removed += 1
+    } catch {
+      // ignore
+    }
+  }
+  return removed
 }
 
 async function ensureTrackCached(trackId = '', settings = null) {
@@ -1860,6 +1878,13 @@ const server = http.createServer(async (req, res) => {
       const settings = getMusicSettings(state)
       const result = await warmAllMusicCache(settings)
       sendJson(res, 200, result)
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/music/cache/clear') {
+      const removed = await clearMusicCacheFiles()
+      const cache = await getMusicCacheStats()
+      sendJson(res, 200, { ok: true, removed, cache })
       return
     }
 

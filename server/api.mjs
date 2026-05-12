@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { createReadStream, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 function loadEnvFile(fileName) {
@@ -1869,14 +1869,50 @@ const server = http.createServer(async (req, res) => {
       const state = await readState()
       const settings = getMusicSettings(state)
       const info = await ensureTrackCached(trackId, settings)
-      const data = await fs.readFile(info.filePath)
+      const stat = await fs.stat(info.filePath)
+      const total = stat.size
+      const range = req.headers.range
+
+      if (range && /^bytes=\d*-\d*$/.test(range)) {
+        const [startRaw, endRaw] = range.replace('bytes=', '').split('-')
+        let start = startRaw ? Number(startRaw) : 0
+        let end = endRaw ? Number(endRaw) : total - 1
+
+        if (!Number.isFinite(start) || start < 0) start = 0
+        if (!Number.isFinite(end) || end >= total) end = total - 1
+
+        if (start > end || start >= total) {
+          res.writeHead(416, {
+            'Content-Range': `bytes */${total}`,
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
+          })
+          res.end()
+          return
+        }
+
+        const chunkSize = end - start + 1
+        res.writeHead(206, {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(chunkSize),
+          'Content-Range': `bytes ${start}-${end}/${total}`,
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Access-Control-Allow-Origin': '*',
+        })
+
+        createReadStream(info.filePath, { start, end }).pipe(res)
+        return
+      }
+
       res.writeHead(200, {
         'Content-Type': 'audio/mpeg',
-        'Content-Length': String(data.byteLength),
+        'Content-Length': String(total),
+        'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Access-Control-Allow-Origin': '*',
       })
-      res.end(data)
+      createReadStream(info.filePath).pipe(res)
       return
     }
 

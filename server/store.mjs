@@ -62,6 +62,11 @@ function baseSettings() {
     autoplay: {
       profileTopSongsMutedFirst: true,
     },
+    music: {
+      cacheEnabled: true,
+      cacheMaxBytes: 5 * 1024 * 1024 * 1024,
+      alwaysPlay: true,
+    },
   }
 }
 
@@ -338,6 +343,10 @@ export function migrateState(input) {
       autoplay: {
         ...baseSettings().autoplay,
         ...(state.settings.autoplay || {}),
+      },
+      music: {
+        ...baseSettings().music,
+        ...(state.settings.music || {}),
       },
     }
     if (JSON.stringify(mergedSettings) !== JSON.stringify(state.settings)) {

@@ -33,6 +33,28 @@ async function loadTracks() {
   const d = await r.json()
   return d.tracks || []
 }
+
+async function loadMusicSettings() {
+  const r = await fetch(`${API}/settings/music`)
+  if (!r.ok) throw new Error('Failed to load music settings')
+  return r.json()
+}
+
+async function saveMusicSettings(payload) {
+  const r = await fetch(`${API}/settings/music`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to save music settings')
+  return r.json()
+}
+
+async function warmMusicCache() {
+  const r = await fetch(`${API}/music/cache/warm`, { method: 'POST' })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to warm music cache')
+  return r.json()
+}
 async function sendAction(action, payload = {}, agentId = null) {
   const r = await fetch(`${API}/action`, {
     method: 'POST',
@@ -1922,6 +1944,14 @@ function MoreTab({
   onSaveUpdateAdmin,
   motionMode = 'medium',
   onMotionModeChange,
+  musicSettings,
+  musicCacheStats,
+  musicBusy,
+  musicError,
+  musicMessage,
+  onMusicSettingsChange,
+  onSaveMusicSettings,
+  onWarmMusicCache,
 }) {
   if (!state) return null
   return (
@@ -2151,6 +2181,45 @@ function MoreTab({
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Music Runtime</span>
+        <p className="cardMuted">Cache music on device for faster launch and smoother playback.</p>
+
+        <label className="prefItem" style={{ marginTop: 8 }}>
+          <span>Always play automatically</span>
+          <input
+            type="checkbox"
+            checked={musicSettings?.alwaysPlay !== false}
+            onChange={(e) => onMusicSettingsChange?.({ alwaysPlay: e.target.checked })}
+          />
+        </label>
+
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Cache limit (GB)</label>
+        <input
+          className="profileTextInput"
+          type="number"
+          min="1"
+          max="50"
+          value={Math.max(1, Math.round((Number(musicSettings?.cacheMaxBytes) || (5 * 1024 * 1024 * 1024)) / (1024 * 1024 * 1024)))}
+          onChange={(e) => {
+            const gb = Math.max(1, Math.min(50, Number(e.target.value) || 5))
+            onMusicSettingsChange?.({ cacheMaxBytes: gb * 1024 * 1024 * 1024 })
+          }}
+        />
+
+        <p className="cardMuted" style={{ marginTop: 8 }}>
+          Cached files: {Number(musicCacheStats?.count) || 0} · {((Number(musicCacheStats?.bytes) || 0) / (1024 * 1024)).toFixed(1)} MB
+        </p>
+
+        <div className="profileActionsRow">
+          <button type="button" className="profileBtn" disabled={musicBusy} onClick={onSaveMusicSettings}>Save music settings</button>
+          <button type="button" className="profileBtn" disabled={musicBusy} onClick={onWarmMusicCache}>Cache all now</button>
+        </div>
+
+        {musicMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{musicMessage}</p> : null}
+        {musicError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{musicError}</p> : null}
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
         {networkPanel}
       </div>
     </div>
@@ -2351,6 +2420,11 @@ function AppContent() {
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState('')
   const [imageMessage, setImageMessage] = useState('')
+  const [musicSettings, setMusicSettings] = useState({ cacheEnabled: true, cacheMaxBytes: 5 * 1024 * 1024 * 1024, alwaysPlay: true })
+  const [musicCacheStats, setMusicCacheStats] = useState({ count: 0, bytes: 0 })
+  const [musicBusy, setMusicBusy] = useState(false)
+  const [musicError, setMusicError] = useState('')
+  const [musicMessage, setMusicMessage] = useState('')
   const [updateChannel, setUpdateChannel] = useState('stable')
   const [updateInfo, setUpdateInfo] = useState(null)
   const [updateBusy, setUpdateBusy] = useState(false)
@@ -2558,6 +2632,16 @@ function AppContent() {
     if (preferred) openProfile(preferred)
   }, [agents, profileAgentId, pinnedProfileAgentId, starAgentId])
 
+  const tuneToAgentById = useCallback((agentId) => {
+    const pick = (agents || []).find((a) => a.id === agentId)
+    if (!pick) return false
+    autoPlayRef.current = true
+    pendingSeekRef.current = 0
+    setTunedAgent(pick)
+    setPlaying(true)
+    return true
+  }, [agents])
+
   useEffect(() => {
     if (!effectiveRadioAgents.length) return
     if (tunedAgent && effectiveRadioAgents.some((a) => a.id === tunedAgent.id)) return
@@ -2597,7 +2681,7 @@ function AppContent() {
     const el = audioRef.current
     if (!el || !currentTrack) return
     el.src = currentTrack.audioUrl
-    if (!musicAutoStartedRef.current) {
+    if (!musicAutoStartedRef.current && musicSettings?.alwaysPlay !== false) {
       musicAutoStartedRef.current = true
       setPlaying(true)
       autoPlayRef.current = true
@@ -2613,7 +2697,7 @@ function AppContent() {
         // On desktop browsers autoplay may be blocked; keep playing=true so next gesture resumes.
       })
     }
-  }, [trackIndex, currentTrack])
+  }, [trackIndex, currentTrack, musicSettings?.alwaysPlay])
 
   useEffect(() => {
     const el = audioRef.current
@@ -2658,13 +2742,23 @@ function AppContent() {
     }
   }, [agentTracks, tunedAgent?.id, currentTrack?.id, volume, muted, tab])
 
+  const computeAirtimeSliceSec = useCallback((agent) => {
+    if (!agent) return 75
+    const historyLen = Array.isArray(agentPlayHistory?.[agent.id]) ? agentPlayHistory[agent.id].length : 0
+    const recencyMs = Date.parse(agent?.updatedAt || agent?.lastSeenAt || '')
+    const freshBonus = Number.isFinite(recencyMs) && (Date.now() - recencyMs) < 10 * 60 * 1000 ? 20 : 0
+    const activeBonus = agent?.active ? 25 : 0
+    const historyBonus = Math.min(20, Math.floor(historyLen / 20))
+    return Math.max(35, Math.min(140, 50 + freshBonus + activeBonus + historyBonus))
+  }, [agentPlayHistory])
+
   useEffect(() => {
     const t = setInterval(() => {
       const el = audioRef.current
       if (!el) return
 
       // Always-on: if healthy and we have content, keep radio alive.
-      if (apiHealthy && tunedAgent && currentTrack && !playing) {
+      if (musicSettings?.alwaysPlay !== false && apiHealthy && tunedAgent && currentTrack && !playing) {
         autoPlayRef.current = true
         setPlaying(true)
         el.play().catch(() => {})
@@ -2693,6 +2787,7 @@ function AppContent() {
     radioMode,
     effectiveRadioAgents.length,
     computeAirtimeSliceSec,
+    musicSettings?.alwaysPlay,
   ])
 
   // Analyser init — call only after a user gesture; AudioContext needs it
@@ -2719,26 +2814,6 @@ function AppContent() {
   }, [ri, parameters])
 
   useEffect(() => () => { if (audioStartedRef.current) stopAudioAtmosphere() }, [])
-
-  const tuneToAgentById = useCallback((agentId) => {
-    const pick = (agents || []).find((a) => a.id === agentId)
-    if (!pick) return false
-    autoPlayRef.current = true
-    pendingSeekRef.current = 0
-    setTunedAgent(pick)
-    setPlaying(true)
-    return true
-  }, [agents])
-
-  const computeAirtimeSliceSec = useCallback((agent) => {
-    if (!agent) return 75
-    const historyLen = Array.isArray(agentPlayHistory?.[agent.id]) ? agentPlayHistory[agent.id].length : 0
-    const recencyMs = Date.parse(agent?.updatedAt || agent?.lastSeenAt || '')
-    const freshBonus = Number.isFinite(recencyMs) && (Date.now() - recencyMs) < 10 * 60 * 1000 ? 20 : 0
-    const activeBonus = agent?.active ? 25 : 0
-    const historyBonus = Math.min(20, Math.floor(historyLen / 20))
-    return Math.max(35, Math.min(140, 50 + freshBonus + activeBonus + historyBonus))
-  }, [agentPlayHistory])
 
   const rotateToNextRadioAgent = useCallback(() => {
     const list = effectiveRadioAgents
@@ -3224,6 +3299,37 @@ function AppContent() {
     }
   }
 
+  async function saveMusicSettingsAction() {
+    try {
+      setMusicBusy(true)
+      setMusicError('')
+      setMusicMessage('')
+      const payload = await saveMusicSettings(musicSettings)
+      setMusicSettings(payload?.settings || musicSettings)
+      setMusicCacheStats(payload?.cache || { count: 0, bytes: 0 })
+      setMusicMessage('Music settings saved.')
+    } catch (err) {
+      setMusicError(err.message || 'Failed to save music settings')
+    } finally {
+      setMusicBusy(false)
+    }
+  }
+
+  async function warmMusicCacheAction() {
+    try {
+      setMusicBusy(true)
+      setMusicError('')
+      setMusicMessage('')
+      const payload = await warmMusicCache()
+      setMusicCacheStats(payload?.cache || { count: 0, bytes: 0 })
+      setMusicMessage(`Cache warmed: ${payload?.warmed || 0}/${payload?.total || 0} tracks.`)
+    } catch (err) {
+      setMusicError(err.message || 'Failed to warm music cache')
+    } finally {
+      setMusicBusy(false)
+    }
+  }
+
   function updateUpdateAdminForm(patch = {}) {
     setUpdateAdminForm((prev) => ({
       ...(prev || {}),
@@ -3542,8 +3648,9 @@ function AppContent() {
       loadTracks(),
       checkHealth(),
       loadImageGenerationSettings().catch(() => null),
+      loadMusicSettings().catch(() => null),
     ])
-      .then(([stateData, agentData, trackList, healthy, imgSettings]) => {
+      .then(([stateData, agentData, trackList, healthy, imgSettings, musicCfg]) => {
         if (!mounted) return
 
         // Guard: /agents can be empty on some backends; fallback to state.agents
@@ -3598,8 +3705,12 @@ function AppContent() {
         })
         setApiHealthy(healthy)
         setImageSettings(imgSettings)
+        if (musicCfg?.settings) setMusicSettings(musicCfg.settings)
+        if (musicCfg?.cache) setMusicCacheStats(musicCfg.cache)
         setAgentPlayHistory((prev) => ({ ...(prev || {}), ...(stateData?.playHistory || {}) }))
         setLoading(false)
+
+        const alwaysPlay = musicCfg?.settings?.alwaysPlay !== false
 
         if (resume && tuned && trackList.length) {
           const resumedTracks = seededShuffle(trackList, tuned.id)
@@ -3607,16 +3718,16 @@ function AppContent() {
           setTrackIndex(resumedIdx >= 0 ? resumedIdx : 0)
           pendingSeekRef.current = Math.max(0, Number(resume.positionSec) || 0)
           setProgress(pendingSeekRef.current)
-          autoPlayRef.current = true
-          setPlaying(Boolean(resume.playing ?? true))
+          autoPlayRef.current = alwaysPlay
+          setPlaying(alwaysPlay ? Boolean(resume.playing ?? true) : false)
           setResumeBanner(`Resumed ${tuned.name} at ${formatDuration(pendingSeekRef.current)}`)
           setTimeout(() => setResumeBanner(''), 4500)
           return
         }
 
         // Trigger immediate auto-play on open.
-        autoPlayRef.current = true
-        setPlaying(true)
+        autoPlayRef.current = alwaysPlay
+        setPlaying(alwaysPlay)
       })
       .catch(err => { if (mounted) { setError(err.message); setLoading(false) } })
     return () => { mounted = false }
@@ -3841,6 +3952,14 @@ function AppContent() {
               onSaveUpdateAdmin={saveUpdateAdminLane}
               motionMode={motionMode}
               onMotionModeChange={setMotionMode}
+              musicSettings={musicSettings}
+              musicCacheStats={musicCacheStats}
+              musicBusy={musicBusy}
+              musicError={musicError}
+              musicMessage={musicMessage}
+              onMusicSettingsChange={(patch) => setMusicSettings((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
+              onSaveMusicSettings={saveMusicSettingsAction}
+              onWarmMusicCache={warmMusicCacheAction}
             />
           )}
         </div>

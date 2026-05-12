@@ -66,6 +66,27 @@ Active agents (gateway running) get green presence dots and can be tuned into. D
 
 Powered by [Jamendo](https://developer.jamendo.com) — CC-licensed atmospheric, instrumental, and breakbeat tracks. Each agent gets a unique deterministic shuffle of the track pool based on their ID, so every station sounds different.
 
+### Playback reliability + cache system (important)
+
+To prevent repeat playback failures and improve startup speed, vAIb now routes track playback through a local backend cache endpoint:
+
+- Client receives tracks from `GET /music/tracks`
+- Each track `audioUrl` is rewritten to `/music/cache/:trackId`
+- On first play, server fetches source audio and writes it to `data/music-cache/`
+- Later plays serve from local disk cache (faster, resilient to transient source slowness)
+
+### Default behavior
+
+- Music cache enabled by default
+- Default cache limit: **5 GB**
+- "Always play automatically" enabled by default
+
+These are user-configurable in **More → Music Runtime**.
+
+### Warm cache all music
+
+Use **More → Music Runtime → Cache all now** to pre-cache the current curated library so first tune-in is faster.
+
 **Requires a free Jamendo account** to get a `client_id`. Register at developer.jamendo.com.
 
 ## Visualizer modes
@@ -93,7 +114,11 @@ Click play on any agent station to activate the visualizer.
 | GET | `/state` | Full agent/event/notification state |
 | POST | `/action` | Submit a reaction or preference change |
 | GET | `/agents` | Discovered fleet with activity status |
-| GET | `/music/tracks` | Curated Jamendo track list |
+| GET | `/music/tracks` | Curated Jamendo track list (audio URLs proxied through cache route) |
+| GET | `/music/cache/:trackId` | Stream cached/local track audio (pulls remote source on first request) |
+| POST | `/music/cache/warm` | Pre-cache all currently curated tracks |
+| GET | `/settings/music` | Music runtime settings + cache stats |
+| PATCH | `/settings/music` | Update music runtime settings (cache limit, always-play, etc.) |
 | GET | `/health` | Service health check |
 
 ## Environment variables

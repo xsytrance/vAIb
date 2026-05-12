@@ -8,6 +8,12 @@ export default defineConfig({
   define: {
     __API_BASE__: JSON.stringify(process.env.VITE_API_BASE || 'http://127.0.0.1:4014'),
   },
+  build: {
+    // Prevent brittle minified init-order regressions on Android WebView.
+    minify: false,
+    sourcemap: true,
+    target: 'es2020',
+  },
   server: {
     host: '0.0.0.0',
     port: 4013,

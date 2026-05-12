@@ -30,7 +30,7 @@ import path from 'node:path'
 
 import { readState, writeState } from './store.mjs'
 import { discoverAgents, discoverAgentRegistry, startDiscoveryScanner } from './discover.mjs'
-import { fetchCuratedTracks, isConfigured as musicConfigured } from './music.mjs'
+import { fetchCuratedTracks, isConfigured as musicConfigured, resolveTrackAudioUrl } from './music.mjs'
 import {
   appendTelemetryEvent,
   appendTelemetryBatch,
@@ -52,6 +52,9 @@ const galleryRootDir = path.join(process.cwd(), 'data', 'art-gallery')
 await fs.mkdir(galleryRootDir, { recursive: true })
 const djClipDir = path.join(process.cwd(), 'data', 'dj-clips')
 await fs.mkdir(djClipDir, { recursive: true })
+const musicCacheDir = path.join(process.cwd(), 'data', 'music-cache')
+await fs.mkdir(musicCacheDir, { recursive: true })
+const DEFAULT_MUSIC_CACHE_MAX_BYTES = 5 * 1024 * 1024 * 1024
 
 const port = Number(process.env.VAIB_PORT || 4014)
 const djSlotQueue = []
@@ -370,6 +373,90 @@ function applyLanePatch(config, lanePatch) {
 
 function normalizeTrack(state, trackId) {
   return state.library.find((track) => track.id === trackId)
+}
+
+function normalizeMusicSettings(raw = {}) {
+  const maxBytes = Math.max(128 * 1024 * 1024, Number(raw?.cacheMaxBytes) || DEFAULT_MUSIC_CACHE_MAX_BYTES)
+  return {
+    cacheEnabled: raw?.cacheEnabled !== false,
+    cacheMaxBytes: maxBytes,
+    alwaysPlay: raw?.alwaysPlay !== false,
+  }
+}
+
+function getMusicSettings(state) {
+  return normalizeMusicSettings(state?.settings?.music || {})
+}
+
+function sanitizeTrackKey(trackId = '') {
+  return String(trackId || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120)
+}
+
+function musicCachePathForTrack(trackId) {
+  return path.join(musicCacheDir, `${sanitizeTrackKey(trackId)}.mp3`)
+}
+
+async function fetchTrackAudioToBuffer(trackId = '') {
+  const sourceUrl = resolveTrackAudioUrl(trackId)
+  if (!sourceUrl) throw new Error('Track source URL unavailable')
+  const res = await fetch(sourceUrl)
+  if (!res.ok) throw new Error(`Track fetch failed: ${res.status}`)
+  const arrayBuf = await res.arrayBuffer()
+  return Buffer.from(arrayBuf)
+}
+
+async function getMusicCacheStats() {
+  const files = await fs.readdir(musicCacheDir).catch(() => [])
+  let bytes = 0
+  for (const file of files) {
+    try {
+      const stat = await fs.stat(path.join(musicCacheDir, file))
+      if (stat.isFile()) bytes += Number(stat.size) || 0
+    } catch {
+      // ignore
+    }
+  }
+  return { count: files.length, bytes }
+}
+
+async function evictMusicCache(maxBytes = DEFAULT_MUSIC_CACHE_MAX_BYTES) {
+  const files = await fs.readdir(musicCacheDir).catch(() => [])
+  const rows = []
+  for (const file of files) {
+    try {
+      const full = path.join(musicCacheDir, file)
+      const stat = await fs.stat(full)
+      if (stat.isFile()) rows.push({ full, size: Number(stat.size) || 0, mtime: Number(stat.mtimeMs) || 0 })
+    } catch {
+      // ignore
+    }
+  }
+  rows.sort((a, b) => a.mtime - b.mtime)
+  let total = rows.reduce((sum, r) => sum + r.size, 0)
+  for (const row of rows) {
+    if (total <= maxBytes) break
+    await fs.unlink(row.full).catch(() => {})
+    total -= row.size
+  }
+}
+
+async function ensureTrackCached(trackId = '', settings = null) {
+  const cfg = settings || normalizeMusicSettings({})
+  const filePath = musicCachePathForTrack(trackId)
+  try {
+    const stat = await fs.stat(filePath)
+    if (stat.isFile()) {
+      await fs.utimes(filePath, new Date(), new Date()).catch(() => {})
+      return { filePath, fromCache: true, bytes: Number(stat.size) || 0 }
+    }
+  } catch {
+    // continue
+  }
+
+  const buffer = await fetchTrackAudioToBuffer(trackId)
+  await fs.writeFile(filePath, buffer)
+  if (cfg.cacheEnabled) await evictMusicCache(cfg.cacheMaxBytes)
+  return { filePath, fromCache: false, bytes: buffer.byteLength }
 }
 
 function playlistTracks(state, playlistId) {
@@ -1712,12 +1799,79 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (req.method === 'GET' && url.pathname === '/settings/music') {
+      const state = await readState()
+      const settings = getMusicSettings(state)
+      const cache = await getMusicCacheStats()
+      sendJson(res, 200, { ok: true, settings, cache })
+      return
+    }
+
+    if (req.method === 'PATCH' && url.pathname === '/settings/music') {
+      const state = await readState()
+      const body = await readBody(req)
+      const prev = getMusicSettings(state)
+      const merged = normalizeMusicSettings({ ...(prev || {}), ...(body || {}) })
+      state.settings = state.settings || {}
+      state.settings.music = merged
+      await writeState(state)
+      await evictMusicCache(merged.cacheMaxBytes)
+      const cache = await getMusicCacheStats()
+      sendJson(res, 200, { ok: true, settings: merged, cache })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/music/cache/warm') {
+      if (!musicConfigured()) {
+        sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
+        return
+      }
+      const state = await readState()
+      const settings = getMusicSettings(state)
+      const tracks = await fetchCuratedTracks()
+      let warmed = 0
+      let failed = 0
+      for (const t of tracks) {
+        try {
+          await ensureTrackCached(t.id, settings)
+          warmed += 1
+        } catch {
+          failed += 1
+        }
+      }
+      const cache = await getMusicCacheStats()
+      sendJson(res, 200, { ok: true, warmed, failed, total: tracks.length, cache })
+      return
+    }
+
+    const musicCacheMatch = url.pathname.match(/^\/music\/cache\/([^/]+)$/)
+    if (req.method === 'GET' && musicCacheMatch) {
+      const trackId = decodeURIComponent(musicCacheMatch[1])
+      const state = await readState()
+      const settings = getMusicSettings(state)
+      const info = await ensureTrackCached(trackId, settings)
+      const data = await fs.readFile(info.filePath)
+      res.writeHead(200, {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': String(data.byteLength),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
+      })
+      res.end(data)
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/music/tracks') {
       if (!musicConfigured()) {
         sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
         return
       }
-      const tracks = await fetchCuratedTracks()
+      const tracksRaw = await fetchCuratedTracks()
+      const tracks = tracksRaw.map((t) => ({
+        ...t,
+        sourceAudioUrl: t.audioUrl,
+        audioUrl: `/music/cache/${encodeURIComponent(t.id)}`,
+      }))
       sendJson(res, 200, { tracks, source: 'jamendo' })
       return
     }

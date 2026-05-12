@@ -9,6 +9,7 @@ const BASE = 'https://api.jamendo.com/v3.0'
 // Simple in-process cache so we don't hammer the API on every page load
 const cache = new Map()
 const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
+const trackSourceMap = new Map()
 
 function cacheGet(key) {
   const entry = cache.get(key)
@@ -92,6 +93,14 @@ export async function fetchCuratedTracks() {
     return true
   })
 
+  for (const t of merged) {
+    if (t?.id && t?.audioUrl) trackSourceMap.set(String(t.id), String(t.audioUrl))
+  }
+
   cacheSet(cacheKey, merged)
   return merged
+}
+
+export function resolveTrackAudioUrl(trackId = '') {
+  return trackSourceMap.get(String(trackId || '')) || ''
 }

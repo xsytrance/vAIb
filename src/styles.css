@@ -1663,6 +1663,78 @@ input { font: inherit; }
 }
 
 /* ============================================================
+   Audio-reactive shimmer system
+   Driven by --beat-intensity (0-1) and data-beat-state on body
+   ============================================================ */
+
+/* Speed shimmer based on beat intensity */
+:root {
+  --beat-intensity: 0.15;
+  --shimmer-duration: calc(3s - var(--beat-intensity) * 2s);
+}
+
+[data-beat-state="peak"] .stationTrackName {
+  text-shadow: 0 0 8px rgba(0, 255, 220, 0.4);
+}
+
+/* vAIb wordmark intermittent glow on strong beats */
+.vaibWordmark {
+  transition: text-shadow 0.15s ease-out;
+}
+[data-beat-state="peak"] .vaibWordmark {
+  text-shadow: 0 0 12px var(--cyan), 0 0 24px rgba(0, 255, 220, 0.25);
+}
+
+/* Active agent pill pulse ring on bass hits */
+[data-beat-state="peak"] .agentPillActive {
+  box-shadow:
+    0 0 6px rgba(0, 255, 220, 0.5),
+    0 0 16px rgba(0, 255, 220, 0.25),
+    inset 0 0 6px rgba(0, 255, 220, 0.15);
+  border-color: rgba(0, 255, 220, 0.9);
+}
+
+/* Tab label shimmer sweep on peaks */
+.tabLabel {
+  background-size: 200% 100%;
+  transition: background-position 0.3s ease;
+}
+[data-beat-state="peak"] .tabLabel {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 60%,
+    transparent 100%
+  );
+  background-position: center center;
+  background-size: 200% 100%;
+  animation: tabShimmer var(--shimmer-duration) linear infinite;
+}
+
+@keyframes tabShimmer {
+  0% { background-position: left center; }
+  100% { background-position: right center; }
+}
+
+/* Cockpit agent name glow tied to beat intensity */
+.cockpitAgentName {
+  transition: text-shadow 0.12s ease-out;
+}
+[data-beat-state="peak"] .cockpitAgentName {
+  text-shadow:
+    0 0 10px var(--cyan),
+    0 0 20px rgba(0, 255, 220, 0.2),
+    0 0 40px rgba(0, 255, 220, 0.08);
+}
+
+/* Station bar track name shimmer synced to beat */
+.stationTrackName {
+  animation-duration: var(--shimmer-duration);
+}
+
+/* ============================================================
    Agent Avatar
    ============================================================ */
 .avatarWrap {

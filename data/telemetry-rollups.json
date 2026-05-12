@@ -1,14 +1,14 @@
 {
-  "updatedAt": "2026-05-12T09:49:33.758Z",
+  "updatedAt": "2026-05-12T11:18:24.319Z",
   "windows": {
     "all": {
       "agentId": null,
       "window": "all",
       "metrics": {
         "playtimeSec": 1456,
-        "completionRatio": 0.11428571428571428,
-        "skipRatio": 0.4857142857142857,
-        "starts": 70,
+        "completionRatio": 0.11267605633802817,
+        "skipRatio": 0.4788732394366197,
+        "starts": 71,
         "ends": 8,
         "skips": 34,
         "pauses": 1,
@@ -19,7 +19,7 @@
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 18,
+        "activeSessionCount": 19,
         "peakHour": "05:00",
         "volumeThrash": 0
       },
@@ -35,12 +35,12 @@
         },
         {
           "trackId": "1830984",
-          "plays": 9,
+          "plays": 10,
           "playtimeSec": 354,
           "completions": 2,
           "skips": 4,
-          "completionRatio": 0.2222222222222222,
-          "skipRatio": 0.4444444444444444
+          "completionRatio": 0.2,
+          "skipRatio": 0.4
         },
         {
           "trackId": "1609174",
@@ -251,7 +251,7 @@
         }
       ],
       "actionCounts": {
-        "song.play.start": 70,
+        "song.play.start": 71,
         "song.skip": 34,
         "song.play.end": 8,
         "song.resume": 2,
@@ -266,7 +266,7 @@
         9,
         23,
         0,
-        0,
+        1,
         2,
         0,
         0,
@@ -302,9 +302,9 @@
       "window": "7d",
       "metrics": {
         "playtimeSec": 1456,
-        "completionRatio": 0.11428571428571428,
-        "skipRatio": 0.4857142857142857,
-        "starts": 70,
+        "completionRatio": 0.11267605633802817,
+        "skipRatio": 0.4788732394366197,
+        "starts": 71,
         "ends": 8,
         "skips": 34,
         "pauses": 1,
@@ -315,7 +315,7 @@
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 18,
+        "activeSessionCount": 19,
         "peakHour": "05:00",
         "volumeThrash": 0
       },
@@ -331,12 +331,12 @@
         },
         {
           "trackId": "1830984",
-          "plays": 9,
+          "plays": 10,
           "playtimeSec": 354,
           "completions": 2,
           "skips": 4,
-          "completionRatio": 0.2222222222222222,
-          "skipRatio": 0.4444444444444444
+          "completionRatio": 0.2,
+          "skipRatio": 0.4
         },
         {
           "trackId": "1609174",
@@ -547,7 +547,7 @@
         }
       ],
       "actionCounts": {
-        "song.play.start": 70,
+        "song.play.start": 71,
         "song.skip": 34,
         "song.play.end": 8,
         "song.resume": 2,
@@ -562,7 +562,7 @@
         9,
         23,
         0,
-        0,
+        1,
         2,
         0,
         0,
@@ -598,9 +598,9 @@
       "window": "30d",
       "metrics": {
         "playtimeSec": 1456,
-        "completionRatio": 0.11428571428571428,
-        "skipRatio": 0.4857142857142857,
-        "starts": 70,
+        "completionRatio": 0.11267605633802817,
+        "skipRatio": 0.4788732394366197,
+        "starts": 71,
         "ends": 8,
         "skips": 34,
         "pauses": 1,
@@ -611,7 +611,7 @@
         "seeks": 0,
         "favorites": 0,
         "dislikes": 0,
-        "activeSessionCount": 18,
+        "activeSessionCount": 19,
         "peakHour": "05:00",
         "volumeThrash": 0
       },
@@ -627,12 +627,12 @@
         },
         {
           "trackId": "1830984",
-          "plays": 9,
+          "plays": 10,
           "playtimeSec": 354,
           "completions": 2,
           "skips": 4,
-          "completionRatio": 0.2222222222222222,
-          "skipRatio": 0.4444444444444444
+          "completionRatio": 0.2,
+          "skipRatio": 0.4
         },
         {
           "trackId": "1609174",
@@ -843,7 +843,7 @@
         }
       ],
       "actionCounts": {
-        "song.play.start": 70,
+        "song.play.start": 71,
         "song.skip": 34,
         "song.play.end": 8,
         "song.resume": 2,
@@ -858,7 +858,7 @@
         9,
         23,
         0,
-        0,
+        1,
         2,
         0,
         0,

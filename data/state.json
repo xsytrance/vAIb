@@ -4,7 +4,7 @@
     "companionName": "vAIb",
     "version": "0.2.0",
     "schemaVersion": 2,
-    "lastUpdated": "2026-05-12T09:49:33.757Z",
+    "lastUpdated": "2026-05-12T11:18:24.318Z",
     "defaultAgentId": "saito"
   },
   "agents": {
@@ -152,9 +152,10 @@
         "personaTags": [],
         "originNode": "discovery",
         "notes": "",
-        "resonanceScore": -19.75,
+        "resonanceScore": -21.66,
         "traits": [
-          "chaos-hopper"
+          "chaos-hopper",
+          "volatility-shadow"
         ],
         "streaks": {
           "fullListenDays": 0,

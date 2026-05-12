@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCK_FILE="/tmp/vaib-probe.lock"
+exec 9>"$LOCK_FILE"
+flock -n 9 || exit 0
 
-check_port() {
+log(){ logger -t vaib-probe "$*"; }
+
+port_listening() {
   local port="$1"
-  curl -fsS --max-time 2 "http://127.0.0.1:${port}/" >/dev/null 2>&1
+  ss -ltn "sport = :${port}" | grep -q LISTEN
 }
 
-if ! check_port 4014; then
+http_reachable() {
+  local url="$1"
+  # Reachability check only; don't fail on 404.
+  curl -sS --max-time 3 -o /dev/null "$url"
+}
+
+if ! port_listening 4014 || ! http_reachable "http://127.0.0.1:4014/agents"; then
+  log "API unhealthy on :4014, restarting vaib-api.service"
   systemctl --user restart vaib-api.service
 fi
 
-if ! check_port 4013; then
+if ! port_listening 4013 || ! http_reachable "http://127.0.0.1:4013/"; then
+  log "UI unhealthy on :4013, restarting vaib-ui.service"
   systemctl --user restart vaib-ui.service
 fi

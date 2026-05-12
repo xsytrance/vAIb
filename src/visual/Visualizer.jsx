@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from 'react'
 const MODES = ['BARS', 'WAVE', 'RADIAL', 'SCOPE', 'TUNNEL', 'CONSTELLATION']
 const QUALITY_PRESETS = {
   HIGH: { fftSize: 1024, dprMax: 2, barCount: 64, radialCount: 96, tunnelRings: 20, starCount: 40 },
-  BALANCED: { fftSize: 768, dprMax: 1.5, barCount: 52, radialCount: 72, tunnelRings: 15, starCount: 28 },
-  BATTERY: { fftSize: 512, dprMax: 1.25, barCount: 40, radialCount: 52, tunnelRings: 11, starCount: 18 },
+  BALANCED: { fftSize: 512, dprMax: 1.5, barCount: 52, radialCount: 72, tunnelRings: 15, starCount: 28 },
+  BATTERY: { fftSize: 256, dprMax: 1.25, barCount: 40, radialCount: 52, tunnelRings: 11, starCount: 18 },
 }
 
 function ampColor(val) {
@@ -284,7 +284,11 @@ export default function Visualizer({ analyser, compact = false }) {
     if (!canvas || !analyser) return
 
     const preset = QUALITY_PRESETS[quality] || QUALITY_PRESETS.BALANCED
-    analyser.fftSize = preset.fftSize
+    try {
+      analyser.fftSize = preset.fftSize
+    } catch {
+      analyser.fftSize = 512
+    }
     const freqData = new Uint8Array(analyser.frequencyBinCount)
     const timeData = new Uint8Array(analyser.fftSize)
 

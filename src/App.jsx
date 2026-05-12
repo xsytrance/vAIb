@@ -33,12 +33,12 @@ function resolveDefaultRelayUrl() {
     if (apiOrigin) {
       const u = new URL(apiOrigin)
       const proto = u.protocol === 'https:' ? 'wss:' : 'ws:'
-      return `${proto}//${u.hostname}:4014/signal`
+      return `${proto}//${u.hostname}:4017/signal`
     }
   } catch {
     // fallback below
   }
-  return `ws://${PRIME_HOST}:4014/signal`
+  return `ws://${PRIME_HOST}:4017/signal`
 }
 
 function resolveTrackAudioUrl(url) {
@@ -2501,7 +2501,11 @@ function NetworkPanel() {
   const [relayUrl, setRelayUrl] = useState(() => {
     try {
       const saved = localStorage.getItem('vaib-relay-url')
-      if (saved && /^wss?:\/\//i.test(saved)) return saved
+      if (saved && /^wss?:\/\//i.test(saved)) {
+        // auto-migrate stale default relay port
+        if (/:4014\/signal\/?$/i.test(saved)) return resolveDefaultRelayUrl()
+        return saved
+      }
     } catch {
       // ignore
     }

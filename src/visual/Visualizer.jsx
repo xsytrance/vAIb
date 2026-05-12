@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 // ============================================================
 // vAIb Visualizer — amplitude-based coloring like the reference
 // Tall bars = cyan, short bars = purple
-// Modes: BARS | WAVE | RADIAL | SCOPE
+// Modes: BARS | WAVE | RADIAL | SCOPE | TUNNEL | CONSTELLATION
 // Touch: swipe L/R mode, swipe U/D sensitivity, tap pulse
 // ============================================================
 
-const MODES = ['BARS', 'WAVE', 'RADIAL', 'SCOPE']
+const MODES = ['BARS', 'WAVE', 'RADIAL', 'SCOPE', 'TUNNEL', 'CONSTELLATION']
 
 function ampColor(val) {
   const r = Math.round(180 - val * 180)
@@ -147,6 +147,90 @@ function drawScope(ctx, w, h, timeData) {
   ctx.shadowBlur = 0
 }
 
+function drawTunnel(ctx, w, h, freqData, ts) {
+  const cx = w / 2
+  const cy = h / 2
+  const rings = 20
+  const low = (freqData[4] + freqData[8] + freqData[16]) / (3 * 255)
+  const mid = (freqData[48] + freqData[64] + freqData[96]) / (3 * 255)
+  const pulse = 1 + low * 0.35
+
+  for (let i = 0; i < rings; i++) {
+    const p = i / (rings - 1)
+    const depth = (p + (ts * 0.00022 * (0.5 + low))) % 1
+    const radius = (12 + depth * Math.min(w, h) * 0.55) * pulse
+    const alpha = (1 - depth) * (0.12 + mid * 0.35)
+    const hue = 170 + depth * 90
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+    ctx.strokeStyle = `hsla(${hue}, 95%, ${52 + low * 28}%, ${alpha})`
+    ctx.lineWidth = 1 + (1 - depth) * 2.2
+    ctx.shadowColor = `hsla(${hue},95%,62%,${alpha})`
+    ctx.shadowBlur = 8 + (1 - depth) * 14
+    ctx.stroke()
+  }
+  ctx.shadowBlur = 0
+}
+
+function drawConstellation(ctx, w, h, freqData, starsRef) {
+  if (!starsRef.current) {
+    starsRef.current = Array.from({ length: 40 }, (_, i) => ({
+      x: ((i * 97) % 1000) / 1000,
+      y: ((i * 173) % 1000) / 1000,
+      phase: ((i * 131) % 360) * (Math.PI / 180),
+    }))
+  }
+
+  const stars = starsRef.current
+  const energy = (freqData[10] + freqData[24] + freqData[48] + freqData[96]) / (4 * 255)
+  const threshold = 100 + Math.round(energy * 70)
+
+  ctx.fillStyle = 'rgba(7,16,28,0.28)'
+  ctx.fillRect(0, 0, w, h)
+
+  for (let i = 0; i < stars.length; i++) {
+    const a = stars[i]
+    const ax = a.x * w
+    const ay = a.y * h
+    for (let j = i + 1; j < stars.length; j++) {
+      const b = stars[j]
+      const bx = b.x * w
+      const by = b.y * h
+      const dx = ax - bx
+      const dy = ay - by
+      const d = Math.hypot(dx, dy)
+      if (d < threshold) {
+        const alpha = (1 - d / threshold) * (0.15 + energy * 0.35)
+        ctx.strokeStyle = `rgba(80,200,255,${alpha})`
+        ctx.lineWidth = 0.8 + energy * 1.2
+        ctx.beginPath()
+        ctx.moveTo(ax, ay)
+        ctx.lineTo(bx, by)
+        ctx.stroke()
+      }
+    }
+  }
+
+  stars.forEach((s, i) => {
+    const drift = Math.sin(s.phase + i * 0.13) * 0.002
+    s.x = (s.x + drift + 1) % 1
+    s.y = (s.y + drift * 0.45 + 1) % 1
+    s.phase += 0.01 + energy * 0.03
+    const x = s.x * w
+    const y = s.y * h
+    const twinkle = 0.5 + Math.sin(s.phase) * 0.5
+    const r = 1.1 + twinkle * 1.8 + energy * 1.4
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(200,245,255,${0.4 + twinkle * 0.5})`
+    ctx.shadowColor = 'rgba(120,220,255,0.8)'
+    ctx.shadowBlur = 5 + twinkle * 8
+    ctx.fill()
+  })
+  ctx.shadowBlur = 0
+}
+
 export default function Visualizer({ analyser, compact = false }) {
   const canvasRef = useRef(null)
   const modeRef = useRef(0)
@@ -155,9 +239,11 @@ export default function Visualizer({ analyser, compact = false }) {
   const touchBoostRef = useRef(0)
   const rippleRef = useRef({ x: 0, y: 0, t: 0 })
   const gestureRef = useRef({ active: false, startX: 0, startY: 0, moved: false, pointerId: null })
+  const starsRef = useRef(null)
 
   const [mode, setMode] = useState(0)
   const [sensitivity, setSensitivity] = useState(1)
+  const [autoRotate, setAutoRotate] = useState(false)
 
   useEffect(() => {
     drawBars._peaks = null
@@ -167,6 +253,14 @@ export default function Visualizer({ analyser, compact = false }) {
   useEffect(() => {
     sensitivityRef.current = sensitivity
   }, [sensitivity])
+
+  useEffect(() => {
+    if (!autoRotate) return
+    const id = setInterval(() => {
+      setMode((prev) => (prev + 1) % MODES.length)
+    }, 3600)
+    return () => clearInterval(id)
+  }, [autoRotate])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -204,7 +298,9 @@ export default function Visualizer({ analyser, compact = false }) {
       if (m === 0) drawBars(ctx, w, h, freqData)
       else if (m === 1) drawWave(ctx, w, h, timeData)
       else if (m === 2) drawRadial(ctx, w, h, freqData)
-      else drawScope(ctx, w, h, timeData)
+      else if (m === 3) drawScope(ctx, w, h, timeData)
+      else if (m === 4) drawTunnel(ctx, w, h, freqData, performance.now())
+      else drawConstellation(ctx, w, h, freqData, starsRef)
 
       const ripple = rippleRef.current
       const age = performance.now() - ripple.t
@@ -299,6 +395,13 @@ export default function Visualizer({ analyser, compact = false }) {
             </button>
           ))}
           <span className="vizSensitivity">SENS {Math.round(sensitivity * 100)}%</span>
+          <button
+            type="button"
+            className={`vizModeBtn ${autoRotate ? 'active' : ''}`}
+            onClick={() => setAutoRotate((v) => !v)}
+          >
+            AUTO
+          </button>
         </div>
       )}
     </div>

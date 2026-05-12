@@ -151,6 +151,10 @@ input { font: inherit; }
   margin-left: auto;
   color: rgba(255,255,255,0.5);
   font-size: 0.8rem;
+  transition: transform 180ms ease;
+}
+.profileSwitcherTrigger.open .profileSwitcherChevron {
+  transform: rotate(180deg);
 }
 
 .profileSwitcherMenu {
@@ -211,6 +215,10 @@ input { font: inherit; }
   background: rgba(0,255,220,0.1);
   border-color: rgba(0,255,220,0.34);
 }
+.profileSwitcherOption.highlighted {
+  background: rgba(124,160,255,0.12);
+  border-color: rgba(124,160,255,0.34);
+}
 
 .profileSwitcherOptionMain {
   min-width: 0;
@@ -247,6 +255,28 @@ input { font: inherit; }
   color: rgba(255,255,255,0.5);
   text-align: center;
   padding: 10px 8px;
+}
+
+@media (max-width: 680px) {
+  .profileSwitcher {
+    max-width: none;
+    margin: 0 6px;
+  }
+  .profileSwitcherTrigger {
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+  .profileSwitcherName {
+    font-size: 0.78rem;
+  }
+  .profileSwitcherMenu {
+    left: -6px;
+    right: -6px;
+    max-height: min(64vh, 420px);
+  }
+  .profileSwitcherList {
+    max-height: min(52vh, 320px);
+  }
 }
 
 /* ============================================================

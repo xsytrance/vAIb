@@ -2,14 +2,14 @@
   "android": {
     "stable": {
       "latest": {
-        "versionName": "1.4",
-        "versionCode": 5,
+        "versionName": "1.5",
+        "versionCode": 6,
         "minVersionCode": 1,
         "mandatory": true,
-        "notes": "Updated app icon/branding and refreshed launcher assets.",
+        "notes": "Modernized profile switcher: searchable command palette style selector, keyboard navigation, and mobile polish.",
         "apkUrl": "http://100.110.224.126:4014/mobile/apk/debug",
-        "sha256": "14ae0eb46d2bc83e7f74948b617fe29391fe67524dc25ff26667d5d944fca5e3",
-        "publishedAt": "2026-05-12T20:41:01Z"
+        "sha256": "3abd9b6cd850fe31d4f4b4a5f5603441d5387001ed3601da271d54ac16ec1b1a",
+        "publishedAt": "2026-05-12T20:50:43Z"
       }
     },
     "beta": {

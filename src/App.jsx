@@ -2453,6 +2453,7 @@ function AppContent() {
   const [volume, setVolume] = useState(0.85)
   const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false)
   const [profileSwitcherQuery, setProfileSwitcherQuery] = useState('')
+  const [profileSwitcherHighlight, setProfileSwitcherHighlight] = useState(0)
 
   const sessionIdRef = useRef(`sess_${Math.random().toString(36).slice(2, 10)}`)
   const lastUpdateCheckRef = useRef(0)
@@ -2679,6 +2680,11 @@ function AppContent() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [profileSwitcherOpen])
+
+  useEffect(() => {
+    if (!profileSwitcherOpen) return
+    setProfileSwitcherHighlight(0)
+  }, [profileSwitcherOpen, profileSwitcherQuery])
 
   const tuneToAgentById = useCallback((agentId) => {
     const pick = (agents || []).find((a) => a.id === agentId)
@@ -3902,18 +3908,37 @@ function AppContent() {
                   placeholder="Search name, role, or id"
                   value={profileSwitcherQuery}
                   onChange={(e) => setProfileSwitcherQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (!headerFilteredAgents.length) return
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      setProfileSwitcherHighlight((prev) => Math.min(prev + 1, headerFilteredAgents.length - 1))
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      setProfileSwitcherHighlight((prev) => Math.max(prev - 1, 0))
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const agent = headerFilteredAgents[Math.max(0, Math.min(profileSwitcherHighlight, headerFilteredAgents.length - 1))]
+                      if (agent) {
+                        tuneAndPlay(agent)
+                        setProfileSwitcherOpen(false)
+                        setProfileSwitcherQuery('')
+                      }
+                    }
+                  }}
                   autoFocus
                 />
                 <div className="profileSwitcherList" role="listbox" aria-label="Profiles">
-                  {headerFilteredAgents.map((agent) => {
+                  {headerFilteredAgents.map((agent, idx) => {
                     const active = agent.id === tunedAgent?.id
+                    const highlighted = idx === profileSwitcherHighlight
                     return (
                       <button
                         key={agent.id}
                         type="button"
                         role="option"
                         aria-selected={active}
-                        className={`profileSwitcherOption${active ? ' active' : ''}`}
+                        className={`profileSwitcherOption${active ? ' active' : ''}${highlighted ? ' highlighted' : ''}`}
                         onClick={() => {
                           tuneAndPlay(agent)
                           setProfileSwitcherOpen(false)

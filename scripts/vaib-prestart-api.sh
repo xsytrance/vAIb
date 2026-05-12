@@ -2,10 +2,44 @@
 set -euo pipefail
 
 PORT=4014
-# Only clear this service port if something else is holding it.
-pid="$(ss -ltnp 2>/dev/null | awk -v p=":${PORT}" '$4 ~ p { if (match($0,/pid=[0-9]+/)) {print substr($0,RSTART+4,RLENGTH-4); exit} }')"
-if [[ -n "${pid:-}" ]]; then
-  kill -TERM "$pid" 2>/dev/null || true
-  sleep 0.7
-  ss -ltnp 2>/dev/null | grep -q ":${PORT} " && kill -KILL "$pid" 2>/dev/null || true
+LOCK_FILE="/tmp/vaib-api-prestart.lock"
+exec 9>"$LOCK_FILE"
+flock -w 5 9 || exit 1
+
+list_pids_on_port() {
+  ss -ltnp "sport = :${PORT}" 2>/dev/null \
+    | grep -oE 'pid=[0-9]+' \
+    | cut -d= -f2 \
+    | sort -u || true
+}
+
+port_busy() {
+  ss -ltn "sport = :${PORT}" 2>/dev/null | grep -q LISTEN
+}
+
+# Clear stale listener(s) before service start.
+mapfile -t PIDS < <(list_pids_on_port)
+if ((${#PIDS[@]})); then
+  for pid in "${PIDS[@]}"; do
+    kill -TERM "$pid" 2>/dev/null || true
+  done
+
+  # Give listeners time to drain sockets.
+  for _ in {1..20}; do
+    port_busy || break
+    sleep 0.25
+  done
+
+  if port_busy; then
+    mapfile -t PIDS < <(list_pids_on_port)
+    for pid in "${PIDS[@]}"; do
+      kill -KILL "$pid" 2>/dev/null || true
+    done
+    sleep 0.2
+  fi
+fi
+
+# If still busy, fail prestart so systemd retries instead of crashing node with EADDRINUSE.
+if port_busy; then
+  exit 1
 fi

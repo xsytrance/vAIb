@@ -8,8 +8,8 @@
         "mandatory": true,
         "notes": "Music cache pipeline + runtime settings polish + stronger OTA APK serving.",
         "apkUrl": "http://100.110.224.126:4014/mobile/apk/debug",
-        "sha256": "fe23ebbd6046c54e64da657f2b0cadc496dd1bdc407cb779247b208e955d03d2",
-        "publishedAt": "2026-05-12T15:25:29Z"
+        "sha256": "e4b9a5f32c643d42148c0d534b3af0b503259d76215b4c4af7731c7cab57599d",
+        "publishedAt": "2026-05-12T15:34:22Z"
       }
     },
     "beta": {

@@ -2,18 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 
 // ============================================================
 // vAIb Visualizer — amplitude-based coloring like the reference
-// Tall bars = cyan, short bars = purple (matches screenshot)
+// Tall bars = cyan, short bars = purple
 // Modes: BARS | WAVE | RADIAL | SCOPE
+// Touch: swipe L/R mode, swipe U/D sensitivity, tap pulse
 // ============================================================
 
 const MODES = ['BARS', 'WAVE', 'RADIAL', 'SCOPE']
 
-// Amplitude-based color: tall = cyan, short = purple
 function ampColor(val) {
-  // val: 0.0 (silent) → 1.0 (loud)
-  const r = Math.round(180 - val * 180)   // 180→0
-  const g = Math.round(80  + val * 175)   // 80→255
-  const b = Math.round(255 - val * 35)    // 255→220
+  const r = Math.round(180 - val * 180)
+  const g = Math.round(80 + val * 175)
+  const b = Math.round(255 - val * 35)
   return [r, g, b]
 }
 
@@ -24,19 +23,16 @@ function drawBars(ctx, w, h, freqData) {
   const peaks = drawBars._peaks || (drawBars._peaks = new Float32Array(count))
 
   for (let i = 0; i < count; i++) {
-    // Sample the frequency data evenly
     const dataI = Math.floor((i / count) * freqData.length * 0.75)
     const val = freqData[dataI] / 255
     const barH = Math.max(2, val * h * 0.92)
 
-    // Peak hold — fast rise, slow fall
     if (barH > peaks[i]) peaks[i] = barH
     else peaks[i] = peaks[i] * 0.93
 
     const x = i * (barW + gap)
     const [r, g, b] = ampColor(val)
 
-    // Bar fill — vertical gradient: bright top, dim bottom
     const grad = ctx.createLinearGradient(x, h - barH, x, h)
     grad.addColorStop(0, `rgba(${r},${g},${b},1.0)`)
     grad.addColorStop(0.6, `rgba(${r},${g},${b},0.7)`)
@@ -44,14 +40,12 @@ function drawBars(ctx, w, h, freqData) {
     ctx.fillStyle = grad
     ctx.fillRect(x, h - barH, barW, barH)
 
-    // Top glow on the bar tip
     ctx.shadowColor = `rgb(${r},${g},${b})`
     ctx.shadowBlur = 6
     ctx.fillStyle = `rgba(${r},${g},${b},0.95)`
     ctx.fillRect(x, h - barH, barW, 2)
     ctx.shadowBlur = 0
 
-    // Peak dot
     if (peaks[i] > 4) {
       const [pr, pg, pb] = ampColor(peaks[i] / h)
       ctx.fillStyle = `rgba(${pr},${pg},${pb},0.9)`
@@ -94,7 +88,7 @@ function drawWave(ctx, w, h, timeData) {
 }
 
 function drawRadial(ctx, w, h, freqData) {
-  const cx = w / 2, cy = h / 2
+  const cx = w / 2; const cy = h / 2
   const radius = Math.min(w, h) * 0.26
   const count = 96
 
@@ -153,17 +147,26 @@ function drawScope(ctx, w, h, timeData) {
   ctx.shadowBlur = 0
 }
 
-// ============================================================
 export default function Visualizer({ analyser, compact = false }) {
   const canvasRef = useRef(null)
   const modeRef = useRef(0)
   const animRef = useRef(null)
+  const sensitivityRef = useRef(1)
+  const touchBoostRef = useRef(0)
+  const rippleRef = useRef({ x: 0, y: 0, t: 0 })
+  const gestureRef = useRef({ active: false, startX: 0, startY: 0, moved: false, pointerId: null })
+
   const [mode, setMode] = useState(0)
+  const [sensitivity, setSensitivity] = useState(1)
 
   useEffect(() => {
     drawBars._peaks = null
     modeRef.current = mode
   }, [mode])
+
+  useEffect(() => {
+    sensitivityRef.current = sensitivity
+  }, [sensitivity])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -194,19 +197,98 @@ export default function Visualizer({ analyser, compact = false }) {
       ctx.fillStyle = 'rgba(4,10,20,0.88)'
       ctx.fillRect(0, 0, w, h)
 
+      const amp = Math.max(0.65, Math.min(1.85, sensitivityRef.current + touchBoostRef.current))
+      for (let i = 0; i < freqData.length; i++) freqData[i] = Math.min(255, Math.round(freqData[i] * amp))
+
       const m = modeRef.current
       if (m === 0) drawBars(ctx, w, h, freqData)
       else if (m === 1) drawWave(ctx, w, h, timeData)
       else if (m === 2) drawRadial(ctx, w, h, freqData)
       else drawScope(ctx, w, h, timeData)
+
+      const ripple = rippleRef.current
+      const age = performance.now() - ripple.t
+      if (age < 520) {
+        const p = age / 520
+        const radius = 16 + p * 62
+        const alpha = (1 - p) * 0.34
+        ctx.beginPath()
+        ctx.arc(ripple.x, ripple.y, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(0,255,220,${alpha.toFixed(3)})`
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+
+      touchBoostRef.current *= 0.92
+      if (touchBoostRef.current < 0.005) touchBoostRef.current = 0
     }
+
     animRef.current = requestAnimationFrame(draw)
     return () => { cancelAnimationFrame(animRef.current); ro.disconnect() }
   }, [analyser])
 
+  const cycleMode = (delta) => {
+    setMode((prev) => (prev + delta + MODES.length) % MODES.length)
+  }
+
+  const onPointerDown = (e) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    gestureRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      pointerId: e.pointerId,
+    }
+    rippleRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, t: performance.now() }
+    touchBoostRef.current = Math.min(0.85, touchBoostRef.current + 0.32)
+  }
+
+  const onPointerMove = (e) => {
+    const g = gestureRef.current
+    if (!g.active || g.pointerId !== e.pointerId) return
+    const dx = e.clientX - g.startX
+    const dy = e.clientY - g.startY
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) g.moved = true
+  }
+
+  const onPointerUp = (e) => {
+    const g = gestureRef.current
+    if (!g.active || g.pointerId !== e.pointerId) return
+    const dx = e.clientX - g.startX
+    const dy = e.clientY - g.startY
+    const absX = Math.abs(dx)
+    const absY = Math.abs(dy)
+
+    if (absX > 44 && absX > absY) {
+      cycleMode(dx < 0 ? 1 : -1)
+    } else if (absY > 40 && absY > absX) {
+      setSensitivity((prev) => {
+        const next = prev + (dy < 0 ? 0.08 : -0.08)
+        return Math.max(0.65, Math.min(1.85, Number(next.toFixed(2))))
+      })
+    } else if (!g.moved) {
+      touchBoostRef.current = Math.min(0.95, touchBoostRef.current + 0.4)
+    }
+
+    gestureRef.current.active = false
+    gestureRef.current.pointerId = null
+  }
+
   return (
     <div className="visualizerWrap">
-      <canvas ref={canvasRef} className="visualizerCanvas" />
+      <canvas
+        ref={canvasRef}
+        className="visualizerCanvas"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      />
+      {!compact && (
+        <div className="vizGestureHint">Swipe ◀/▶ mode · Swipe ▲/▼ sensitivity · Tap pulse</div>
+      )}
       {!compact && (
         <div className="visualizerModes">
           {MODES.map((label, i) => (
@@ -216,6 +298,7 @@ export default function Visualizer({ analyser, compact = false }) {
               {label}
             </button>
           ))}
+          <span className="vizSensitivity">SENS {Math.round(sensitivity * 100)}%</span>
         </div>
       )}
     </div>

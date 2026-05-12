@@ -459,6 +459,25 @@ input { font: inherit; }
   border-radius: 10px;
   display: block;
   background: rgba(4,10,20,0.9);
+  touch-action: none;
+}
+
+.vizGestureHint {
+  margin-top: 6px;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: rgba(142,255,203,0.65);
+  text-transform: uppercase;
+}
+
+.vizSensitivity {
+  margin-left: auto;
+  align-self: center;
+  font-size: 0.62rem;
+  color: rgba(0,255,220,0.85);
+  border: 1px solid rgba(0,255,220,0.28);
+  border-radius: 8px;
+  padding: 2px 8px;
 }
 
 .visualizerModes {

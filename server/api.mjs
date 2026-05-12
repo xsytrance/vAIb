@@ -381,7 +381,8 @@ function normalizeMusicSettings(raw = {}) {
   return {
     cacheEnabled: raw?.cacheEnabled !== false,
     cacheMaxBytes: maxBytes,
-    alwaysPlay: raw?.alwaysPlay !== false,
+    // Hard requirement: station should always auto-play.
+    alwaysPlay: true,
   }
 }
 
@@ -458,6 +459,33 @@ async function ensureTrackCached(trackId = '', settings = null) {
   await fs.writeFile(filePath, buffer)
   if (cfg.cacheEnabled) await evictMusicCache(cfg.cacheMaxBytes)
   return { filePath, fromCache: false, bytes: buffer.byteLength }
+}
+
+
+let musicWarmInFlight = null
+async function warmAllMusicCache(settings = normalizeMusicSettings({})) {
+  if (musicWarmInFlight) return musicWarmInFlight
+  musicWarmInFlight = (async () => {
+    if (!musicConfigured()) return { ok: false, warmed: 0, failed: 0, total: 0, cache: await getMusicCacheStats() }
+    const tracks = await fetchCuratedTracks()
+    let warmed = 0
+    let failed = 0
+    for (const track of tracks) {
+      try {
+        await ensureTrackCached(track.id, settings)
+        warmed += 1
+      } catch {
+        failed += 1
+      }
+    }
+    const cache = await getMusicCacheStats()
+    return { ok: true, warmed, failed, total: tracks.length, cache }
+  })()
+  try {
+    return await musicWarmInFlight
+  } finally {
+    musicWarmInFlight = null
+  }
 }
 
 function playlistTracks(state, playlistId) {
@@ -1817,6 +1845,7 @@ const server = http.createServer(async (req, res) => {
       state.settings.music = merged
       await writeState(state)
       await evictMusicCache(merged.cacheMaxBytes)
+      if (merged.cacheEnabled) warmAllMusicCache(merged).catch(() => {})
       const cache = await getMusicCacheStats()
       sendJson(res, 200, { ok: true, settings: merged, cache })
       return
@@ -1829,19 +1858,8 @@ const server = http.createServer(async (req, res) => {
       }
       const state = await readState()
       const settings = getMusicSettings(state)
-      const tracks = await fetchCuratedTracks()
-      let warmed = 0
-      let failed = 0
-      for (const t of tracks) {
-        try {
-          await ensureTrackCached(t.id, settings)
-          warmed += 1
-        } catch {
-          failed += 1
-        }
-      }
-      const cache = await getMusicCacheStats()
-      sendJson(res, 200, { ok: true, warmed, failed, total: tracks.length, cache })
+      const result = await warmAllMusicCache(settings)
+      sendJson(res, 200, result)
       return
     }
 
@@ -1867,12 +1885,15 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
         return
       }
+      const state = await readState()
+      const settings = getMusicSettings(state)
       const tracksRaw = await fetchCuratedTracks()
       const tracks = tracksRaw.map((t) => ({
         ...t,
         sourceAudioUrl: t.audioUrl,
         audioUrl: `/music/cache/${encodeURIComponent(t.id)}`,
       }))
+      if (settings.cacheEnabled) warmAllMusicCache(settings).catch(() => {})
       sendJson(res, 200, { tracks, source: 'jamendo' })
       return
     }
@@ -2127,4 +2148,16 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`vAIb API listening on ${port}`)
+  readState()
+    .then((state) => {
+      const settings = getMusicSettings(state)
+      if (settings.cacheEnabled) return warmAllMusicCache(settings)
+      return null
+    })
+    .then((result) => {
+      if (result?.ok) console.log(`[music-cache] warmed ${result.warmed}/${result.total} tracks (${result.cache?.bytes || 0} bytes)`)
+    })
+    .catch((error) => {
+      console.warn(`[music-cache] warm failed: ${error?.message || error}`)
+    })
 })

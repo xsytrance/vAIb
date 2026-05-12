@@ -83,6 +83,12 @@ async function clearMusicCache() {
   return r.json()
 }
 
+async function rotateMusicTracks() {
+  const r = await fetch(`${API}/music/tracks/rotate`, { method: 'POST' })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Failed to rotate tracks')
+  return r.json()
+}
+
 function isOnWifiConnection() {
   try {
     const conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection
@@ -2058,6 +2064,7 @@ function MoreTab({
   onSaveMusicSettings,
   onWarmMusicCache,
   onClearMusicCache,
+  onRotateMusicTracks,
 }) {
   if (!state) return null
   return (
@@ -2328,6 +2335,7 @@ function MoreTab({
         <div className="profileActionsRow">
           <button type="button" className="profileBtn" disabled={musicBusy} onClick={onSaveMusicSettings}>Save music settings</button>
           <button type="button" className="profileBtn" disabled={musicBusy} onClick={onWarmMusicCache}>Cache all now</button>
+          <button type="button" className="profileBtn" disabled={musicBusy} onClick={onRotateMusicTracks}>Rotate track pool</button>
           <button type="button" className="profileBtn" disabled={musicBusy} onClick={onClearMusicCache}>Clear cache</button>
         </div>
 
@@ -3536,6 +3544,25 @@ function AppContent() {
     }
   }
 
+  async function rotateMusicTracksAction() {
+    try {
+      setMusicBusy(true)
+      setMusicError('')
+      setMusicMessage('')
+      const payload = await rotateMusicTracks()
+      const nextTracks = Array.isArray(payload?.tracks) ? payload.tracks : []
+      if (nextTracks.length) {
+        setTracks(nextTracks)
+        setTrackIndex(0)
+      }
+      setMusicMessage(`Track pool rotated${payload?.rotationEpoch != null ? ` (epoch ${payload.rotationEpoch})` : ''}.`)
+    } catch (err) {
+      setMusicError(err.message || 'Failed to rotate track pool')
+    } finally {
+      setMusicBusy(false)
+    }
+  }
+
   function updateUpdateAdminForm(patch = {}) {
     setUpdateAdminForm((prev) => ({
       ...(prev || {}),
@@ -4225,6 +4252,7 @@ function AppContent() {
               onMusicSettingsChange={(patch) => setMusicSettings((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
               onSaveMusicSettings={saveMusicSettingsAction}
               onWarmMusicCache={warmMusicCacheAction}
+              onRotateMusicTracks={rotateMusicTracksAction}
               onClearMusicCache={clearMusicCacheAction}
             />
           )}

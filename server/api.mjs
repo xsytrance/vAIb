@@ -376,12 +376,26 @@ function normalizeTrack(state, trackId) {
   return state.library.find((track) => track.id === trackId)
 }
 
+function seededShuffleTracks(arr = [], seed = '') {
+  let h = 0
+  const safeSeed = String(seed || 'vaib')
+  for (let i = 0; i < safeSeed.length; i++) h = (Math.imul(31, h) + safeSeed.charCodeAt(i)) | 0
+  const rng = () => { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h >>> 0) / 0xffffffff }
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 function normalizeMusicSettings(raw = {}) {
   const maxBytes = Math.max(128 * 1024 * 1024, Number(raw?.cacheMaxBytes) || DEFAULT_MUSIC_CACHE_MAX_BYTES)
   return {
     cacheEnabled: raw?.cacheEnabled !== false,
     cacheMaxBytes: maxBytes,
     wifiOnly: Boolean(raw?.wifiOnly),
+    rotationEpoch: Math.max(0, Number(raw?.rotationEpoch) || 0),
     // Hard requirement: station should always auto-play.
     alwaysPlay: true,
   }
@@ -1941,6 +1955,33 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (req.method === 'POST' && url.pathname === '/music/tracks/rotate') {
+      if (!musicConfigured()) {
+        sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
+        return
+      }
+      const state = await readState()
+      const settings = getMusicSettings(state)
+      const nextEpoch = Math.max(0, Number(settings.rotationEpoch) || 0) + 1
+      state.settings = state.settings || {}
+      state.settings.music = { ...settings, rotationEpoch: nextEpoch }
+      await writeState(state)
+
+      const tracksRaw = await fetchCuratedTracks()
+      const dayKey = new Date().toISOString().slice(0, 10)
+      const rotationSeed = `pool:${dayKey}:epoch:${nextEpoch}`
+      const rotated = seededShuffleTracks(tracksRaw, rotationSeed)
+      const tracks = rotated.map((t) => ({
+        ...t,
+        sourceAudioUrl: t.audioUrl,
+        audioUrl: `/music/cache/${encodeURIComponent(t.id)}`,
+      }))
+
+      if (settings.cacheEnabled) warmAllMusicCache(settings).catch(() => {})
+      sendJson(res, 200, { ok: true, tracks, source: 'jamendo', rotationEpoch: nextEpoch, rotationSeed })
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/music/tracks') {
       if (!musicConfigured()) {
         sendJson(res, 503, { error: 'Music not configured. Set JAMENDO_CLIENT_ID and restart.' })
@@ -1949,13 +1990,16 @@ const server = http.createServer(async (req, res) => {
       const state = await readState()
       const settings = getMusicSettings(state)
       const tracksRaw = await fetchCuratedTracks()
-      const tracks = tracksRaw.map((t) => ({
+      const dayKey = new Date().toISOString().slice(0, 10)
+      const rotationSeed = `pool:${dayKey}:epoch:${Math.max(0, Number(settings.rotationEpoch) || 0)}`
+      const rotated = seededShuffleTracks(tracksRaw, rotationSeed)
+      const tracks = rotated.map((t) => ({
         ...t,
         sourceAudioUrl: t.audioUrl,
         audioUrl: `/music/cache/${encodeURIComponent(t.id)}`,
       }))
       if (settings.cacheEnabled) warmAllMusicCache(settings).catch(() => {})
-      sendJson(res, 200, { tracks, source: 'jamendo' })
+      sendJson(res, 200, { tracks, source: 'jamendo', rotationEpoch: settings.rotationEpoch || 0, rotationSeed })
       return
     }
 

@@ -2277,7 +2277,7 @@ function MoreTab({
           />
         </label>
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Cache limit (GB)</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Cache limit (GB, default 5)</label>
         <input
           className="profileTextInput"
           type="number"

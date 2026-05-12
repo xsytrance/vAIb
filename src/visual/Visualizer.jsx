@@ -8,6 +8,11 @@ import { useEffect, useRef, useState } from 'react'
 // ============================================================
 
 const MODES = ['BARS', 'WAVE', 'RADIAL', 'SCOPE', 'TUNNEL', 'CONSTELLATION']
+const QUALITY_PRESETS = {
+  HIGH: { fftSize: 1024, dprMax: 2, barCount: 64, radialCount: 96, tunnelRings: 20, starCount: 40 },
+  BALANCED: { fftSize: 768, dprMax: 1.5, barCount: 52, radialCount: 72, tunnelRings: 15, starCount: 28 },
+  BATTERY: { fftSize: 512, dprMax: 1.25, barCount: 40, radialCount: 52, tunnelRings: 11, starCount: 18 },
+}
 
 function ampColor(val) {
   const r = Math.round(180 - val * 180)
@@ -16,8 +21,7 @@ function ampColor(val) {
   return [r, g, b]
 }
 
-function drawBars(ctx, w, h, freqData) {
-  const count = 64
+function drawBars(ctx, w, h, freqData, count = 64) {
   const gap = 2
   const barW = (w - gap * (count - 1)) / count
   const peaks = drawBars._peaks || (drawBars._peaks = new Float32Array(count))
@@ -87,10 +91,9 @@ function drawWave(ctx, w, h, timeData) {
   ctx.shadowBlur = 0
 }
 
-function drawRadial(ctx, w, h, freqData) {
+function drawRadial(ctx, w, h, freqData, count = 96) {
   const cx = w / 2; const cy = h / 2
   const radius = Math.min(w, h) * 0.26
-  const count = 96
 
   for (let i = 0; i < count; i++) {
     const dataI = Math.floor((i / count) * freqData.length * 0.8)
@@ -147,17 +150,16 @@ function drawScope(ctx, w, h, timeData) {
   ctx.shadowBlur = 0
 }
 
-function drawTunnel(ctx, w, h, freqData, ts) {
+function drawTunnel(ctx, w, h, freqData, ts, rings = 20, motionScale = 1) {
   const cx = w / 2
   const cy = h / 2
-  const rings = 20
   const low = (freqData[4] + freqData[8] + freqData[16]) / (3 * 255)
   const mid = (freqData[48] + freqData[64] + freqData[96]) / (3 * 255)
   const pulse = 1 + low * 0.35
 
   for (let i = 0; i < rings; i++) {
     const p = i / (rings - 1)
-    const depth = (p + (ts * 0.00022 * (0.5 + low))) % 1
+    const depth = (p + (ts * 0.00022 * (0.5 + low) * motionScale)) % 1
     const radius = (12 + depth * Math.min(w, h) * 0.55) * pulse
     const alpha = (1 - depth) * (0.12 + mid * 0.35)
     const hue = 170 + depth * 90
@@ -173,9 +175,9 @@ function drawTunnel(ctx, w, h, freqData, ts) {
   ctx.shadowBlur = 0
 }
 
-function drawConstellation(ctx, w, h, freqData, starsRef) {
-  if (!starsRef.current) {
-    starsRef.current = Array.from({ length: 40 }, (_, i) => ({
+function drawConstellation(ctx, w, h, freqData, starsRef, starCount = 40, motionScale = 1) {
+  if (!starsRef.current || starsRef.current.length !== starCount) {
+    starsRef.current = Array.from({ length: starCount }, (_, i) => ({
       x: ((i * 97) % 1000) / 1000,
       y: ((i * 173) % 1000) / 1000,
       phase: ((i * 131) % 360) * (Math.PI / 180),
@@ -213,10 +215,10 @@ function drawConstellation(ctx, w, h, freqData, starsRef) {
   }
 
   stars.forEach((s, i) => {
-    const drift = Math.sin(s.phase + i * 0.13) * 0.002
+    const drift = Math.sin(s.phase + i * 0.13) * 0.002 * motionScale
     s.x = (s.x + drift + 1) % 1
     s.y = (s.y + drift * 0.45 + 1) % 1
-    s.phase += 0.01 + energy * 0.03
+    s.phase += (0.01 + energy * 0.03) * motionScale
     const x = s.x * w
     const y = s.y * h
     const twinkle = 0.5 + Math.sin(s.phase) * 0.5
@@ -244,6 +246,8 @@ export default function Visualizer({ analyser, compact = false }) {
   const [mode, setMode] = useState(0)
   const [sensitivity, setSensitivity] = useState(1)
   const [autoRotate, setAutoRotate] = useState(false)
+  const [quality, setQuality] = useState('BALANCED')
+  const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
     drawBars._peaks = null
@@ -263,14 +267,28 @@ export default function Visualizer({ analyser, compact = false }) {
   }, [autoRotate])
 
   useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (!mq) return
+    const apply = () => setReduceMotion(mq.matches)
+    apply()
+    mq.addEventListener?.('change', apply)
+    return () => mq.removeEventListener?.('change', apply)
+  }, [])
+
+  useEffect(() => {
+    if (reduceMotion) setAutoRotate(false)
+  }, [reduceMotion])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !analyser) return
 
-    analyser.fftSize = 1024
+    const preset = QUALITY_PRESETS[quality] || QUALITY_PRESETS.BALANCED
+    analyser.fftSize = preset.fftSize
     const freqData = new Uint8Array(analyser.frequencyBinCount)
     const timeData = new Uint8Array(analyser.fftSize)
 
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, preset.dprMax)
     const resize = () => {
       canvas.width = canvas.offsetWidth * dpr
       canvas.height = canvas.offsetHeight * dpr
@@ -293,18 +311,19 @@ export default function Visualizer({ analyser, compact = false }) {
 
       const amp = Math.max(0.65, Math.min(1.85, sensitivityRef.current + touchBoostRef.current))
       for (let i = 0; i < freqData.length; i++) freqData[i] = Math.min(255, Math.round(freqData[i] * amp))
+      const motionScale = reduceMotion ? 0.35 : 1
 
       const m = modeRef.current
-      if (m === 0) drawBars(ctx, w, h, freqData)
+      if (m === 0) drawBars(ctx, w, h, freqData, preset.barCount)
       else if (m === 1) drawWave(ctx, w, h, timeData)
-      else if (m === 2) drawRadial(ctx, w, h, freqData)
+      else if (m === 2) drawRadial(ctx, w, h, freqData, preset.radialCount)
       else if (m === 3) drawScope(ctx, w, h, timeData)
-      else if (m === 4) drawTunnel(ctx, w, h, freqData, performance.now())
-      else drawConstellation(ctx, w, h, freqData, starsRef)
+      else if (m === 4) drawTunnel(ctx, w, h, freqData, performance.now(), preset.tunnelRings, motionScale)
+      else drawConstellation(ctx, w, h, freqData, starsRef, preset.starCount, motionScale)
 
       const ripple = rippleRef.current
       const age = performance.now() - ripple.t
-      if (age < 520) {
+      if (!reduceMotion && age < 520) {
         const p = age / 520
         const radius = 16 + p * 62
         const alpha = (1 - p) * 0.34
@@ -321,7 +340,7 @@ export default function Visualizer({ analyser, compact = false }) {
 
     animRef.current = requestAnimationFrame(draw)
     return () => { cancelAnimationFrame(animRef.current); ro.disconnect() }
-  }, [analyser])
+  }, [analyser, quality, reduceMotion])
 
   const cycleMode = (delta) => {
     setMode((prev) => (prev + delta + MODES.length) % MODES.length)
@@ -395,9 +414,14 @@ export default function Visualizer({ analyser, compact = false }) {
             </button>
           ))}
           <span className="vizSensitivity">SENS {Math.round(sensitivity * 100)}%</span>
+          <button type="button" className={`vizModeBtn ${quality === 'HIGH' ? 'active' : ''}`} onClick={() => setQuality('HIGH')}>Q:H</button>
+          <button type="button" className={`vizModeBtn ${quality === 'BALANCED' ? 'active' : ''}`} onClick={() => setQuality('BALANCED')}>Q:B</button>
+          <button type="button" className={`vizModeBtn ${quality === 'BATTERY' ? 'active' : ''}`} onClick={() => setQuality('BATTERY')}>Q:P</button>
+          <button type="button" className={`vizModeBtn ${reduceMotion ? 'active' : ''}`} onClick={() => setReduceMotion((v) => !v)}>RM</button>
           <button
             type="button"
             className={`vizModeBtn ${autoRotate ? 'active' : ''}`}
+            disabled={reduceMotion}
             onClick={() => setAutoRotate((v) => !v)}
           >
             AUTO

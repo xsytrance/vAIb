@@ -11,5 +11,9 @@ public class MainActivity extends BridgeActivity {
     // Allow audio autoplay without requiring a user gesture
     WebView webView = getBridge().getWebView();
     webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+    
+    // Check for OTA updates on launch
+    Updater updater = new Updater(this);
+    updater.checkForUpdates();
   }
 }

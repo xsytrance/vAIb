@@ -6,7 +6,7 @@ export default defineConfig({
   // In production/Android builds, VITE_API_BASE points directly to the API server.
   // In dev, the Vite proxy handles /api/backend/* → localhost:4014.
   define: {
-    __API_BASE__: JSON.stringify(process.env.VITE_API_BASE || ''),
+    __API_BASE__: JSON.stringify(process.env.VITE_API_BASE || 'http://127.0.0.1:4014'),
   },
   server: {
     host: '0.0.0.0',

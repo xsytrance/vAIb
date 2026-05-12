@@ -2,14 +2,14 @@
   "android": {
     "stable": {
       "latest": {
-        "versionName": "1.1",
-        "versionCode": 2,
+        "versionName": "1.2",
+        "versionCode": 3,
         "minVersionCode": 1,
-        "mandatory": false,
-        "notes": "Tyler6 profile + art gallery ingestion + auto update check UI",
-        "apkUrl": "https://prime.tail5a1fa3.ts.net:11370/app-debug.apk",
-        "sha256": "e037c711ce55077998b05b8a4186c02448cdb29f706f32ec06f71e4a8f0f20d7",
-        "publishedAt": "2026-05-11T15:42:20Z"
+        "mandatory": true,
+        "notes": "Shimmer + star notes + beat-reactive UI + OTA auto-update + Tyler6 profile",
+        "apkUrl": "http://100.110.224.126:8080/vaibx/app-debug.apk",
+        "sha256": "4dbee2f604df8560bf66d2a9071c68ffcddb2724d1c6e6aaf1128714f1bb82fb",
+        "publishedAt": "2026-05-12T07:59:42.964701Z"
       }
     },
     "beta": {

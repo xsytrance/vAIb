@@ -6,9 +6,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/xsyprime/projects/vaiB-x
+ExecStartPre=/home/xsyprime/projects/vaiB-x/scripts/vaib-prestart.sh
 ExecStart=/usr/bin/env node server/api.mjs
 Restart=always
-RestartSec=3
+RestartSec=5
 Environment=NODE_ENV=production
 
 [Install]

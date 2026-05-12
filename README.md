@@ -51,6 +51,17 @@ npm run dev
 
 UI → `http://localhost:4013`
 
+## Android APK anti-regression rule (critical)
+
+When building APKs, never ship with localhost API base.
+
+- Required API base for PRIME-hosted backend: `http://100.110.224.126:4014`
+- Use: `npm run build:android`
+- Verify compiled assets include `100.110.224.126:4014`
+- Verify compiled assets do **not** include `127.0.0.1:4014` or `localhost:4014`
+
+See `docs/android-build.md` ("Release Gate") for the mandatory pre-release checklist.
+
 ## Agent discovery
 
 vAIb auto-discovers agents from two locations:

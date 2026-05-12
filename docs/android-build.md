@@ -4,6 +4,10 @@
 
 **THE MOST COMMON BUG:** When the Android app loads from `file:///android_asset/public/`, relative fetch paths like `/api/backend` resolve to `file:///api/backend` — which is a 404.
 
+**NEVER SHIP AN APK WITH `127.0.0.1` OR `localhost` AS API BASE.**
+
+As of commit `e2104d9`, `vite.config.js` defaults `__API_BASE__` to `http://100.110.224.126:4014` specifically to prevent Android offline regressions.
+
 ### The Fix
 
 The `__API_BASE__` constant must be set to an **absolute URL** at build time:
@@ -54,7 +58,25 @@ grep '100.110.224.126:4014' dist/assets/index-*.js
 # Check it made it to Android assets
 grep '100.110.224.126:4014' android/app/src/main/assets/public/assets/index-*.js
 # Should also return at least 1 match
+
+# Guardrail: must return ZERO matches
+grep -E '127\.0\.0\.1:4014|localhost:4014' dist/assets/*.js android/app/src/main/assets/public/assets/*.js
+# If anything matches here, STOP and rebuild with correct VITE_API_BASE.
 ```
+
+## Release Gate (mandatory)
+
+Before sending any APK:
+
+1. Build with Android API target (preferred):
+   - `npm run build:android`
+2. Verify assets contain `100.110.224.126:4014`.
+3. Verify assets do **not** contain `127.0.0.1:4014` or `localhost:4014`.
+4. Rebuild APK:
+   - `cd android && ./gradlew clean assembleDebug`
+5. Provide checksum (`sha256sum`) with APK delivery.
+
+Do not skip this gate, even for "quick" rebuilds.
 
 ## Full Android Build Workflow
 

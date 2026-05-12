@@ -360,6 +360,36 @@ input { font: inherit; }
 }
 .textBtn:hover { opacity: 1; }
 
+.cardHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filterChipRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -2px 0 2px;
+}
+
+.filterChip {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(124, 160, 255, 0.25);
+  color: rgba(210, 230, 255, 0.78);
+  background: rgba(16, 30, 50, 0.55);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.filterChip.active {
+  border-color: rgba(0,255,220,0.55);
+  color: rgba(0,255,220,0.95);
+  background: rgba(0,255,220,0.12);
+}
+
 /* ============================================================
    Status card
    ============================================================ */

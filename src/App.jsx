@@ -809,7 +809,29 @@ function TopEqualizer({ analyser }) {
 // Tab: Cockpit
 // ============================================================
 function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onReadAll, analyser }) {
+  const [signalsCollapsed, setSignalsCollapsed] = useState(false)
+  const [timelineCollapsed, setTimelineCollapsed] = useState(false)
+  const [eventFilter, setEventFilter] = useState('all')
+
   const unreadNotifications = notifications.filter(n => !n.read)
+
+  const classify = useCallback((text = '') => {
+    const t = String(text || '').toLowerCase()
+    if (/(track|dj|song|radio|play|queue|broadcast|music|audio)/.test(t)) return 'music'
+    if (/(agent|profile|avatar|station|resonance|tune)/.test(t)) return 'agent'
+    return 'system'
+  }, [])
+
+  const filteredSignals = useMemo(() => {
+    if (eventFilter === 'all') return unreadNotifications
+    return unreadNotifications.filter((n) => classify(`${n?.title || ''} ${n?.message || ''}`) === eventFilter)
+  }, [unreadNotifications, eventFilter, classify])
+
+  const filteredEvents = useMemo(() => {
+    if (eventFilter === 'all') return events
+    return events.filter((e) => classify(`${e?.summary || ''}`) === eventFilter)
+  }, [events, eventFilter, classify])
+
   return (
     <div className="tabScreen">
       <div className="tabSectionHeader">
@@ -860,6 +882,18 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
       <div className="tabSectionHeader">
         <span className="cardLabel">Operations</span>
       </div>
+      <div className="filterChipRow" role="group" aria-label="Event filters">
+        {['all', 'system', 'music', 'agent'].map((flt) => (
+          <button
+            key={flt}
+            type="button"
+            className={`filterChip ${eventFilter === flt ? 'active' : ''}`}
+            onClick={() => setEventFilter(flt)}
+          >
+            {flt}
+          </button>
+        ))}
+      </div>
       <div className="card statusCard">
         <div className="statusRow">
           <span className="statusLabel">Backend API</span>
@@ -875,16 +909,24 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
         <div className="card">
           <div className="cardHeaderRow">
             <span className="cardLabel">Signals</span>
-            <button type="button" className="textBtn" onClick={onReadAll}>Clear</button>
+            <div className="cardHeaderActions">
+              <button type="button" className="textBtn" onClick={() => setSignalsCollapsed((v) => !v)}>
+                {signalsCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+              <button type="button" className="textBtn" onClick={onReadAll}>Clear</button>
+            </div>
           </div>
-          <ul className="signalList">
-            {unreadNotifications.slice(0, 4).map(n => (
-              <li key={n.id} className="signalItem">
-                <strong>{n.title}</strong>
-                <p>{n.message}</p>
-              </li>
-            ))}
-          </ul>
+          {!signalsCollapsed && (
+            <ul className="signalList">
+              {filteredSignals.slice(0, 4).map(n => (
+                <li key={n.id} className="signalItem">
+                  <strong>{n.title}</strong>
+                  <p>{n.message}</p>
+                </li>
+              ))}
+              {!filteredSignals.length && <li className="signalItem"><p>No signals for this filter.</p></li>}
+            </ul>
+          )}
         </div>
       )}
 
@@ -892,15 +934,23 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
         <span className="cardLabel">Timeline</span>
       </div>
       <div className="card">
-        <span className="cardLabel">Recent events</span>
-        <ul className="eventFeed">
-          {events.slice(0, 6).map(e => (
-            <li key={e.id} className="eventItem">
-              <span className="eventSummary">{e.summary}</span>
-              <span className="eventTime">{new Date(e.createdAt).toLocaleTimeString()}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Recent events</span>
+          <button type="button" className="textBtn" onClick={() => setTimelineCollapsed((v) => !v)}>
+            {timelineCollapsed ? 'Expand' : 'Collapse'}
+          </button>
+        </div>
+        {!timelineCollapsed && (
+          <ul className="eventFeed">
+            {filteredEvents.slice(0, 6).map(e => (
+              <li key={e.id} className="eventItem">
+                <span className="eventSummary">{e.summary}</span>
+                <span className="eventTime">{new Date(e.createdAt).toLocaleTimeString()}</span>
+              </li>
+            ))}
+            {!filteredEvents.length && <li className="eventItem"><span className="eventSummary">No events for this filter.</span></li>}
+          </ul>
+        )}
       </div>
     </div>
   )

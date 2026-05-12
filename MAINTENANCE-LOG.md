@@ -1,5 +1,12 @@
 # vAIb-X Maintenance Log
 
+## 2026-05-12T16:40:00Z — Runtime Noise Isolation + Federation Heartbeat
+
+- Added runtime ignore coverage for `/logs/`, `/data/music-cache/`, and local scratch PNG renders.
+- Stopped tracking noisy runtime files: `data/state.json`, `data/telemetry-rollups.json`, `data/telemetry.ndjson`.
+- Wired `scripts/vaib-federation-watch.sh` into `scripts/vaib-ensure-up.sh` as a best-effort heartbeat so each probe cycle also records cross-node visibility.
+- Marked probe/watch scripts executable.
+
 ## 2026-05-12T08:30:00Z — Full Relocation, Shimmer UI, OTA Updater
 
 **Relocation**: Moved project from `~/.openclaw/workspace/vAIb-X` to `~/projects/vaiB-x`.

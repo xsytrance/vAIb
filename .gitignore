@@ -22,8 +22,14 @@ pnpm-debug.log*
 
 # runtime data
 /data/art-gallery/
+/data/music-cache/
 /data/state.json
 /data/telemetry-rollups.json
 /data/telemetry.ndjson
+/logs/
+
+# local screenshots / scratch renders
 vaibx_confirm.png
 vaibx_confirm2.png
+ultron-blank.png
+ultron-fixed*.png

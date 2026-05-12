@@ -27,3 +27,8 @@ if ! port_listening 4013 || ! http_reachable "http://127.0.0.1:4013/"; then
   log "UI unhealthy on :4013, restarting vaib-ui.service"
   systemctl --user restart vaib-ui.service
 fi
+
+# Federation visibility heartbeat (best effort, never fail the health guard)
+if [[ -x "/home/xsyprime/projects/vaiB-x/scripts/vaib-federation-watch.sh" ]]; then
+  /home/xsyprime/projects/vaiB-x/scripts/vaib-federation-watch.sh || log "federation watch probe failed"
+fi

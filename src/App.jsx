@@ -808,10 +808,13 @@ function TopEqualizer({ analyser }) {
 // ============================================================
 // Tab: Cockpit
 // ============================================================
-function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onReadAll }) {
+function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onReadAll, analyser }) {
   const unreadNotifications = notifications.filter(n => !n.read)
   return (
     <div className="tabScreen">
+      <div className="tabSectionHeader">
+        <span className="cardLabel">Primary feed</span>
+      </div>
 
       {/* Agent hero — front and center */}
       {tunedAgent && (
@@ -847,7 +850,16 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
         </div>
       )}
 
-      {/* Status */}
+      <div className="card heroVizCard vizCard">
+        <div className="cardHeaderRow">
+          <span className="cardLabel">Signal visualizer</span>
+        </div>
+        <Visualizer analyser={analyser} compact={false} />
+      </div>
+
+      <div className="tabSectionHeader">
+        <span className="cardLabel">Operations</span>
+      </div>
       <div className="card statusCard">
         <div className="statusRow">
           <span className="statusLabel">Backend API</span>
@@ -859,7 +871,6 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
         </div>
       </div>
 
-      {/* Signals */}
       {unreadNotifications.length > 0 && (
         <div className="card">
           <div className="cardHeaderRow">
@@ -877,7 +888,9 @@ function CockpitTab({ tunedAgent, track, events, notifications, apiHealthy, onRe
         </div>
       )}
 
-      {/* Events */}
+      <div className="tabSectionHeader">
+        <span className="cardLabel">Timeline</span>
+      </div>
       <div className="card">
         <span className="cardLabel">Recent events</span>
         <ul className="eventFeed">
@@ -3981,6 +3994,7 @@ function AppContent() {
               notifications={notifications}
               apiHealthy={apiHealthy}
               onReadAll={() => act('notifications.readAll')}
+              analyser={analyser}
             />
           )}
           {tab === 'stations' && (

@@ -17,6 +17,27 @@ const API = (typeof __API_BASE__ !== 'undefined' && __API_BASE__)
   ? __API_BASE__
   : '/api/backend'
 
+function resolveApiOrigin(base) {
+  try {
+    const u = new URL(base, window?.location?.origin || 'http://localhost')
+    return `${u.protocol}//${u.host}`
+  } catch {
+    return ''
+  }
+}
+
+function resolveTrackAudioUrl(url) {
+  const raw = String(url || '').trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:') || raw.startsWith('data:')) return raw
+  if (raw.startsWith('/')) {
+    const origin = resolveApiOrigin(API)
+    if (origin) return `${origin}${raw}`
+    return `${API.replace(/\/$/, '')}${raw}`
+  }
+  return `${API.replace(/\/$/, '')}/${raw.replace(/^\//, '')}`
+}
+
 async function loadState() {
   const r = await fetch(`${API}/state`)
   if (!r.ok) throw new Error('Failed to load state')
@@ -557,7 +578,7 @@ function normalizeTrackForCollection(t) {
     title: t.title || 'Unknown title',
     artist: t.artist || 'Unknown artist',
     duration: Number(t.duration) || 0,
-    audioUrl: t.audioUrl || '',
+    audioUrl: resolveTrackAudioUrl(t.audioUrl || ''),
     tags: Array.isArray(t.tags) ? t.tags : [],
     source: t.source || 'unknown',
   }
@@ -2797,7 +2818,8 @@ function AppContent() {
   useEffect(() => {
     const el = audioRef.current
     if (!el || !currentTrack) return
-    el.src = currentTrack.audioUrl
+    const resolvedUrl = resolveTrackAudioUrl(currentTrack.audioUrl)
+    el.src = resolvedUrl
     if (!musicAutoStartedRef.current && musicSettings?.alwaysPlay !== false) {
       musicAutoStartedRef.current = true
       setPlaying(true)
@@ -2810,11 +2832,12 @@ function AppContent() {
       el.play().then(() => {
         setPlaying(true)
         autoPlayRef.current = false
-      }).catch(() => {
-        // On desktop browsers autoplay may be blocked; keep playing=true so next gesture resumes.
+        setMusicError('')
+      }).catch((err) => {
+        setMusicError(`Playback blocked: ${err?.message || 'unknown error'}`)
       })
     }
-  }, [trackIndex, currentTrack, musicSettings?.alwaysPlay])
+  }, [trackIndex, currentTrack, musicSettings?.alwaysPlay, playing])
 
   useEffect(() => {
     const el = audioRef.current
@@ -2849,13 +2872,21 @@ function AppContent() {
       })
     }
     const onEnd = () => { nextTrack('track_ended') }
+    const onError = () => {
+      const err = el?.error
+      const code = err?.code ? ` (code ${err.code})` : ''
+      setMusicError(`Track failed to load${code}`)
+      nextTrack('track_error_skip')
+    }
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('loadedmetadata', onMeta)
     el.addEventListener('ended', onEnd)
+    el.addEventListener('error', onError)
     return () => {
       el.removeEventListener('timeupdate', onTime)
       el.removeEventListener('loadedmetadata', onMeta)
       el.removeEventListener('ended', onEnd)
+      el.removeEventListener('error', onError)
     }
   }, [agentTracks, tunedAgent?.id, currentTrack?.id, volume, muted, tab])
 

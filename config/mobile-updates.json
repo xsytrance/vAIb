@@ -2,14 +2,14 @@
   "android": {
     "stable": {
       "latest": {
-        "versionName": "1.3",
-        "versionCode": 4,
+        "versionName": "1.4",
+        "versionCode": 5,
         "minVersionCode": 1,
         "mandatory": true,
-        "notes": "Music cache pipeline + runtime settings polish + stronger OTA APK serving.",
+        "notes": "Updated app icon/branding and refreshed launcher assets.",
         "apkUrl": "http://100.110.224.126:4014/mobile/apk/debug",
-        "sha256": "e4b9a5f32c643d42148c0d534b3af0b503259d76215b4c4af7731c7cab57599d",
-        "publishedAt": "2026-05-12T15:34:22Z"
+        "sha256": "14ae0eb46d2bc83e7f74948b617fe29391fe67524dc25ff26667d5d944fca5e3",
+        "publishedAt": "2026-05-12T20:41:01Z"
       }
     },
     "beta": {

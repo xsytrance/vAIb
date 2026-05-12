@@ -122,6 +122,7 @@ function galleryPublicUrl(agentId, relPath = '') {
 }
 
 const mobileUpdatesConfigPath = path.join(process.cwd(), 'config', 'mobile-updates.json')
+const mobileDebugApkPath = path.join(process.cwd(), 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk')
 
 function defaultMobileUpdatesConfig() {
   return {
@@ -2069,6 +2070,27 @@ const server = http.createServer(async (req, res) => {
       const config = normalizeManifestLoaded(rawCfg)
       const payload = buildUpdateCheckResponse({ config, url })
       sendJson(res, payload.ok ? 200 : 404, payload)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/mobile/apk/debug') {
+      try {
+        const stat = await fs.stat(mobileDebugApkPath)
+        if (!stat.isFile()) {
+          sendJson(res, 404, { error: 'APK not found' })
+          return
+        }
+        const data = await fs.readFile(mobileDebugApkPath)
+        res.writeHead(200, {
+          'Content-Type': 'application/vnd.android.package-archive',
+          'Content-Length': String(data.byteLength),
+          'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Origin': '*',
+        })
+        res.end(data)
+      } catch {
+        sendJson(res, 404, { error: 'APK not found' })
+      }
       return
     }
 

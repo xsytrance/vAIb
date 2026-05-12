@@ -1948,3 +1948,29 @@ input { font: inherit; }
 .tune-in-awakening .trackAura {
   animation: orbPulse 8s ease-in-out infinite;
 }
+
+/* ============================================================
+   Settings page polish
+   ============================================================ */
+.settingsCard {
+  border-color: rgba(124, 160, 255, 0.18);
+}
+
+.settingsCard .profileFieldLabel {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+
+.settingsCard .profileTextInput,
+.settingsCard .profileTextarea,
+.settingsCard select {
+  background: rgba(6, 14, 26, 0.85);
+  border: 1px solid rgba(124,160,255,0.24);
+  border-radius: 10px;
+}
+
+.settingsCard .profileBtn {
+  border-radius: 10px;
+}

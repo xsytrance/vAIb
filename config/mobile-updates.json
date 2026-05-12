@@ -2,14 +2,14 @@
   "android": {
     "stable": {
       "latest": {
-        "versionName": "1.2",
-        "versionCode": 3,
+        "versionName": "1.3",
+        "versionCode": 4,
         "minVersionCode": 1,
         "mandatory": true,
-        "notes": "Shimmer + star notes + beat-reactive UI + OTA auto-update + Tyler6 profile",
-        "apkUrl": "http://100.110.224.126:8080/vaibx/app-debug.apk",
-        "sha256": "4dbee2f604df8560bf66d2a9071c68ffcddb2724d1c6e6aaf1128714f1bb82fb",
-        "publishedAt": "2026-05-12T07:59:42.964701Z"
+        "notes": "Music cache pipeline + runtime settings polish + stronger OTA APK serving.",
+        "apkUrl": "http://100.110.224.126:4014/mobile/apk/debug",
+        "sha256": "fe23ebbd6046c54e64da657f2b0cadc496dd1bdc407cb779247b208e955d03d2",
+        "publishedAt": "2026-05-12T15:25:29Z"
       }
     },
     "beta": {

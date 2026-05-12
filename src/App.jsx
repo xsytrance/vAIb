@@ -1956,9 +1956,9 @@ function MoreTab({
   if (!state) return null
   return (
     <div className="tabScreen">
-      <div className="card">
-        <span className="cardLabel">Signal preferences</span>
-        <p className="cardMuted">Choose which agent signals reach you.</p>
+      <div className="card settingsCard">
+        <span className="cardLabel">Notifications</span>
+        <p className="cardMuted">Choose which fleet signals should surface here.</p>
         <div className="prefsList">
           {Object.entries(state.preferences.notify).map(([key, val]) => (
             <label key={key} className="prefItem">
@@ -1970,8 +1970,8 @@ function MoreTab({
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <span className="cardLabel">Identity & Generation</span>
+      <div className="card settingsCard" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Identity Generation</span>
 
         <label className="profileFieldLabel">Provider</label>
         <select
@@ -2051,9 +2051,9 @@ function MoreTab({
         {imageError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{imageError}</p> : null}
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <span className="cardLabel">Mobile Updates (APK)</span>
-        <p className="cardMuted">Checks backend manifest and opens APK URL when a newer build is available.</p>
+      <div className="card settingsCard" style={{ marginTop: 12 }}>
+        <span className="cardLabel">Mobile Update</span>
+        <p className="cardMuted">Check update manifest, inspect version delta, then install the latest APK.</p>
 
         <label className="profileFieldLabel">Channel</label>
         <select
@@ -2066,14 +2066,14 @@ function MoreTab({
         </select>
 
         <div className="profileActionsRow">
-          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onCheckUpdate}>Check Update</button>
+          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onCheckUpdate}>Check for update</button>
           <button
             type="button"
             className="profileBtn"
             disabled={updateBusy || !updateInfo?.latest?.apkUrl || !updateInfo?.update?.available}
             onClick={onOpenUpdate}
           >
-            Open APK
+            Install APK
           </button>
         </div>
 
@@ -2095,7 +2095,7 @@ function MoreTab({
           </div>
         ) : null}
 
-        <label className="profileFieldLabel" style={{ marginTop: 12 }}>Admin: Latest versionName</label>
+        <label className="profileFieldLabel" style={{ marginTop: 12 }}>Latest version name</label>
         <input
           className="profileTextInput"
           value={updateAdminForm?.versionName || ''}
@@ -2103,7 +2103,7 @@ function MoreTab({
           placeholder="1.0"
         />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: Latest versionCode</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Latest version code</label>
         <input
           className="profileTextInput"
           type="number"
@@ -2113,7 +2113,7 @@ function MoreTab({
           placeholder="1"
         />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: minVersionCode</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Minimum supported version code</label>
         <input
           className="profileTextInput"
           type="number"
@@ -2123,7 +2123,7 @@ function MoreTab({
           placeholder="1"
         />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: APK URL</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>APK URL</label>
         <input
           className="profileTextInput"
           value={updateAdminForm?.apkUrl || ''}
@@ -2131,7 +2131,7 @@ function MoreTab({
           placeholder="https://.../app-debug.apk"
         />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: SHA256</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>SHA256</label>
         <input
           className="profileTextInput"
           value={updateAdminForm?.sha256 || ''}
@@ -2139,7 +2139,7 @@ function MoreTab({
           placeholder="64-char hex"
         />
 
-        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Admin: Notes</label>
+        <label className="profileFieldLabel" style={{ marginTop: 10 }}>Release notes</label>
         <textarea
           className="profileTextInput profileTextarea"
           value={updateAdminForm?.notes || ''}
@@ -2148,7 +2148,7 @@ function MoreTab({
         />
 
         <label className="prefItem" style={{ marginTop: 8 }}>
-          <span>Admin: mandatory</span>
+          <span>Mandatory update</span>
           <input
             type="checkbox"
             checked={Boolean(updateAdminForm?.mandatory)}
@@ -2157,14 +2157,14 @@ function MoreTab({
         </label>
 
         <div className="profileActionsRow">
-          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onSaveUpdateAdmin}>Save Update Lane</button>
+          <button type="button" className="profileBtn" disabled={updateBusy} onClick={onSaveUpdateAdmin}>Publish update lane</button>
         </div>
 
         {updateMessage ? <p className="cardMuted" style={{ color: '#8effcb', marginTop: 8 }}>{updateMessage}</p> : null}
         {updateError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{updateError}</p> : null}
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card settingsCard" style={{ marginTop: 12 }}>
         <span className="cardLabel">Visual Motion</span>
         <p className="cardMuted">Set interface animation intensity. Dynamic auto-adapts to context and performance.</p>
         <select
@@ -2180,7 +2180,7 @@ function MoreTab({
         </select>
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card settingsCard" style={{ marginTop: 12 }}>
         <span className="cardLabel">Music Runtime</span>
         <p className="cardMuted">Cache music on device for faster launch and smoother playback.</p>
 
@@ -2219,7 +2219,7 @@ function MoreTab({
         {musicError ? <p className="cardMuted" style={{ color: '#ff9cba', marginTop: 8 }}>{musicError}</p> : null}
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card settingsCard" style={{ marginTop: 12 }}>
         {networkPanel}
       </div>
     </div>

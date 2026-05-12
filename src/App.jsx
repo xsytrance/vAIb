@@ -13,17 +13,32 @@ import { startAudioAtmosphere, stopAudioAtmosphere, updateAudioAtmosphere } from
 // ============================================================
 // API
 // ============================================================
+const PRIME_HOST = '100.110.224.126'
 const API = (typeof __API_BASE__ !== 'undefined' && __API_BASE__)
   ? __API_BASE__
   : '/api/backend'
 
 function resolveApiOrigin(base) {
   try {
-    const u = new URL(base, window?.location?.origin || 'http://localhost')
+    const u = new URL(base, window?.location?.origin || `http://${PRIME_HOST}`)
     return `${u.protocol}//${u.host}`
   } catch {
     return ''
   }
+}
+
+function resolveDefaultRelayUrl() {
+  try {
+    const apiOrigin = resolveApiOrigin(API)
+    if (apiOrigin) {
+      const u = new URL(apiOrigin)
+      const proto = u.protocol === 'https:' ? 'wss:' : 'ws:'
+      return `${proto}//${u.hostname}:4014/signal`
+    }
+  } catch {
+    // fallback below
+  }
+  return `ws://${PRIME_HOST}:4014/signal`
 }
 
 function resolveTrackAudioUrl(url) {
@@ -2103,7 +2118,7 @@ function MoreTab({
           className="profileTextInput"
           value={imageSettings?.local?.endpoint || ''}
           onChange={(e) => onImageSettingsChange({ local: { endpoint: e.target.value } })}
-          placeholder="http://127.0.0.1:8188"
+          placeholder="http://100.110.224.126:8188"
         />
 
         <label className="profileFieldLabel" style={{ marginTop: 10 }}>Local model</label>
@@ -2484,10 +2499,30 @@ function TabBar({ active, onChange }) {
 function NetworkPanel() {
   const { ri, isLeader, leaderId, nodes, myNode, connected, connectionState, connect, disconnect } = useAtmosphere()
   const [relayUrl, setRelayUrl] = useState(() => {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${proto}//${window.location.hostname}:4014/signal`
+    try {
+      const saved = localStorage.getItem('vaib-relay-url')
+      if (saved && /^wss?:\/\//i.test(saved)) return saved
+    } catch {
+      // ignore
+    }
+    return resolveDefaultRelayUrl()
   })
   const statusColor = connectionState === 'connected' ? '#8effcb' : connectionState === 'connecting' ? '#ffe57c' : '#ff9cba'
+
+  useEffect(() => {
+    try { localStorage.setItem('vaib-relay-url', relayUrl) } catch {}
+  }, [relayUrl])
+
+  function syncPrimeBeacon() {
+    const next = resolveDefaultRelayUrl()
+    setRelayUrl(next)
+    if (connected) {
+      disconnect()
+      setTimeout(() => connect(next), 120)
+      return
+    }
+    connect(next)
+  }
 
   return (
     <div>
@@ -2501,6 +2536,9 @@ function NetworkPanel() {
               {connectionState === 'connecting' ? '...' : 'Connect'}
             </button>
         }
+        <button type="button" className="ghostButton" onClick={syncPrimeBeacon} disabled={connectionState === 'connecting'}>
+          Sync Fleet Beacon
+        </button>
       </div>
       <div className="networkStatus" style={{ marginTop: 8 }}>
         <span style={{ color: statusColor, fontSize: '0.75rem' }}>● {connectionState}</span>

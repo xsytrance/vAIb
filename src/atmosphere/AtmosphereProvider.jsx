@@ -70,6 +70,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
   // --- Mutable system references (do not trigger re-renders) ---
   const systemsRef = useRef({});
   const isInitRef = useRef(false);
+  const listenersBoundRef = useRef(false);
 
   // --- One-time system initialisation ---
   useEffect(() => {
@@ -166,8 +167,11 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
 
     console.log('[TEMP] AtmosphereProvider.connect() — url=' + url);
 
-    // --- WebSocket opened (transport connected) ---
-    client.onConnect(() => {
+    if (!listenersBoundRef.current) {
+      listenersBoundRef.current = true;
+
+      // --- WebSocket opened (transport connected) ---
+      client.onConnect(() => {
       console.log('[TEMP] onConnect — WS open, setting connected=true');
       setConnected(true);
       setConnectionState('connected');
@@ -314,7 +318,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
     client.onDisconnect(() => {
       console.log('[TEMP] onDisconnect — going solo');
       setConnected(false);
-      setConnectionState('disconnected');
+      setConnectionState(client.getConnectionState() === 'connecting' ? 'connecting' : 'disconnected');
       leaderState.becomeSolo();
       setIsLeader(true);
       setLeaderId(null);
@@ -322,6 +326,7 @@ export function AtmosphereProvider({ children, nodeOptions = {} }) {
       setNodes([]);
       engine.computeRI(1); // solo
     });
+    }
 
     client.connect(url, myNode.id);
     setConnectionState('connecting');

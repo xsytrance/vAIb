@@ -24,6 +24,10 @@ export function createSignalClient() {
   let nodeId = null;
   /** @type {'disconnected' | 'connecting' | 'connected'} */
   let state = 'disconnected';
+  /** @type {boolean} */
+  let shouldReconnect = false;
+  /** @type {string | null} */
+  let lastUrl = null;
   /** @type {number} */
   let reconnectAttempt = 0;
   /** @type {ReturnType<setTimeout> | null} */
@@ -82,6 +86,7 @@ export function createSignalClient() {
 
   const doConnect = (url, id) => {
     nodeId = id;
+    lastUrl = url;
     state = 'connecting';
 
     try {
@@ -121,10 +126,15 @@ export function createSignalClient() {
 
     ws.onclose = () => {
       ws = null;
-      state = 'disconnected';
       clearTimers();
+      if (shouldReconnect) {
+        state = 'connecting';
+        notifyDisconnect();
+        scheduleReconnect(url);
+        return;
+      }
+      state = 'disconnected';
       notifyDisconnect();
-      scheduleReconnect(url);
     };
 
     ws.onerror = () => {
@@ -133,23 +143,28 @@ export function createSignalClient() {
   };
 
   const scheduleReconnect = (url) => {
+    if (!shouldReconnect) return;
     if (reconnectTimer) return;
+    state = 'connecting';
     const delay = RECONNECT_DELAYS[Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1)];
     reconnectAttempt += 1;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      doConnect(url, nodeId);
+      if (!shouldReconnect) return;
+      doConnect(url || lastUrl, nodeId);
     }, delay);
   };
 
   return {
     connect: (url, id) => {
       if (ws) return;
+      shouldReconnect = true;
       reconnectAttempt = 0;
       doConnect(url, id);
     },
 
     disconnect: () => {
+      shouldReconnect = false;
       clearTimers();
       if (ws) {
         try {

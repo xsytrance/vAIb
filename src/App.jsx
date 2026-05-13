@@ -2395,6 +2395,7 @@ function MiniPlayer({
   djQueueDepth = 0,
   djDispatchState = 'idle',
   djNowPlaying = '',
+  pausedByUser = false,
 }) {
   if (!tunedAgent) return null
   const pct = duration ? (progress / duration) * 100 : 0
@@ -2402,6 +2403,7 @@ function MiniPlayer({
   return (
     <div className="miniPlayer">
       {resumeBanner ? <div className="resumeChip">↺ {resumeBanner}</div> : null}
+      {pausedByUser ? <div className="resumeChip">⏸ paused by user</div> : null}
       <div className="rotationChipRow">
         <span className="rotationChip">mode: {rotationMode || 'balanced'}</span>
         <span className="rotationChip">anti-repeat: {Number(antiRepeatWindow) || 0}</span>
@@ -2512,6 +2514,16 @@ function NetworkPanel() {
     return resolveDefaultRelayUrl()
   })
   const statusColor = connectionState === 'connected' ? '#8effcb' : connectionState === 'connecting' ? '#ffe57c' : '#ff9cba'
+  const autoConnectArmedRef = useRef(false)
+
+  useEffect(() => {
+    if (connected || connectionState === 'connecting') return
+    const next = String(relayUrl || '').trim()
+    if (!/^wss?:\/\//i.test(next)) return
+    if (autoConnectArmedRef.current) return
+    autoConnectArmedRef.current = true
+    connect(next)
+  }, [relayUrl, connected, connectionState, connect])
 
   useEffect(() => {
     try { localStorage.setItem('vaib-relay-url', relayUrl) } catch {}
@@ -2672,11 +2684,14 @@ function AppContent() {
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [userPaused, setUserPaused] = useState(false)
   const audioRef = useRef(null)
   const analyserRef = useRef(null)
   const [analyser, setAnalyser] = useState(null)
-  const autoPlayRef = useRef(false)
   const musicAutoStartedRef = useRef(false)
+  const autoPlayRef = useRef(false)
+  const userPausedRef = useRef(false)
+
   const audioStartedRef = useRef(false)
   const resumeRef = useRef(loadPlaybackResume())
   const pendingSeekRef = useRef(0)
@@ -2922,6 +2937,8 @@ function AppContent() {
         autoPlayRef.current = false
         setMusicError('')
       }).catch((err) => {
+        setPlaying(false)
+        autoPlayRef.current = false
         setMusicError(`Playback blocked: ${err?.message || 'unknown error'}`)
       })
     }
@@ -2959,7 +2976,9 @@ function AppContent() {
         reason: 'track_loaded',
       })
     }
-    const onEnd = () => { nextTrack('track_ended') }
+    const onEnd = () => { setPlaying(false); nextTrack('track_ended') }
+    const onPause = () => { setPlaying(false) }
+    const onPlay = () => { setPlaying(true) }
     const onError = () => {
       const err = el?.error
       const code = err?.code ? ` (code ${err.code})` : ''
@@ -2969,11 +2988,15 @@ function AppContent() {
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('loadedmetadata', onMeta)
     el.addEventListener('ended', onEnd)
+    el.addEventListener('pause', onPause)
+    el.addEventListener('play', onPlay)
     el.addEventListener('error', onError)
     return () => {
       el.removeEventListener('timeupdate', onTime)
       el.removeEventListener('loadedmetadata', onMeta)
       el.removeEventListener('ended', onEnd)
+      el.removeEventListener('pause', onPause)
+      el.removeEventListener('play', onPlay)
       el.removeEventListener('error', onError)
     }
   }, [agentTracks, tunedAgent?.id, currentTrack?.id, volume, muted, tab])
@@ -2993,11 +3016,20 @@ function AppContent() {
       const el = audioRef.current
       if (!el) return
 
-      // Always-on: if healthy and we have content, keep radio alive.
-      if (musicSettings?.alwaysPlay !== false && apiHealthy && tunedAgent && currentTrack && !playing) {
+      // Always-on: if healthy and we have content, keep radio alive unless user explicitly paused.
+      if (
+        musicSettings?.alwaysPlay !== false
+        && !userPausedRef.current
+        && apiHealthy
+        && tunedAgent
+        && currentTrack
+        && (el.paused || el.ended || !playing)
+      ) {
         autoPlayRef.current = true
         setPlaying(true)
-        el.play().catch(() => {})
+        el.play().catch(() => {
+          setPlaying(false)
+        })
       }
 
       // Airtime slicing for ON AIR mode.
@@ -3064,6 +3096,8 @@ function AppContent() {
 
   // Player controls
   function tuneAndPlay(agent) {
+    userPausedRef.current = false
+    setUserPaused(false)
     autoPlayRef.current = true
     pendingSeekRef.current = 0
     setTunedAgent(agent)
@@ -3079,6 +3113,8 @@ function AppContent() {
     const el = audioRef.current; if (!el) return
     initAnalyser() // safe to call; no-ops if already initialized or gesture not yet given
     if (playing) {
+      userPausedRef.current = true
+      setUserPaused(true)
       el.pause()
       setPlaying(false)
       emitTelemetry('song.pause', {
@@ -3089,6 +3125,8 @@ function AppContent() {
         reason: 'user_toggle',
       })
     } else {
+      userPausedRef.current = false
+      setUserPaused(false)
       if (musicSettings?.wifiOnly && !isOnWifiConnection()) {
         setMusicError('Wi‑Fi only mode is enabled. Connect to Wi‑Fi to play music.')
         return
@@ -3209,6 +3247,8 @@ function AppContent() {
   }
 
   function nextTrack(reason = 'next_button') {
+    userPausedRef.current = false
+    setUserPaused(false)
     if (!agentTracks.length) return
     if (tunedAgent && currentTrack) {
       const el = audioRef.current
@@ -3288,6 +3328,8 @@ function AppContent() {
     })
   }
   function playTrack(i) {
+    userPausedRef.current = false
+    setUserPaused(false)
     initAnalyser()
     pendingSeekRef.current = 0
     if (tunedAgent && currentTrack) {
@@ -4328,6 +4370,7 @@ function AppContent() {
           djQueueDepth={djQueue.length}
           djDispatchState={djDispatchState}
           djNowPlaying={djNowPlaying}
+          pausedByUser={userPaused}
         />
 
         {/* Tab bar */}
